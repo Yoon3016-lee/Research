@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## 프로젝트 개요
 
-## Getting Started
+Next.js(App Router) 기반 설문조사 리서치 웹앱입니다. 현재 버전은 Supabase를 정식 데이터 계층으로 사용하도록 구성되어 있으며, 설문·문항·응답이 모두 Supabase 테이블에 저장됩니다.
 
-First, run the development server:
+## 로컬 개발
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+브라우저에서 [http://localhost:3000](http://localhost:3000)을 열어 UI를 확인하세요.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Supabase 연동
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+✅ **데이터베이스 스키마가 이미 생성되었습니다!**
 
-## Learn More
+현재 사용 중인 프로젝트: **ResearchDataBase** (`mvzyctaetrtgdbaroaou`)
 
-To learn more about Next.js, take a look at the following resources:
+생성된 테이블:
+- `users` - 사용자 인증 및 역할 관리
+- `surveys` - 설문조사 메타데이터
+- `survey_questions` - 설문 문항
+- `survey_responses` - 설문 응답 헤더
+- `survey_answers` - 문항별 답변
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+초기 시드 사용자 데이터도 삽입되었습니다:
+- `emp-001` / `pass1234` (직원)
+- `mgr-001` / `admin123` (관리자)
+- `mst-001` / `master123` (마스터)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 환경변수 설정
 
-## Deploy on Vercel
+`.env.local` 파일을 생성하고 다음 값을 입력하세요:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://mvzyctaetrtgdbaroaou.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12enljdGFldHJ0Z2RiYXJvYW91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyMTI3ODcsImV4cCI6MjA3OTc4ODc4N30.3TVGzoiUu8r5oExVoqo_u3pZJJDLUraY32MpKTLQiJc
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# 서비스 롤 키 (서버 전용)
+# Supabase 대시보드 > Settings > API > service_role key에서 확인
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+```
+
+⚠️ **중요**: `SUPABASE_SERVICE_ROLE_KEY`는 Supabase 대시보드에서 직접 가져와야 합니다. Vercel 배포 시에도 동일한 키를 환경변수로 등록하세요. 이 키는 **서버 전용**이므로 클라이언트에 노출하지 마세요.
+
+## 주요 디렉터리
+
+- `app/page.tsx` : 역할 기반 UI + 설문 CRUD + 응답 제출 클라이언트 로직
+- `app/api/surveys/route.ts` : 설문 조회/생성 API (GET/POST)
+- `app/api/responses/route.ts` : 응답 저장 API (POST)
+- `app/api/auth/login/route.ts` : 로그인 API (POST)
+- `app/api/auth/signup/route.ts` : 회원가입 API (POST)
+- `lib/supabase/*` : 브라우저/서버용 Supabase 클라이언트와 DB 타입
+- `supabase/schema.sql` : DB 스키마 정의 (이미 적용됨)
+
+## 추천 워크플로
+
+1. `.env.local` 설정 후 `npm run dev`
+2. 회원가입 → 로그인 → 설문 생성 → 응답 제출
+3. 관리자/마스터 뷰에서 실시간 응답 집계 확인
+
+필요 시 `lib/supabase/types.ts`를 Supabase CLI(`supabase gen types typescript ...`)로 재생성하면 Prisma/TypeScript 타입을 최신 스키마에 맞출 수 있습니다.
