@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 
+type UserInsert = Database["public"]["Tables"]["users"]["Insert"];
 type UserRow = Database["public"]["Tables"]["users"]["Row"];
 
 export async function POST(request: Request) {
@@ -36,20 +37,24 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create new user
-    const { data: newUser, error } = await supabase
-      .from("users")
-      .insert({
-        id: id.trim(),
-        password: password.trim(),
-        role,
-      })
-      .select("id, role")
-      .single<UserRow>();
+    // Create new user with explicit type
+    const userData: UserInsert = {
+      id: id.trim(),
+      password: password.trim(),
+      role,
+    };
 
-    if (error || !newUser) {
+    const { data: newUserData, error } = await supabase
+      .from("users")
+      .insert(userData)
+      .select("id, role")
+      .single();
+
+    if (error || !newUserData) {
       throw new Error(error?.message ?? "회원가입에 실패했습니다.");
     }
+
+    const newUser = newUserData as Pick<UserRow, "id" | "role">;
 
     return NextResponse.json(
       {
