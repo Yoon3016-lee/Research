@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import type { Json } from "@/lib/supabase/types";
+import type { Database, Json } from "@/lib/supabase/types";
+
+type SurveyRow = Database["public"]["Tables"]["surveys"]["Row"];
+type SurveyInsert = Database["public"]["Tables"]["surveys"]["Insert"];
+type SurveyQuestionRow = Database["public"]["Tables"]["survey_questions"]["Row"];
+type SurveyQuestionInsert = Database["public"]["Tables"]["survey_questions"]["Insert"];
+type SurveyResponseRow = Database["public"]["Tables"]["survey_responses"]["Row"];
+type SurveyAnswerRow = Database["public"]["Tables"]["survey_answers"]["Row"];
 
 type QuestionInput = {
   prompt: string;
@@ -21,16 +28,20 @@ export async function GET() {
   try {
     const supabase = getSupabaseServerClient();
 
-    const [{ data: surveys, error: surveysError }, { data: questions, error: questionsError }, { data: responses, error: responsesError }, { data: answers, error: answersError }] =
-      await Promise.all([
-        supabase.from("surveys").select("*").order("created_at", { ascending: false }),
-        supabase
-          .from("survey_questions")
-          .select("*")
-          .order("sort_order", { ascending: true }),
-        supabase.from("survey_responses").select("*"),
-        supabase.from("survey_answers").select("*"),
-      ]);
+    const [
+      { data: surveysData, error: surveysError },
+      { data: questionsData, error: questionsError },
+      { data: responsesData, error: responsesError },
+      { data: answersData, error: answersError },
+    ] = await Promise.all([
+      supabase.from("surveys").select("*").order("created_at", { ascending: false }),
+      supabase
+        .from("survey_questions")
+        .select("*")
+        .order("sort_order", { ascending: true }),
+      supabase.from("survey_responses").select("*"),
+      supabase.from("survey_answers").select("*"),
+    ]);
 
     if (surveysError || questionsError || responsesError || answersError) {
       const message =
@@ -42,11 +53,18 @@ export async function GET() {
       throw new Error(message);
     }
 
-    const shaped = (surveys ?? []).map((survey) => {
-      const surveyQuestions =
-        questions?.filter((question) => question.survey_id === survey.id) ?? [];
-      const surveyResponses =
-        responses?.filter((response) => response.survey_id === survey.id) ?? [];
+    const surveys = (surveysData ?? []) as SurveyRow[];
+    const questions = (questionsData ?? []) as SurveyQuestionRow[];
+    const responses = (responsesData ?? []) as SurveyResponseRow[];
+    const answers = (answersData ?? []) as SurveyAnswerRow[];
+
+    const shaped = surveys.map((survey) => {
+      const surveyQuestions = questions.filter(
+        (question) => question.survey_id === survey.id,
+      );
+      const surveyResponses = responses.filter(
+        (response) => response.survey_id === survey.id,
+      );
 
       return {
         id: survey.id,
@@ -63,9 +81,9 @@ export async function GET() {
           sortOrder: question.sort_order,
         })),
         responses: surveyResponses.map((response) => {
-          const responseAnswers =
-            answers?.filter((answer) => answer.response_id === response.id) ??
-            [];
+          const responseAnswers = answers.filter(
+            (answer) => answer.response_id === response.id,
+          );
           return {
             id: response.id,
             employee: response.employee_id,
@@ -108,31 +126,38 @@ export async function POST(request: Request) {
     }
 
     const supabase = getSupabaseServerClient();
-    const { data: insertedSurvey, error: surveyError } = await supabase
+    
+    const surveyData = {
+      title,
+      description: description ?? null,
+      created_by: createdBy ?? null,
+    } as SurveyInsert;
+
+    const { data: insertedSurveyData, error: surveyError } = await supabase
       .from("surveys")
-      .insert({
-        title,
-        description: description ?? null,
-        created_by: createdBy ?? null,
-      })
+      .insert(surveyData as any)
       .select("*")
       .single();
 
-    if (surveyError || !insertedSurvey) {
+    if (surveyError || !insertedSurveyData) {
       throw new Error(surveyError?.message ?? "설문 생성에 실패했습니다.");
     }
 
-    const questionRows = questions.map((question, index) => ({
-      survey_id: insertedSurvey.id,
-      prompt: question.prompt,
-      question_type: question.type,
-      options: shapeOptions(question.options),
-      sort_order: question.sortOrder ?? index,
-    }));
+    const insertedSurvey = insertedSurveyData as SurveyRow;
+
+    const questionRows = questions.map((question, index) =>
+      ({
+        survey_id: insertedSurvey.id,
+        prompt: question.prompt,
+        question_type: question.type,
+        options: shapeOptions(question.options),
+        sort_order: question.sortOrder ?? index,
+      }) as SurveyQuestionInsert,
+    );
 
     const { error: questionError } = await supabase
       .from("survey_questions")
-      .insert(questionRows);
+      .insert(questionRows as any);
 
     if (questionError) {
       throw new Error(questionError.message);

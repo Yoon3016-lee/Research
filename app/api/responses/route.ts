@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import type { Database } from "@/lib/supabase/types";
+
+type SurveyResponseInsert = Database["public"]["Tables"]["survey_responses"]["Insert"];
+type SurveyAnswerInsert = Database["public"]["Tables"]["survey_answers"]["Insert"];
 
 export async function POST(request: Request) {
   try {
@@ -18,12 +22,15 @@ export async function POST(request: Request) {
     }
 
     const supabase = getSupabaseServerClient();
+    
+    const responseData = {
+      survey_id: surveyId,
+      employee_id: employeeId,
+    } as SurveyResponseInsert;
+
     const { data: insertedResponse, error: responseError } = await supabase
       .from("survey_responses")
-      .insert({
-        survey_id: surveyId,
-        employee_id: employeeId,
-      })
+      .insert(responseData as any)
       .select("*")
       .single();
 
@@ -32,16 +39,17 @@ export async function POST(request: Request) {
     }
 
     const answerRows = Object.entries(answers).map(
-      ([questionId, answerText]) => ({
-        response_id: insertedResponse.id,
-        question_id: questionId,
-        answer_text: answerText,
-      }),
+      ([questionId, answerText]) =>
+        ({
+          response_id: insertedResponse.id,
+          question_id: questionId,
+          answer_text: answerText,
+        }) as SurveyAnswerInsert,
     );
 
     const { error: answersError } = await supabase
       .from("survey_answers")
-      .insert(answerRows);
+      .insert(answerRows as any);
 
     if (answersError) {
       throw new Error(answersError.message);
