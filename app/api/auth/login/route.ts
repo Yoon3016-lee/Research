@@ -21,18 +21,25 @@ export async function POST(request: Request) {
     }
 
     const supabase = getSupabaseServerClient();
-    const { data: user, error } = await supabase
+    const { data: userData, error } = await supabase
       .from("users")
       .select("id, password, role")
       .eq("id", id.trim())
-      .single<UserRow>();
+      .single();
 
-    if (error || !user) {
+    if (error || !userData) {
       return NextResponse.json(
         { error: "존재하지 않는 ID 입니다." },
         { status: 401 },
       );
     }
+
+    // 타입 단언: Supabase의 타입 추론이 제대로 작동하지 않을 때 사용
+    const user = userData as {
+      id: string;
+      password: string;
+      role: "직원" | "관리자" | "마스터";
+    };
 
     if (user.password !== password.trim()) {
       return NextResponse.json(

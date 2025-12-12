@@ -44,6 +44,21 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
 
 ⚠️ **중요**: `SUPABASE_SERVICE_ROLE_KEY`는 Supabase 대시보드에서 직접 가져와야 합니다. Vercel 배포 시에도 동일한 키를 환경변수로 등록하세요. 이 키는 **서버 전용**이므로 클라이언트에 노출하지 마세요.
 
+### Vercel 배포 시 환경변수 설정
+
+Vercel에 배포한 경우 다음 환경변수를 설정해야 합니다:
+
+1. **Vercel 대시보드** → 프로젝트 선택 → **Settings** → **Environment Variables**
+2. 다음 3개 환경변수 추가:
+   - `NEXT_PUBLIC_SUPABASE_URL`: `https://mvzyctaetrtgdbaroaou.supabase.co`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12enljdGFldHJ0Z2RiYXJvYW91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyMTI3ODcsImV4cCI6MjA3OTc4ODc4N30.3TVGzoiUu8r5oExVoqo_u3pZJJDLUraY32MpKTLQiJc`
+   - `SUPABASE_SERVICE_ROLE_KEY`: (Supabase 대시보드 > Settings > API > service_role key)
+
+3. **모든 환경** (Production, Preview, Development)에 설정
+4. 환경변수 추가 후 **재배포** 필요
+
+자세한 설정 방법은 `VERCEL_ENV_SETUP.md` 파일을 참조하세요.
+
 ## 주요 디렉터리
 
 - `app/page.tsx` : 역할 기반 UI + 설문 CRUD + 응답 제출 클라이언트 로직
