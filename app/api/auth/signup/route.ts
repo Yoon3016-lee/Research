@@ -83,6 +83,7 @@ export async function POST(request: Request) {
 
     const { data: newUserData, error } = await supabase
       .from("users")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .insert(userData as any)
       .select("id, role")
       .single();

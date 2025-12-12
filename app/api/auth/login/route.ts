@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import type { Database } from "@/lib/supabase/types";
-
-type UserRow = Database["public"]["Tables"]["users"]["Row"];
 
 export async function POST(request: Request) {
   try {
