@@ -5,6 +5,7 @@ import type { Database } from "@/lib/supabase/types";
 
 type UserInsert = Database["public"]["Tables"]["users"]["Insert"];
 type UserRow = Database["public"]["Tables"]["users"]["Row"];
+type VerificationCodeRow = Database["public"]["Tables"]["verification_codes"]["Row"];
 
 export async function POST(request: Request) {
   try {
@@ -47,8 +48,11 @@ export async function POST(request: Request) {
         );
       }
 
+      // 타입 단언: Supabase의 타입 추론이 제대로 작동하지 않을 때 사용
+      const verificationCodeData = codeData as Pick<VerificationCodeRow, "code">;
+
       // 확인 코드 검증
-      if (codeData.code !== verificationCode.trim()) {
+      if (verificationCodeData.code !== verificationCode.trim()) {
         return NextResponse.json(
           { error: "확인 코드가 일치하지 않습니다." },
           { status: 403 },
