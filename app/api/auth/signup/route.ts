@@ -37,16 +37,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create new user with explicit type
-    const userData: UserInsert = {
+    // Create new user with explicit type casting
+    const userData = {
       id: id.trim(),
       password: password.trim(),
       role,
-    };
+    } as UserInsert;
 
     const { data: newUserData, error } = await supabase
       .from("users")
-      .insert(userData)
+      .insert(userData as any)
       .select("id, role")
       .single();
 
