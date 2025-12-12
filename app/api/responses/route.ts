@@ -4,6 +4,7 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 
 type SurveyResponseInsert = Database["public"]["Tables"]["survey_responses"]["Insert"];
+type SurveyResponseRow = Database["public"]["Tables"]["survey_responses"]["Row"];
 type SurveyAnswerInsert = Database["public"]["Tables"]["survey_answers"]["Insert"];
 
 export async function POST(request: Request) {
@@ -28,15 +29,17 @@ export async function POST(request: Request) {
       employee_id: employeeId,
     } as SurveyResponseInsert;
 
-    const { data: insertedResponse, error: responseError } = await supabase
+    const { data: insertedResponseData, error: responseError } = await supabase
       .from("survey_responses")
       .insert(responseData as any)
       .select("*")
       .single();
 
-    if (responseError || !insertedResponse) {
+    if (responseError || !insertedResponseData) {
       throw new Error(responseError?.message ?? "응답 저장에 실패했습니다.");
     }
+
+    const insertedResponse = insertedResponseData as SurveyResponseRow;
 
     const answerRows = Object.entries(answers).map(
       ([questionId, answerText]) =>
