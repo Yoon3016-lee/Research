@@ -45,12 +45,20 @@ type QuestionDraft = {
 // 초기 시드 데이터는 이제 Supabase에서 관리됩니다
 
 const roleOptions: Role[] = ["직원", "관리자", "마스터"];
+const defaultChoiceOptions = [
+  "매우 불만족",
+  "불만족",
+  "약간 불만족",
+  "약간 만족",
+  "만족",
+  "매우 만족",
+];
 
 const defaultQuestionDraft = (): QuestionDraft => ({
   id: crypto.randomUUID(),
   prompt: "",
   type: "객관식",
-  options: ["", ""],
+  options: [...defaultChoiceOptions],
 });
 
 export default function Home() {
@@ -71,10 +79,12 @@ export default function Home() {
 
   // 확인 코드 관리 (마스터용)
   const [verificationCodes, setVerificationCodes] = useState<
-    Array<{ role: "관리자" | "마스터"; code: string; updated_at: string }>
+    Array<{ role: "직원" | "관리자" | "마스터"; code: string; updated_at: string }>
   >([]);
   const [isLoadingCodes, setIsLoadingCodes] = useState(false);
-  const [codeUpdateRole, setCodeUpdateRole] = useState<"관리자" | "마스터" | null>(null);
+  const [codeUpdateRole, setCodeUpdateRole] = useState<"직원" | "관리자" | "마스터" | null>(
+    null,
+  );
   const [newCodeValue, setNewCodeValue] = useState("");
   const [codeUpdateMessage, setCodeUpdateMessage] = useState("");
 
@@ -158,16 +168,16 @@ export default function Home() {
     void fetchSurveys();
   }, [fetchSurveys]);
 
-  const completedCount = useMemo(
-    () => surveys.reduce((sum, survey) => sum + survey.responses.length, 0),
-    [surveys],
-  );
-
   const currentEmployeeSurvey = surveys.find(
     (survey) => survey.id === employeeSurveyId,
   );
   const currentAdminSurvey = surveys.find(
     (survey) => survey.id === adminSurveyId,
+  );
+
+  const completedCount = useMemo(
+    () => currentAdminSurvey?.responses.length ?? 0,
+    [currentAdminSurvey],
   );
 
   const employeeCounts = useMemo(() => {
@@ -274,9 +284,8 @@ export default function Home() {
       return;
     }
 
-    // 관리자 또는 마스터 회원가입 시 확인 코드 검증
-    if ((signUpRole === "관리자" || signUpRole === "마스터") && !signUpVerificationCode.trim()) {
-      setSignUpMessage(`${signUpRole} 회원가입을 위해서는 확인 코드가 필요합니다.`);
+    if (!signUpVerificationCode.trim()) {
+      setSignUpMessage("확인 코드를 입력해주세요.");
       return;
     }
 
@@ -290,10 +299,7 @@ export default function Home() {
           id: signUpId.trim(),
           password: signUpPassword.trim(),
           role: signUpRole,
-          verificationCode:
-            signUpRole === "관리자" || signUpRole === "마스터"
-              ? signUpVerificationCode.trim()
-              : undefined,
+          verificationCode: signUpVerificationCode.trim(),
         }),
       });
       const result = (await response.json()) as {
@@ -325,7 +331,7 @@ export default function Home() {
         throw new Error("확인 코드를 불러오지 못했습니다.");
       }
       const { data } = (await response.json()) as {
-        data: Array<{ role: "관리자" | "마스터"; code: string; updated_at: string }>;
+        data: Array<{ role: "직원" | "관리자" | "마스터"; code: string; updated_at: string }>;
       };
       setVerificationCodes(data);
     } catch (error) {
@@ -462,7 +468,7 @@ export default function Home() {
                 nextType === "객관식"
                   ? question.options.length >= 2
                     ? question.options
-                    : ["", ""]
+                    : [...defaultChoiceOptions]
                   : [],
             }
           : question,
@@ -658,10 +664,10 @@ export default function Home() {
               리서치 설문조사
             </p>
             <h1 className="text-3xl font-semibold leading-tight text-white">
-              리서치 홈페이지 허브
+              리서치 홈페이지
             </h1>
             <p className="text-sm text-slate-300">
-              Vercel Edge 배포와 Supabase 보안을 전제로 한 설문 설계 예시 화면입니다.
+              설문조사 홈페이지입니다.
             </p>
           </div>
           <div className="text-right text-xs text-slate-400">
@@ -705,7 +711,7 @@ export default function Home() {
                 className="w-full rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
                 type="button"
               >
-                {isLoggedIn ? "로그아웃" : "접속 요청"}
+                {isLoggedIn ? "로그아웃" : "로그인"}
               </button>
               {loginError && (
                 <p className="text-xs text-red-400">{loginError}</p>
@@ -744,25 +750,23 @@ export default function Home() {
                     </option>
                   ))}
                 </select>
-                {(signUpRole === "관리자" || signUpRole === "마스터") && (
-                  <div>
-                    <label className="text-xs text-slate-300">
-                      {signUpRole} 확인 코드
-                    </label>
-                    <input
-                      type="text"
-                      value={signUpVerificationCode}
-                      onChange={(event) =>
-                        setSignUpVerificationCode(event.target.value)
-                      }
-                      placeholder={`${signUpRole} 확인 코드 입력`}
-                      className="mt-1 w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
-                    />
-                    <p className="mt-1 text-xs text-slate-400">
-                      {signUpRole} 회원가입을 위해서는 확인 코드가 필요합니다.
-                    </p>
-                  </div>
-                )}
+                <div>
+                  <label className="text-xs text-slate-300">
+                    {signUpRole} 확인 코드
+                  </label>
+                  <input
+                    type="text"
+                    value={signUpVerificationCode}
+                    onChange={(event) =>
+                      setSignUpVerificationCode(event.target.value)
+                    }
+                    placeholder={`${signUpRole} 확인 코드 입력`}
+                    className="mt-1 w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
+                  />
+                  <p className="mt-1 text-xs text-slate-400">
+                    모든 역할은 확인 코드가 필요합니다. (마스터가 변경 가능)
+                  </p>
+                </div>
                 <button
                   onClick={() => void handleSignUp()}
                   className="w-full rounded-lg border border-cyan-400/60 px-4 py-2 text-sm font-semibold text-cyan-300 hover:bg-cyan-400/10"
@@ -790,7 +794,7 @@ export default function Home() {
               <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/40 p-10 text-center text-slate-400">
                 ID와 Password를 입력 후{" "}
                 <span className="text-cyan-300">접속 요청</span>을 눌러 로그인하세요.
-                계급은 자동으로 적용됩니다.
+                
               </div>
             )}
 
@@ -908,7 +912,12 @@ export default function Home() {
 
                 <div className="mt-6 space-y-6">
                   <div className="rounded-xl border border-white/10 bg-slate-950/40 p-4">
-                    <p className="text-sm font-semibold text-white">사원별 입력 수</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-white">사원별 입력 수</p>
+                      <div className="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-1 text-xs text-slate-200">
+                        완료된 조사표: <span className="font-semibold text-emerald-400">{completedCount}</span>
+                      </div>
+                    </div>
                     <ul className="mt-3 space-y-2">
                       {employeeCounts.length === 0 && (
                         <li className="text-sm text-slate-400">아직 응답이 없습니다.</li>
@@ -1148,10 +1157,6 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div className="absolute bottom-6 right-6 rounded-xl border border-white/10 bg-slate-900/80 px-4 py-2 shadow-lg">
-                  <p className="text-xs text-slate-400">완료된 조사표</p>
-                  <p className="text-2xl font-bold text-emerald-400">{completedCount}</p>
-                </div>
               </section>
             )}
 

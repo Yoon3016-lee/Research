@@ -129,17 +129,17 @@ export type Database = {
       };
       verification_codes: {
         Row: {
-          role: "관리자" | "마스터";
+          role: "직원" | "관리자" | "마스터";
           code: string;
           updated_at: string;
         };
         Insert: {
-          role: "관리자" | "마스터";
+          role: "직원" | "관리자" | "마스터";
           code: string;
           updated_at?: string;
         };
         Update: {
-          role?: "관리자" | "마스터";
+          role?: "직원" | "관리자" | "마스터";
           code?: string;
           updated_at?: string;
         };

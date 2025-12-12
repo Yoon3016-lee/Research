@@ -34,7 +34,7 @@ export async function GET() {
 export async function PUT(request: Request) {
   try {
     const { role, code, masterId } = (await request.json()) as {
-      role: "관리자" | "마스터";
+      role: "직원" | "관리자" | "마스터";
       code: string;
       masterId: string;
     };

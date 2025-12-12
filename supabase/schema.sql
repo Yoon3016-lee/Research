@@ -43,7 +43,7 @@ create index if not exists idx_survey_answers_response on public.survey_answers(
 
 -- Verification codes for admin and master signup
 create table if not exists public.verification_codes (
-  role text primary key check (role in ('관리자', '마스터')),
+  role text primary key check (role in ('직원', '관리자', '마스터')),
   code text not null,
   updated_at timestamptz not null default timezone('utc', now())
 );
@@ -63,6 +63,7 @@ $$;
 
 -- Initial verification codes
 insert into public.verification_codes (role, code) values
+  ('직원', '3333'),
   ('관리자', '1111'),
   ('마스터', '2222')
 on conflict (role) do nothing;
