@@ -66,7 +66,17 @@ export default function Home() {
   const [signUpId, setSignUpId] = useState("");
   const [signUpPassword, setSignUpPassword] = useState("");
   const [signUpRole, setSignUpRole] = useState<Role>("직원");
+  const [signUpVerificationCode, setSignUpVerificationCode] = useState("");
   const [signUpMessage, setSignUpMessage] = useState("");
+
+  // 확인 코드 관리 (마스터용)
+  const [verificationCodes, setVerificationCodes] = useState<
+    Array<{ role: "관리자" | "마스터"; code: string; updated_at: string }>
+  >([]);
+  const [isLoadingCodes, setIsLoadingCodes] = useState(false);
+  const [codeUpdateRole, setCodeUpdateRole] = useState<"관리자" | "마스터" | null>(null);
+  const [newCodeValue, setNewCodeValue] = useState("");
+  const [codeUpdateMessage, setCodeUpdateMessage] = useState("");
 
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [employeeSurveyId, setEmployeeSurveyId] = useState<string>("");
@@ -86,6 +96,7 @@ export default function Home() {
   const [isCreatingSurvey, setIsCreatingSurvey] = useState(false);
   const [isDeletingSurvey, setIsDeletingSurvey] = useState(false);
   const [surveyToDelete, setSurveyToDelete] = useState<string | null>(null);
+  const [selectedEmployeeFilter, setSelectedEmployeeFilter] = useState<string>("");
 
   useEffect(() => {
     const targetSurvey = surveys.find(
@@ -219,7 +230,6 @@ export default function Home() {
         body: JSON.stringify({
           id: loginId.trim(),
           password: password.trim(),
-          role,
         }),
       });
       const result = (await response.json()) as {
@@ -255,6 +265,7 @@ export default function Home() {
     setLoginError("");
     setLoginId("");
     setPassword("");
+    setSelectedEmployeeFilter("");
   };
 
   const handleSignUp = async () => {
@@ -263,6 +274,13 @@ export default function Home() {
       setSignUpMessage("ID와 비밀번호를 모두 입력해주세요.");
       return;
     }
+
+    // 관리자 또는 마스터 회원가입 시 확인 코드 검증
+    if ((signUpRole === "관리자" || signUpRole === "마스터") && !signUpVerificationCode.trim()) {
+      setSignUpMessage(`${signUpRole} 회원가입을 위해서는 확인 코드가 필요합니다.`);
+      return;
+    }
+
     try {
       const response = await fetch("/api/auth/signup", {
         method: "POST",
@@ -273,6 +291,10 @@ export default function Home() {
           id: signUpId.trim(),
           password: signUpPassword.trim(),
           role: signUpRole,
+          verificationCode:
+            signUpRole === "관리자" || signUpRole === "마스터"
+              ? signUpVerificationCode.trim()
+              : undefined,
         }),
       });
       const result = (await response.json()) as {
@@ -286,8 +308,77 @@ export default function Home() {
       setSignUpMessage(result.message ?? "회원가입이 완료되었습니다. 로그인해주세요.");
       setSignUpId("");
       setSignUpPassword("");
+      setSignUpVerificationCode("");
     } catch (error) {
       setSignUpMessage((error as Error).message);
+    }
+  };
+
+  // 확인 코드 조회
+  const fetchVerificationCodes = useCallback(async () => {
+    if (role !== "마스터" || !isLoggedIn) {
+      return;
+    }
+    try {
+      setIsLoadingCodes(true);
+      const response = await fetch("/api/verification-codes");
+      if (!response.ok) {
+        throw new Error("확인 코드를 불러오지 못했습니다.");
+      }
+      const { data } = (await response.json()) as {
+        data: Array<{ role: "관리자" | "마스터"; code: string; updated_at: string }>;
+      };
+      setVerificationCodes(data);
+    } catch (error) {
+      setCodeUpdateMessage((error as Error).message);
+    } finally {
+      setIsLoadingCodes(false);
+    }
+  }, [role, isLoggedIn]);
+
+  useEffect(() => {
+    if (role === "마스터" && isLoggedIn) {
+      void fetchVerificationCodes();
+    }
+  }, [role, isLoggedIn, fetchVerificationCodes]);
+
+  // 확인 코드 업데이트
+  const handleUpdateVerificationCode = async () => {
+    if (!codeUpdateRole || !newCodeValue.trim() || !activeUser) {
+      setCodeUpdateMessage("역할과 새 확인 코드를 입력해주세요.");
+      return;
+    }
+
+    try {
+      setCodeUpdateMessage("");
+      const response = await fetch("/api/verification-codes", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          role: codeUpdateRole,
+          code: newCodeValue.trim(),
+          masterId: activeUser.id,
+        }),
+      });
+
+      const result = (await response.json()) as {
+        message?: string;
+        error?: string;
+      };
+
+      if (!response.ok) {
+        setCodeUpdateMessage(result.error ?? "확인 코드 변경에 실패했습니다.");
+        return;
+      }
+
+      setCodeUpdateMessage(result.message ?? "확인 코드가 성공적으로 변경되었습니다.");
+      setNewCodeValue("");
+      setCodeUpdateRole(null);
+      await fetchVerificationCodes();
+    } catch (error) {
+      setCodeUpdateMessage((error as Error).message);
     }
   };
 
@@ -610,21 +701,6 @@ export default function Home() {
                   className="mt-1 w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none disabled:opacity-60"
                 />
               </div>
-              <div>
-                <label className="text-sm text-slate-300">사원 계급</label>
-                <select
-                  value={role}
-                  onChange={(event) => setRole(event.target.value as Role)}
-                  disabled={isLoggedIn}
-                  className="mt-1 w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-cyan-400 focus:outline-none disabled:opacity-60"
-                >
-                  {roleOptions.map((option) => (
-                    <option key={option} value={option} className="text-black">
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </div>
               <button
                 onClick={isLoggedIn ? handleLogout : () => void handleLogin()}
                 className="w-full rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
@@ -657,7 +733,10 @@ export default function Home() {
                 />
                 <select
                   value={signUpRole}
-                  onChange={(event) => setSignUpRole(event.target.value as Role)}
+                  onChange={(event) => {
+                    setSignUpRole(event.target.value as Role);
+                    setSignUpVerificationCode("");
+                  }}
                   className="w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-cyan-400 focus:outline-none"
                 >
                   {roleOptions.map((option) => (
@@ -666,6 +745,25 @@ export default function Home() {
                     </option>
                   ))}
                 </select>
+                {(signUpRole === "관리자" || signUpRole === "마스터") && (
+                  <div>
+                    <label className="text-xs text-slate-300">
+                      {signUpRole} 확인 코드
+                    </label>
+                    <input
+                      type="text"
+                      value={signUpVerificationCode}
+                      onChange={(event) =>
+                        setSignUpVerificationCode(event.target.value)
+                      }
+                      placeholder={`${signUpRole} 확인 코드 입력`}
+                      className="mt-1 w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
+                    />
+                    <p className="mt-1 text-xs text-slate-400">
+                      {signUpRole} 회원가입을 위해서는 확인 코드가 필요합니다.
+                    </p>
+                  </div>
+                )}
                 <button
                   onClick={() => void handleSignUp()}
                   className="w-full rounded-lg border border-cyan-400/60 px-4 py-2 text-sm font-semibold text-cyan-300 hover:bg-cyan-400/10"
@@ -674,7 +772,15 @@ export default function Home() {
                   회원가입 완료
                 </button>
                 {signUpMessage && (
-                  <p className="text-xs text-cyan-300">{signUpMessage}</p>
+                  <p
+                    className={`text-xs ${
+                      signUpMessage.includes("완료") || signUpMessage.includes("성공")
+                        ? "text-emerald-400"
+                        : "text-red-400"
+                    }`}
+                  >
+                    {signUpMessage}
+                  </p>
                 )}
               </div>
             </div>
@@ -683,9 +789,9 @@ export default function Home() {
           <div className="space-y-6">
             {!isLoggedIn && (
               <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/40 p-10 text-center text-slate-400">
-                ID/Password와 사원 계급을 입력 후{" "}
-                <span className="text-cyan-300">접속 요청</span>을 눌러 해당 권한의 기능을
-                이용하세요.
+                ID와 Password를 입력 후{" "}
+                <span className="text-cyan-300">접속 요청</span>을 눌러 로그인하세요.
+                계급은 자동으로 적용됩니다.
               </div>
             )}
 
@@ -856,10 +962,42 @@ export default function Home() {
                       ))}
                     </div>
                     <div className="rounded-xl border border-white/10 bg-slate-950/40 p-4">
-                      <p className="text-sm font-semibold text-white">응답 상세</p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-white">응답 상세</p>
+                        <select
+                          value={selectedEmployeeFilter}
+                          onChange={(event) => setSelectedEmployeeFilter(event.target.value)}
+                          className="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-1.5 text-xs text-white focus:border-cyan-400 focus:outline-none"
+                        >
+                          <option value="" className="text-black">
+                            전체 직원
+                          </option>
+                          {employeeCounts.map((item) => (
+                            <option key={item.employee} value={item.employee} className="text-black">
+                              {item.employee} ({item.count}건)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                       <div className="mt-3 max-h-72 space-y-3 overflow-y-auto pr-1">
-                        {currentAdminSurvey?.responses.length ? (
-                          currentAdminSurvey.responses.map((response) => (
+                        {(() => {
+                          const filteredResponses = selectedEmployeeFilter
+                            ? currentAdminSurvey?.responses.filter(
+                                (response) => response.employee === selectedEmployeeFilter,
+                              ) ?? []
+                            : currentAdminSurvey?.responses ?? [];
+
+                          if (filteredResponses.length === 0) {
+                            return (
+                              <p className="text-sm text-slate-400">
+                                {selectedEmployeeFilter
+                                  ? "선택한 직원의 응답이 없습니다."
+                                  : "데이터가 없습니다."}
+                              </p>
+                            );
+                          }
+
+                          return filteredResponses.map((response) => (
                             <div
                               key={response.id}
                               className="rounded-lg border border-white/5 px-3 py-3 text-sm"
@@ -883,10 +1021,8 @@ export default function Home() {
                                 ))}
                               </ul>
                             </div>
-                          ))
-                        ) : (
-                          <p className="text-sm text-slate-400">데이터가 없습니다.</p>
-                        )}
+                          ));
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -1019,7 +1155,107 @@ export default function Home() {
                 </div>
               </section>
             )}
-          </div>
+
+            {role === "마스터" && isLoggedIn && (
+              <section className="rounded-2xl border border-white/10 bg-slate-900/60 p-6 shadow-xl">
+                <h2 className="text-xl font-semibold text-white">확인 코드 관리</h2>
+                <p className="mt-2 text-sm text-slate-400">
+                  관리자 및 마스터 회원가입에 사용되는 확인 코드를 관리합니다.
+                </p>
+
+                <div className="mt-6 space-y-4">
+                  {isLoadingCodes ? (
+                    <p className="text-sm text-slate-400">확인 코드를 불러오는 중...</p>
+                  ) : (
+                    <>
+                      {verificationCodes.map((codeData) => (
+                        <div
+                          key={codeData.role}
+                          className="rounded-xl border border-white/10 bg-slate-950/40 p-4"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-semibold text-white">
+                                {codeData.role} 확인 코드
+                              </p>
+                              <p className="mt-1 text-lg font-mono text-cyan-400">
+                                {codeData.code}
+                              </p>
+                              <p className="mt-1 text-xs text-slate-400">
+                                마지막 변경:{" "}
+                                {new Date(codeData.updated_at).toLocaleString("ko-KR")}
+          </p>
+        </div>
+                            <button
+                              onClick={() => {
+                                setCodeUpdateRole(codeData.role);
+                                setNewCodeValue("");
+                                setCodeUpdateMessage("");
+                              }}
+                              type="button"
+                              className="rounded-lg border border-cyan-400/60 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-400/10"
+                            >
+                              변경
+                            </button>
+                          </div>
+
+                          {codeUpdateRole === codeData.role && (
+                            <div className="mt-4 space-y-2 rounded-lg border border-cyan-400/30 bg-slate-900/60 p-3">
+                              <label className="text-xs text-slate-300">
+                                새 확인 코드 입력
+                              </label>
+                              <input
+                                type="text"
+                                value={newCodeValue}
+                                onChange={(event) =>
+                                  setNewCodeValue(event.target.value)
+                                }
+                                placeholder="새 확인 코드"
+                                className="w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => void handleUpdateVerificationCode()}
+                                  type="button"
+                                  className="flex-1 rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-950 transition hover:bg-cyan-400"
+                                >
+                                  저장
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setCodeUpdateRole(null);
+                                    setNewCodeValue("");
+                                    setCodeUpdateMessage("");
+                                  }}
+                                  type="button"
+                                  className="flex-1 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-slate-800"
+                                >
+                                  취소
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </>
+                  )}
+
+                  {codeUpdateMessage && (
+                    <p
+                      className={`text-xs ${
+                        codeUpdateMessage.includes("성공") ||
+                        codeUpdateMessage.includes("완료")
+                          ? "text-emerald-400"
+                          : "text-red-400"
+                      }`}
+                    >
+                      {codeUpdateMessage}
+                    </p>
+                  )}
+                </div>
+              </section>
+            )}
+        </div>
         </section>
       </main>
     </div>

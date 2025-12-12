@@ -8,10 +8,11 @@ type UserRow = Database["public"]["Tables"]["users"]["Row"];
 
 export async function POST(request: Request) {
   try {
-    const { id, password, role } = (await request.json()) as {
+    const { id, password, role, verificationCode } = (await request.json()) as {
       id: string;
       password: string;
       role: "직원" | "관리자" | "마스터";
+      verificationCode?: string;
     };
 
     if (!id || !password || !role) {
@@ -22,6 +23,38 @@ export async function POST(request: Request) {
     }
 
     const supabase = getSupabaseServerClient();
+
+    // 관리자 또는 마스터 회원가입 시 확인 코드 검증
+    if (role === "관리자" || role === "마스터") {
+      if (!verificationCode) {
+        return NextResponse.json(
+          { error: `${role} 회원가입을 위해서는 확인 코드가 필요합니다.` },
+          { status: 400 },
+        );
+      }
+
+      // 확인 코드 조회
+      const { data: codeData, error: codeError } = await supabase
+        .from("verification_codes")
+        .select("code")
+        .eq("role", role)
+        .single();
+
+      if (codeError || !codeData) {
+        return NextResponse.json(
+          { error: "확인 코드를 확인할 수 없습니다." },
+          { status: 500 },
+        );
+      }
+
+      // 확인 코드 검증
+      if (codeData.code !== verificationCode.trim()) {
+        return NextResponse.json(
+          { error: "확인 코드가 일치하지 않습니다." },
+          { status: 403 },
+        );
+      }
+    }
 
     // Check if user already exists
     const { data: existingUser } = await supabase

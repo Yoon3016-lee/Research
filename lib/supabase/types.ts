@@ -127,6 +127,23 @@ export type Database = {
           updated_at?: string;
         };
       };
+      verification_codes: {
+        Row: {
+          role: "관리자" | "마스터";
+          code: string;
+          updated_at: string;
+        };
+        Insert: {
+          role: "관리자" | "마스터";
+          code: string;
+          updated_at?: string;
+        };
+        Update: {
+          role?: "관리자" | "마스터";
+          code?: string;
+          updated_at?: string;
+        };
+      };
     };
     Functions: {};
   };
