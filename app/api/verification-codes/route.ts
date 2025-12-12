@@ -5,6 +5,7 @@ import type { Database } from "@/lib/supabase/types";
 
 type VerificationCodeRow = Database["public"]["Tables"]["verification_codes"]["Row"];
 type VerificationCodeUpdate = Database["public"]["Tables"]["verification_codes"]["Update"];
+type UserRow = Database["public"]["Tables"]["users"]["Row"];
 
 // 확인 코드 조회
 export async function GET() {
@@ -48,18 +49,21 @@ export async function PUT(request: Request) {
     const supabase = getSupabaseServerClient();
 
     // 마스터 권한 확인
-    const { data: masterUser, error: masterError } = await supabase
+    const { data: masterUserData, error: masterError } = await supabase
       .from("users")
       .select("role")
       .eq("id", masterId.trim())
       .single();
 
-    if (masterError || !masterUser) {
+    if (masterError || !masterUserData) {
       return NextResponse.json(
         { error: "마스터 권한이 필요합니다." },
         { status: 403 },
       );
     }
+
+    // 타입 단언: Supabase의 타입 추론이 제대로 작동하지 않을 때 사용
+    const masterUser = masterUserData as Pick<UserRow, "role">;
 
     if (masterUser.role !== "마스터") {
       return NextResponse.json(
@@ -69,15 +73,15 @@ export async function PUT(request: Request) {
     }
 
     // 확인 코드 업데이트
-    const updateData = {
+    const updateData: VerificationCodeUpdate = {
       code: code.trim(),
       updated_at: new Date().toISOString(),
-    } as VerificationCodeUpdate;
+    };
 
     const { data: updatedData, error: updateError } = await supabase
       .from("verification_codes")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .update(updateData as any)
+      // @ts-expect-error - Supabase 타입 추론 제한으로 인한 필요
+      .update(updateData)
       .eq("role", role)
       .select("*")
       .single();
