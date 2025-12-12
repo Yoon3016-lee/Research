@@ -84,6 +84,8 @@ export default function Home() {
   const [surveysError, setSurveysError] = useState("");
   const [isSubmittingResponse, setIsSubmittingResponse] = useState(false);
   const [isCreatingSurvey, setIsCreatingSurvey] = useState(false);
+  const [isDeletingSurvey, setIsDeletingSurvey] = useState(false);
+  const [surveyToDelete, setSurveyToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     const targetSurvey = surveys.find(
@@ -488,21 +490,71 @@ export default function Home() {
     }
   };
 
+  const handleDeleteSurvey = async (surveyId: string) => {
+    if (!confirm("정말로 이 설문을 삭제하시겠습니까? 삭제된 설문과 모든 응답은 복구할 수 없습니다.")) {
+      return;
+    }
+
+    try {
+      setIsDeletingSurvey(true);
+      const response = await fetch(`/api/surveys/${surveyId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const { error } = await response.json();
+        throw new Error(error ?? "설문 삭제에 실패했습니다.");
+      }
+
+      setLoginMessage("설문이 삭제되었습니다.");
+      await fetchSurveys();
+      
+      // 삭제된 설문이 선택되어 있었다면 첫 번째 설문으로 변경
+      if (adminSurveyId === surveyId) {
+        const remainingSurveys = surveys.filter((s) => s.id !== surveyId);
+        if (remainingSurveys.length > 0) {
+          setAdminSurveyId(remainingSurveys[0].id);
+        } else {
+          setAdminSurveyId("");
+        }
+      }
+    } catch (error) {
+      setLoginError((error as Error).message);
+    } finally {
+      setIsDeletingSurvey(false);
+    }
+  };
+
   const adminSurveyChoices = (
     <div className="flex flex-wrap gap-2">
       {surveys.map((survey) => (
-        <button
+        <div
           key={survey.id}
-          type="button"
-          onClick={() => setAdminSurveyId(survey.id)}
-          className={`rounded-full border px-4 py-2 text-sm transition ${
+          className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition ${
             adminSurveyId === survey.id
               ? "border-cyan-400 bg-cyan-400/20 text-cyan-100"
               : "border-white/10 text-slate-200 hover:border-cyan-300/60"
           }`}
         >
-          {survey.title}
-        </button>
+          <button
+            type="button"
+            onClick={() => setAdminSurveyId(survey.id)}
+            className="flex-1 text-left"
+          >
+            {survey.title}
+          </button>
+          {role === "마스터" && (
+            <button
+              type="button"
+              onClick={() => handleDeleteSurvey(survey.id)}
+              disabled={isDeletingSurvey}
+              className="ml-2 rounded-full bg-red-500/20 px-2 py-1 text-xs text-red-300 transition hover:bg-red-500/30 disabled:opacity-50"
+              title="설문 삭제"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       ))}
     </div>
   );
