@@ -95,7 +95,6 @@ export default function Home() {
   const [isSubmittingResponse, setIsSubmittingResponse] = useState(false);
   const [isCreatingSurvey, setIsCreatingSurvey] = useState(false);
   const [isDeletingSurvey, setIsDeletingSurvey] = useState(false);
-  const [surveyToDelete, setSurveyToDelete] = useState<string | null>(null);
   const [selectedEmployeeFilter, setSelectedEmployeeFilter] = useState<string>("");
 
   useEffect(() => {

@@ -135,6 +135,7 @@ export async function POST(request: Request) {
 
     const { data: insertedSurveyData, error: surveyError } = await supabase
       .from("surveys")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .insert(surveyData as any)
       .select("*")
       .single();
@@ -157,6 +158,7 @@ export async function POST(request: Request) {
 
     const { error: questionError } = await supabase
       .from("survey_questions")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .insert(questionRows as any);
 
     if (questionError) {

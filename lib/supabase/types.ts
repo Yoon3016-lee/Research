@@ -145,7 +145,7 @@ export type Database = {
         };
       };
     };
-    Functions: {};
+    Functions: Record<string, never>;
   };
 };
 

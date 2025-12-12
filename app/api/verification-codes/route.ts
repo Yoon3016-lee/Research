@@ -76,6 +76,7 @@ export async function PUT(request: Request) {
 
     const { data: updatedData, error: updateError } = await supabase
       .from("verification_codes")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .update(updateData as any)
       .eq("role", role)
       .select("*")
