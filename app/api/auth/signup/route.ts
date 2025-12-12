@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import type { Database } from "@/lib/supabase/types";
+
+type UserRow = Database["public"]["Tables"]["users"]["Row"];
 
 export async function POST(request: Request) {
   try {
@@ -41,8 +44,8 @@ export async function POST(request: Request) {
         password: password.trim(),
         role,
       })
-      .select("*")
-      .single();
+      .select("id, role")
+      .single<UserRow>();
 
     if (error || !newUser) {
       throw new Error(error?.message ?? "회원가입에 실패했습니다.");

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import type { Database } from "@/lib/supabase/types";
+
+type UserRow = Database["public"]["Tables"]["users"]["Row"];
 
 export async function POST(request: Request) {
   try {
@@ -20,9 +23,9 @@ export async function POST(request: Request) {
     const supabase = getSupabaseServerClient();
     const { data: user, error } = await supabase
       .from("users")
-      .select("*")
+      .select("id, password, role")
       .eq("id", id.trim())
-      .single();
+      .single<UserRow>();
 
     if (error || !user) {
       return NextResponse.json(

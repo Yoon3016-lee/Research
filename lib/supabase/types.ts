@@ -104,6 +104,29 @@ export type Database = {
           created_at?: string;
         };
       };
+      users: {
+        Row: {
+          id: string;
+          password: string;
+          role: "직원" | "관리자" | "마스터";
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          password: string;
+          role: "직원" | "관리자" | "마스터";
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          password?: string;
+          role?: "직원" | "관리자" | "마스터";
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
     Functions: {};
   };
