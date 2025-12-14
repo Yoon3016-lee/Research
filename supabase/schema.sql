@@ -12,8 +12,20 @@ create table if not exists public.survey_questions (
   id uuid primary key default gen_random_uuid(),
   survey_id uuid not null references public.surveys(id) on delete cascade,
   prompt text not null,
-  question_type text not null check (question_type in ('객관식', '주관식')),
+  question_type text not null check (question_type in (
+    '객관식',
+    '주관식',
+    '객관식(단일)',
+    '객관식(다중선택)',
+    '객관식(드롭다운)',
+    '객관식(순위선택)',
+    '단답형',
+    '서술형',
+    '복수형(문자)',
+    '복수형(숫자)'
+  )),
   options jsonb,
+  conditional_logic jsonb, -- 조건부 분기 로직: { "옵션": "타겟질문ID" }
   sort_order int not null default 0,
   created_at timestamptz not null default timezone('utc', now())
 );
@@ -48,6 +60,21 @@ create table if not exists public.verification_codes (
   updated_at timestamptz not null default timezone('utc', now())
 );
 
+-- Question templates for quick question creation (객관식 only)
+create table if not exists public.question_templates (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  question_type text not null check (question_type in (
+    '객관식(단일)',
+    '객관식(다중선택)',
+    '객관식(드롭다운)',
+    '객관식(순위선택)'
+  )),
+  options jsonb not null, -- Array of option strings
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
 -- update_updated_at_column 함수 (search_path 고정으로 보안 강화)
 create or replace function public.update_updated_at_column()
 returns trigger
@@ -75,6 +102,8 @@ alter table public.survey_responses enable row level security;
 alter table public.survey_answers enable row level security;
 alter table public.users enable row level security;
 alter table public.verification_codes enable row level security;
+alter table public.question_templates enable row level security;
+alter table public.survey_recipients enable row level security;
 
 -- surveys 테이블 정책: 모든 사용자가 읽기 가능, 서비스 롤만 쓰기 가능
 create policy "Allow public read access to surveys"
@@ -155,5 +184,46 @@ create policy "Allow service role full access to verification_codes"
   on public.verification_codes for all
   using (true)
   with check (true);
+
+-- question_templates 테이블 정책: 모든 사용자가 읽기 가능, 서비스 롤만 쓰기 가능
+create policy "Allow public read access to question_templates"
+  on public.question_templates for select
+  using (true);
+
+create policy "Allow service role to insert question_templates"
+  on public.question_templates for insert
+  with check (true);
+
+create policy "Allow service role to update question_templates"
+  on public.question_templates for update
+  using (true);
+
+create policy "Allow service role to delete question_templates"
+  on public.question_templates for delete
+  using (true);
+
+-- survey_recipients 테이블 정책: 서비스 롤만 접근 가능 (민감한 정보)
+create policy "Allow service role full access to survey_recipients"
+  on public.survey_recipients for all
+  using (true)
+  with check (true);
+
+-- question_templates updated_at 트리거
+create trigger update_question_templates_updated_at
+  before update on public.question_templates
+  for each row
+  execute function public.update_updated_at_column();
+
+-- Survey recipients for email distribution
+create table if not exists public.survey_recipients (
+  id uuid primary key default gen_random_uuid(),
+  survey_id uuid not null references public.surveys(id) on delete cascade,
+  name text not null,
+  email text not null,
+  email_sent boolean not null default false,
+  email_sent_at timestamptz,
+  created_at timestamptz not null default timezone('utc', now()),
+  unique(survey_id, email)
+);
 
 

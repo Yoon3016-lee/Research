@@ -3,7 +3,22 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Role = "직원" | "관리자" | "마스터";
-type QuestionType = "객관식" | "주관식";
+type QuestionType = 
+  | "객관식(단일)" 
+  | "객관식(다중선택)" 
+  | "객관식(드롭다운)" 
+  | "객관식(순위선택)"
+  | "단답형" 
+  | "서술형";
+
+// 호환성을 위한 헬퍼 함수
+const isObjectiveType = (type: QuestionType): boolean => {
+  return type.startsWith("객관식");
+};
+
+type ConditionalLogic = {
+  [option: string]: string; // option -> targetQuestionId
+};
 
 type Question = {
   id: string;
@@ -11,6 +26,7 @@ type Question = {
   type: QuestionType;
   options: string[];
   sortOrder?: number;
+  conditionalLogic?: ConditionalLogic; // 선택한 옵션에 따른 다음 질문 ID 매핑
 };
 
 type SurveyResponse = {
@@ -40,6 +56,7 @@ type QuestionDraft = {
   prompt: string;
   type: QuestionType;
   options: string[];
+  conditionalLogic?: ConditionalLogic; // 선택한 옵션에 따른 다음 질문 ID 매핑
 };
 
 // 초기 시드 데이터는 이제 Supabase에서 관리됩니다
@@ -54,11 +71,11 @@ const defaultChoiceOptions = [
   "매우 만족",
 ];
 
-const defaultQuestionDraft = (): QuestionDraft => ({
+const defaultQuestionDraft = (type?: QuestionType): QuestionDraft => ({
   id: crypto.randomUUID(),
   prompt: "",
-  type: "객관식",
-  options: [...defaultChoiceOptions],
+  type: type ?? "객관식(단일)",
+  options: type?.startsWith("객관식") ? [...defaultChoiceOptions] : [],
 });
 
 export default function Home() {
@@ -91,21 +108,58 @@ export default function Home() {
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [employeeSurveyId, setEmployeeSurveyId] = useState<string>("");
   const [adminSurveyId, setAdminSurveyId] = useState<string>("");
-  const [employeeAnswers, setEmployeeAnswers] = useState<Record<string, string>>(
+  const [employeeAnswers, setEmployeeAnswers] = useState<Record<string, string | string[]>>(
     {},
   );
 
   const [newSurveyTitle, setNewSurveyTitle] = useState("");
   const [newQuestions, setNewQuestions] = useState<QuestionDraft[]>([
-    defaultQuestionDraft(),
+    defaultQuestionDraft("객관식(단일)"),
   ]);
   const [newSurveyFeedback, setNewSurveyFeedback] = useState("");
   const [isLoadingSurveys, setIsLoadingSurveys] = useState(false);
   const [surveysError, setSurveysError] = useState("");
   const [isSubmittingResponse, setIsSubmittingResponse] = useState(false);
   const [isCreatingSurvey, setIsCreatingSurvey] = useState(false);
+  const [isUpdatingSurvey, setIsUpdatingSurvey] = useState(false);
   const [isDeletingSurvey, setIsDeletingSurvey] = useState(false);
   const [selectedEmployeeFilter, setSelectedEmployeeFilter] = useState<string>("");
+  const [showCreateSurvey, setShowCreateSurvey] = useState(false);
+  const [showFunctionsDropdown, setShowFunctionsDropdown] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isSelectingSurveyForEdit, setIsSelectingSurveyForEdit] = useState(false);
+  const [showVerificationCodeManagement, setShowVerificationCodeManagement] = useState(false);
+  const [showQuestionTypeModal, setShowQuestionTypeModal] = useState(false);
+  const [showQuickQuestionTemplates, setShowQuickQuestionTemplates] = useState(false);
+  const [showDeploymentManagement, setShowDeploymentManagement] = useState(false);
+  
+  // 배포 관리 관련 상태
+  const [selectedSurveyForDeployment, setSelectedSurveyForDeployment] = useState("");
+  const [recipients, setRecipients] = useState<Array<{
+    id: string;
+    name: string;
+    email: string;
+    email_sent: boolean;
+    email_sent_at: string | null;
+  }>>([]);
+  const [isUploadingRecipients, setIsUploadingRecipients] = useState(false);
+  const [isSendingEmails, setIsSendingEmails] = useState(false);
+  const [deploymentMessage, setDeploymentMessage] = useState("");
+  
+  // 빠른 문항 템플릿 관련 상태
+  const [questionTemplates, setQuestionTemplates] = useState<
+    Array<{
+      id: string;
+      name: string;
+      question_type: "객관식(단일)" | "객관식(다중선택)" | "객관식(드롭다운)" | "객관식(순위선택)";
+      options: string[];
+      created_at: string;
+    }>
+  >([]);
+  const [newTemplateName, setNewTemplateName] = useState("");
+  const [newTemplateType, setNewTemplateType] = useState<"객관식(단일)" | "객관식(다중선택)" | "객관식(드롭다운)" | "객관식(순위선택)">("객관식(단일)");
+  const [newTemplateOptions, setNewTemplateOptions] = useState<string[]>([...defaultChoiceOptions]);
+  const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
 
   useEffect(() => {
     const targetSurvey = surveys.find(
@@ -115,10 +169,17 @@ export default function Home() {
       setEmployeeAnswers({});
       return;
     }
-    const defaults: Record<string, string> = {};
+    const defaults: Record<string, string | string[]> = {};
     targetSurvey.questions.forEach((question) => {
-      defaults[question.id] =
-        question.type === "객관식" ? question.options[0] ?? "" : "";
+      if (isObjectiveType(question.type)) {
+        if (question.type === "객관식(다중선택)") {
+          defaults[question.id] = [];
+        } else {
+          defaults[question.id] = question.options[0] ?? "";
+        }
+      } else {
+        defaults[question.id] = "";
+      }
     });
     setEmployeeAnswers(defaults);
   }, [employeeSurveyId, surveys]);
@@ -168,12 +229,100 @@ export default function Home() {
     void fetchSurveys();
   }, [fetchSurveys]);
 
+  // 드롭다운 외부 클릭 시 닫기
+  useEffect(() => {
+    if (!showFunctionsDropdown) {
+      return;
+    }
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.functions-dropdown-container')) {
+        setShowFunctionsDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showFunctionsDropdown]);
+
   const currentEmployeeSurvey = surveys.find(
     (survey) => survey.id === employeeSurveyId,
   );
   const currentAdminSurvey = surveys.find(
     (survey) => survey.id === adminSurveyId,
   );
+
+  // 조건부 로직에 따라 표시할 질문 필터링 (모든 질문의 조건부 로직 고려)
+  const visibleEmployeeQuestions = useMemo(() => {
+    if (!currentEmployeeSurvey) return [];
+    
+    const questions = currentEmployeeSurvey.questions;
+    if (questions.length === 0) return [];
+    
+    const visible: Question[] = [];
+    const questionMap = new Map(questions.map(q => [q.id, q]));
+    
+    // 현재 질문 인덱스를 추적하며 다음 질문 결정
+    let currentIndex = 0;
+    const processed = new Set<string>(); // 순환 참조 방지
+    
+    while (currentIndex < questions.length) {
+      const currentQuestion = questions[currentIndex];
+      
+      // 이미 처리된 질문이면 중단 (순환 참조 방지)
+      if (processed.has(currentQuestion.id)) {
+        break;
+      }
+      processed.add(currentQuestion.id);
+      
+      // 현재 질문 추가
+      if (!visible.find(q => q.id === currentQuestion.id)) {
+        visible.push(currentQuestion);
+      }
+      
+      // 조건부 로직이 있는 객관식 질문만 답변 필요, 주관식은 답변 없이도 다음 질문으로 진행
+      const answer = employeeAnswers[currentQuestion.id];
+      const hasAnswer = answer && (
+        Array.isArray(answer) 
+          ? answer.length > 0 && answer.some(item => item && item.trim())
+          : (answer as string).trim() !== ""
+      );
+      
+      // 조건부 로직이 있는 객관식 질문은 답변이 있어야 다음 질문으로 진행
+      if (currentQuestion.conditionalLogic && isObjectiveType(currentQuestion.type)) {
+        if (!hasAnswer) {
+          break; // 답변이 없으면 중단
+        }
+      }
+      
+      // 조건부 로직 확인
+      let nextIndex = currentIndex + 1; // 기본값: 다음 질문
+      
+      if (currentQuestion.conditionalLogic && hasAnswer) {
+        const answerString = Array.isArray(answer) 
+          ? answer[0] ?? "" 
+          : (answer as string);
+        const targetQuestionId = currentQuestion.conditionalLogic[answerString];
+        if (targetQuestionId) {
+          // 타겟 질문의 인덱스 찾기
+          const targetIndex = questions.findIndex(q => q.id === targetQuestionId);
+          if (targetIndex >= 0) {
+            nextIndex = targetIndex;
+          }
+        }
+      }
+      
+      // 다음 질문으로 이동
+      if (nextIndex < questions.length) {
+        currentIndex = nextIndex;
+      } else {
+        break; // 더 이상 질문이 없음
+      }
+    }
+    
+    return visible;
+  }, [currentEmployeeSurvey, employeeAnswers]);
 
   const completedCount = useMemo(
     () => currentAdminSurvey?.responses.length ?? 0,
@@ -203,7 +352,7 @@ export default function Home() {
     }
     const stats: Record<string, Record<string, number>> = {};
     currentAdminSurvey.questions.forEach((question) => {
-      if (question.type === "객관식") {
+      if (isObjectiveType(question.type)) {
         stats[question.id] = question.options.reduce<Record<string, number>>(
           (acc, option) => {
             acc[option] = 0;
@@ -319,6 +468,234 @@ export default function Home() {
     }
   };
 
+  // 빠른 문항 템플릿 관련 함수
+  const fetchQuestionTemplates = useCallback(async () => {
+    try {
+      const response = await fetch("/api/question-templates");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || "템플릿을 불러오는데 실패했습니다.";
+        console.error("Failed to fetch question templates:", errorMessage);
+        throw new Error(errorMessage);
+      }
+      const { data } = (await response.json()) as {
+        data: Array<{
+          id: string;
+          name: string;
+          question_type: "객관식(단일)" | "객관식(다중선택)" | "객관식(드롭다운)" | "객관식(순위선택)";
+          options: string[];
+          created_at: string;
+        }>;
+      };
+      setQuestionTemplates(data || []);
+    } catch (error) {
+      console.error("Failed to fetch question templates:", error);
+      // 에러가 발생해도 빈 배열로 설정하여 UI가 깨지지 않도록 함
+      setQuestionTemplates([]);
+    }
+  }, []);
+
+  const handleCreateTemplate = async () => {
+    if (!newTemplateName.trim()) {
+      setNewSurveyFeedback("템플릿 이름을 입력해주세요.");
+      return;
+    }
+    if (newTemplateOptions.length === 0 || newTemplateOptions.some(opt => !opt.trim())) {
+      setNewSurveyFeedback("옵션을 모두 입력해주세요.");
+      return;
+    }
+    try {
+      setIsCreatingTemplate(true);
+      const response = await fetch("/api/question-templates", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: newTemplateName.trim(),
+          question_type: newTemplateType,
+          options: newTemplateOptions.filter(opt => opt.trim()),
+        }),
+      });
+      if (!response.ok) {
+        const { error } = await response.json();
+        throw new Error(error ?? "템플릿 생성에 실패했습니다.");
+      }
+      setNewSurveyFeedback("템플릿이 생성되었습니다.");
+      setNewTemplateName("");
+      setNewTemplateOptions([...defaultChoiceOptions]);
+      await fetchQuestionTemplates();
+    } catch (error) {
+      setNewSurveyFeedback((error as Error).message);
+    } finally {
+      setIsCreatingTemplate(false);
+    }
+  };
+
+  const handleDeleteTemplate = async (templateId: string) => {
+    if (!confirm("정말로 이 템플릿을 삭제하시겠습니까?")) {
+      return;
+    }
+    try {
+      const response = await fetch(`/api/question-templates?id=${templateId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const { error } = await response.json();
+        throw new Error(error ?? "템플릿 삭제에 실패했습니다.");
+      }
+      await fetchQuestionTemplates();
+    } catch (error) {
+      setNewSurveyFeedback((error as Error).message);
+    }
+  };
+
+  // 배포 관리 관련 함수
+  const fetchRecipients = async (surveyId: string) => {
+    try {
+      const response = await fetch(`/api/recipients?surveyId=${surveyId}`);
+      if (!response.ok) {
+        const { error } = await response.json();
+        throw new Error(error ?? "수신자 목록을 불러오는데 실패했습니다.");
+      }
+      const { data } = (await response.json()) as {
+        data: Array<{
+          id: string;
+          name: string;
+          email: string;
+          email_sent: boolean;
+          email_sent_at: string | null;
+        }>;
+      };
+      setRecipients(data || []);
+    } catch (error) {
+      console.error("Failed to fetch recipients:", error);
+      setDeploymentMessage((error as Error).message);
+    }
+  };
+
+  const handleUploadRecipients = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !selectedSurveyForDeployment) {
+      setDeploymentMessage("파일과 설문을 선택해주세요.");
+      return;
+    }
+
+    try {
+      setIsUploadingRecipients(true);
+      setDeploymentMessage("");
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("surveyId", selectedSurveyForDeployment);
+
+      const response = await fetch("/api/recipients", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error ?? "수신자 업로드에 실패했습니다.");
+      }
+
+      setDeploymentMessage(result.message ?? "수신자가 업로드되었습니다.");
+      await fetchRecipients(selectedSurveyForDeployment);
+      // 파일 입력 초기화
+      event.target.value = "";
+    } catch (error) {
+      setDeploymentMessage((error as Error).message);
+    } finally {
+      setIsUploadingRecipients(false);
+    }
+  };
+
+  const handleSendEmails = async () => {
+    if (!selectedSurveyForDeployment) {
+      setDeploymentMessage("설문을 선택해주세요.");
+      return;
+    }
+
+    const targetSurvey = surveys.find((s) => s.id === selectedSurveyForDeployment);
+    if (!targetSurvey) {
+      setDeploymentMessage("설문을 찾을 수 없습니다.");
+      return;
+    }
+
+    const unsentRecipients = recipients.filter((r) => !r.email_sent);
+    if (unsentRecipients.length === 0) {
+      setDeploymentMessage("발송할 수신자가 없습니다.");
+      return;
+    }
+
+    if (!confirm(`총 ${unsentRecipients.length}명에게 이메일을 발송하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      setIsSendingEmails(true);
+      setDeploymentMessage("");
+
+      const response = await fetch("/api/send-emails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          surveyId: selectedSurveyForDeployment,
+          surveyTitle: targetSurvey.title,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        const errorMsg = result.error ?? "이메일 발송에 실패했습니다.";
+        let fullErrorMsg = errorMsg;
+        
+        // 도움말 메시지 추가
+        if (result.helpMessage) {
+          fullErrorMsg += `\n\n${result.helpMessage}`;
+        }
+        
+        // 환경변수 누락 정보
+        if (result.missingVariables) {
+          fullErrorMsg += `\n\n누락된 환경변수: ${result.missingVariables.join(", ")}`;
+        }
+        
+        // 현재 설정 정보 (디버깅용, 민감 정보는 마스킹)
+        if (result.details && process.env.NODE_ENV === "development") {
+          const safeDetails = { ...result.details };
+          if (safeDetails.user) {
+            safeDetails.user = safeDetails.user.replace(/(.{2}).*(@.*)/, "$1***$2");
+          }
+          fullErrorMsg += `\n\n[개발 모드] 상세 오류:\n${JSON.stringify(safeDetails, null, 2)}`;
+        }
+        
+        throw new Error(fullErrorMsg);
+      }
+
+      // 실패한 이메일이 있으면 상세 정보 표시
+      let message = result.message ?? "이메일이 발송되었습니다.";
+      if (result.failedDetails && result.failedDetails.length > 0) {
+        message += "\n\n실패 상세:\n";
+        result.failedDetails.forEach((failed: { email: string; error: string; details?: unknown }) => {
+          message += `- ${failed.email}: ${failed.error}\n`;
+          if (failed.details) {
+            message += `  상세: ${JSON.stringify(failed.details, null, 2)}\n`;
+          }
+        });
+      }
+
+      setDeploymentMessage(message);
+      await fetchRecipients(selectedSurveyForDeployment);
+    } catch (error) {
+      setDeploymentMessage((error as Error).message);
+    } finally {
+      setIsSendingEmails(false);
+    }
+  };
+
   // 확인 코드 조회
   const fetchVerificationCodes = useCallback(async () => {
     if (role !== "마스터" || !isLoggedIn) {
@@ -387,8 +764,48 @@ export default function Home() {
     }
   };
 
-  const handleEmployeeAnswer = (questionId: string, value: string) => {
+  const handleEmployeeAnswer = (questionId: string, value: string | string[]) => {
     setEmployeeAnswers((prev) => ({ ...prev, [questionId]: value }));
+  };
+
+  const handleEmployeeMultipleAnswer = (questionId: string, option: string, checked: boolean) => {
+    setEmployeeAnswers((prev) => {
+      const current = prev[questionId];
+      const currentArray = Array.isArray(current) ? current : [];
+      if (checked) {
+        return { ...prev, [questionId]: [...currentArray, option] };
+      } else {
+        return { ...prev, [questionId]: currentArray.filter((item) => item !== option) };
+      }
+    });
+  };
+
+  const handleEmployeeArrayAnswer = (questionId: string, index: number, value: string) => {
+    setEmployeeAnswers((prev) => {
+      const current = prev[questionId];
+      const currentArray = Array.isArray(current) ? current : [""];
+      const newArray = [...currentArray];
+      newArray[index] = value;
+      return { ...prev, [questionId]: newArray };
+    });
+  };
+
+  const addArrayAnswerField = (questionId: string) => {
+    setEmployeeAnswers((prev) => {
+      const current = prev[questionId];
+      const currentArray = Array.isArray(current) ? current : [""];
+      return { ...prev, [questionId]: [...currentArray, ""] };
+    });
+  };
+
+  const removeArrayAnswerField = (questionId: string, index: number) => {
+    setEmployeeAnswers((prev) => {
+      const current = prev[questionId];
+      const currentArray = Array.isArray(current) ? current : [""];
+      if (currentArray.length <= 1) return prev;
+      const newArray = currentArray.filter((_, i) => i !== index);
+      return { ...prev, [questionId]: newArray };
+    });
   };
 
   const handleEmployeeSubmit = async () => {
@@ -399,9 +816,12 @@ export default function Home() {
     if (!currentEmployeeSurvey) {
       return;
     }
-    const hasEmpty = currentEmployeeSurvey.questions.some((question) => {
+    const hasEmpty = visibleEmployeeQuestions.some((question) => {
       const answer = employeeAnswers[question.id];
-      return !answer || !answer.trim();
+      if (Array.isArray(answer)) {
+        return answer.length === 0 || answer.some((item) => !item || !item.trim());
+      }
+      return !answer || (typeof answer === "string" && !answer.trim());
     });
     if (hasEmpty) {
       setLoginError("모든 문항에 응답해주세요.");
@@ -412,7 +832,11 @@ export default function Home() {
       const normalizedAnswers = Object.entries(employeeAnswers).reduce<
         Record<string, string>
       >((acc, [questionId, answer]) => {
-        acc[questionId] = answer.trim();
+        if (Array.isArray(answer)) {
+          acc[questionId] = answer.filter((item) => item && item.trim()).join("|"); // 배열은 |로 구분하여 저장
+        } else {
+          acc[questionId] = (answer as string).trim();
+        }
         return acc;
       }, {});
       const response = await fetch("/api/responses", {
@@ -440,7 +864,12 @@ export default function Home() {
   };
 
   const handleAddQuestion = () => {
-    setNewQuestions((prev) => [...prev, defaultQuestionDraft()]);
+    setShowQuestionTypeModal(true);
+  };
+
+  const handleQuestionTypeSelect = (selectedType: QuestionType) => {
+    setNewQuestions((prev) => [...prev, defaultQuestionDraft(selectedType)]);
+    setShowQuestionTypeModal(false);
   };
 
   const handleRemoveQuestion = (questionId: string) => {
@@ -457,24 +886,6 @@ export default function Home() {
     );
   };
 
-  const handleQuestionTypeChange = (questionId: string, nextType: QuestionType) => {
-    setNewQuestions((prev) =>
-      prev.map((question) =>
-        question.id === questionId
-          ? {
-              ...question,
-              type: nextType,
-              options:
-                nextType === "객관식"
-                  ? question.options.length >= 2
-                    ? question.options
-                    : [...defaultChoiceOptions]
-                  : [],
-            }
-          : question,
-      ),
-    );
-  };
 
   const handleQuestionOptionChange = (
     questionId: string,
@@ -514,9 +925,37 @@ export default function Home() {
         if (question.options.length <= 2) {
           return question;
         }
+        const newOptions = question.options.filter((_, i) => i !== index);
+        const removedOption = question.options[index];
+        // 조건부 로직에서 제거된 옵션 제거
+        const newConditionalLogic = { ...question.conditionalLogic };
+        if (newConditionalLogic && removedOption) {
+          delete newConditionalLogic[removedOption];
+        }
         return {
           ...question,
-          options: question.options.filter((_, i) => i !== index),
+          options: newOptions,
+          conditionalLogic: Object.keys(newConditionalLogic).length > 0 ? newConditionalLogic : undefined,
+        };
+      }),
+    );
+  };
+
+  const handleConditionalLogicChange = (questionId: string, option: string, targetQuestionId: string) => {
+    setNewQuestions((prev) =>
+      prev.map((question) => {
+        if (question.id !== questionId) {
+          return question;
+        }
+        const newConditionalLogic = question.conditionalLogic ? { ...question.conditionalLogic } : {};
+        if (targetQuestionId) {
+          newConditionalLogic[option] = targetQuestionId;
+        } else {
+          delete newConditionalLogic[option];
+        }
+        return {
+          ...question,
+          conditionalLogic: Object.keys(newConditionalLogic).length > 0 ? newConditionalLogic : undefined,
         };
       }),
     );
@@ -524,7 +963,8 @@ export default function Home() {
 
   const resetNewSurveyForm = () => {
     setNewSurveyTitle("");
-    setNewQuestions([defaultQuestionDraft()]);
+    setNewQuestions([defaultQuestionDraft("객관식(단일)")]);
+    setShowQuestionTypeModal(false);
   };
 
   const handleAddSurvey = async () => {
@@ -541,10 +981,10 @@ export default function Home() {
         return;
       }
       const options =
-        question.type === "객관식"
+        isObjectiveType(question.type)
           ? question.options.map((option) => option.trim()).filter(Boolean)
           : [];
-      if (question.type === "객관식" && options.length < 2) {
+      if (isObjectiveType(question.type) && options.length < 2) {
         setNewSurveyFeedback("객관식 문항은 2개 이상의 선택지를 입력해주세요.");
         return;
       }
@@ -553,6 +993,7 @@ export default function Home() {
         prompt,
         type: question.type,
         options,
+        conditionalLogic: question.conditionalLogic,
       });
     }
     try {
@@ -567,7 +1008,7 @@ export default function Home() {
           questions: preparedQuestions.map((question, index) => ({
             prompt: question.prompt,
             type: question.type,
-            options: question.type === "객관식" ? question.options : [],
+            options: isObjectiveType(question.type) ? question.options : [],
             sortOrder: index,
           })),
         }),
@@ -583,6 +1024,98 @@ export default function Home() {
       setNewSurveyFeedback((error as Error).message);
     } finally {
       setIsCreatingSurvey(false);
+    }
+  };
+
+  const handleLoadSurveyForEdit = (survey?: Survey) => {
+    const targetSurvey = survey ?? currentAdminSurvey;
+    if (!targetSurvey) {
+      setNewSurveyFeedback("불러올 설문이 없습니다.");
+      return;
+    }
+    setNewSurveyTitle(targetSurvey.title);
+    setNewQuestions(
+      targetSurvey.questions.map((question) => ({
+        id: question.id,
+        prompt: question.prompt,
+        type: question.type,
+        options:
+          isObjectiveType(question.type)
+            ? question.options && question.options.length > 0
+              ? question.options
+              : [...defaultChoiceOptions]
+            : [],
+        conditionalLogic: question.conditionalLogic,
+      })),
+    );
+    setNewSurveyFeedback("선택한 설문을 수정용으로 불러왔습니다.");
+  };
+
+  const handleUpdateSurvey = async (): Promise<boolean> => {
+    if (!currentAdminSurvey) {
+      setNewSurveyFeedback("수정할 설문을 선택해주세요.");
+      return false;
+    }
+    setNewSurveyFeedback("");
+    if (!newSurveyTitle.trim()) {
+      setNewSurveyFeedback("조사표 제목을 입력해주세요.");
+      return false;
+    }
+    const preparedQuestions: Question[] = [];
+    for (const question of newQuestions) {
+      const prompt = question.prompt.trim();
+      if (!prompt) {
+        setNewSurveyFeedback("모든 문항에 질문 내용을 입력해주세요.");
+        return false;
+      }
+      const options =
+        isObjectiveType(question.type)
+          ? question.options.map((option) => option.trim()).filter(Boolean)
+          : [];
+      if (isObjectiveType(question.type) && options.length < 2) {
+        setNewSurveyFeedback("객관식 문항은 2개 이상의 선택지를 입력해주세요.");
+        return false;
+      }
+      preparedQuestions.push({
+        id: question.id,
+        prompt,
+        type: question.type,
+        options,
+        conditionalLogic: question.conditionalLogic,
+      });
+    }
+
+    try {
+      setIsUpdatingSurvey(true);
+      const response = await fetch(`/api/surveys/${currentAdminSurvey.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: newSurveyTitle.trim(),
+          questions: preparedQuestions.map((question, index) => ({
+            id: question.id,
+            prompt: question.prompt,
+            type: question.type,
+            options: isObjectiveType(question.type) ? question.options : [],
+            sortOrder: index,
+            conditionalLogic: question.conditionalLogic,
+          })),
+        }),
+      });
+      if (!response.ok) {
+        const { error } = (await response.json()) as { error?: string };
+        throw new Error(error ?? "설문 수정에 실패했습니다.");
+      }
+      setNewSurveyFeedback("선택한 설문이 수정되었습니다.");
+      await fetchSurveys();
+      return true;
+    } catch (error) {
+      setNewSurveyFeedback((error as Error).message);
+      return false;
+    } finally {
+      setIsUpdatingSurvey(false);
     }
   };
 
@@ -657,7 +1190,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
-      <header className="border-b border-white/10 bg-slate-900/70 backdrop-blur">
+      <header className="relative z-50 border-b border-white/10 bg-slate-900/70 backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6">
           <div>
             <p className="text-sm uppercase tracking-[0.4em] text-cyan-400">
@@ -670,9 +1203,113 @@ export default function Home() {
               설문조사 홈페이지입니다.
             </p>
           </div>
-          <div className="text-right text-xs text-slate-400">
-            <p>배포: Vercel</p>
-            <p>DB: Supabase</p>
+          <div className="flex items-center gap-4">
+            {canUseAdminPanel && (
+              <div className="relative functions-dropdown-container">
+                <button
+                  onClick={() => setShowFunctionsDropdown(!showFunctionsDropdown)}
+                  className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+                  type="button"
+                >
+                  [기능]
+                </button>
+                {showFunctionsDropdown && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-[9998]"
+                      onClick={() => setShowFunctionsDropdown(false)}
+                    />
+                    <div className="fixed top-20 right-6 w-48 rounded-md bg-slate-800 shadow-2xl z-[9999] border border-white/10">
+                      <button
+                        onClick={() => {
+                          setShowCreateSurvey(true);
+                          setIsEditMode(false);
+                          setIsSelectingSurveyForEdit(false);
+                          setShowVerificationCodeManagement(false);
+                          setShowQuickQuestionTemplates(false);
+                          resetNewSurveyForm();
+                          setShowFunctionsDropdown(false);
+                        }}
+                        className="block w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 rounded-t-md"
+                        type="button"
+                      >
+                        설문조사 추가
+                      </button>
+                      {(role === "관리자" || role === "마스터") && (
+                        <button
+                          onClick={() => {
+                            setShowQuickQuestionTemplates(true);
+                            setShowVerificationCodeManagement(false);
+                            setIsSelectingSurveyForEdit(false);
+                            setShowCreateSurvey(false);
+                            setShowFunctionsDropdown(false);
+                            void fetchQuestionTemplates();
+                          }}
+                          className="block w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700"
+                          type="button"
+                        >
+                          빠른문항 설정
+                        </button>
+                      )}
+                      {role === "마스터" && (
+                        <>
+                          <button
+                            onClick={() => {
+                              setIsSelectingSurveyForEdit(true);
+                              setShowVerificationCodeManagement(false);
+                              setShowCreateSurvey(false);
+                              setShowQuickQuestionTemplates(false);
+                              setShowDeploymentManagement(false);
+                              setShowFunctionsDropdown(false);
+                            }}
+                            className="block w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700"
+                            type="button"
+                          >
+                            설문지 수정
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowDeploymentManagement(true);
+                              setShowVerificationCodeManagement(false);
+                              setIsSelectingSurveyForEdit(false);
+                              setShowCreateSurvey(false);
+                              setShowQuickQuestionTemplates(false);
+                              setShowFunctionsDropdown(false);
+                              if (surveys.length > 0) {
+                                setSelectedSurveyForDeployment(surveys[0].id);
+                                void fetchRecipients(surveys[0].id);
+                              }
+                            }}
+                            className="block w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700"
+                            type="button"
+                          >
+                            배포 관리
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowVerificationCodeManagement(true);
+                              setIsSelectingSurveyForEdit(false);
+                              setShowCreateSurvey(false);
+                              setShowQuickQuestionTemplates(false);
+                              setShowDeploymentManagement(false);
+                              setShowFunctionsDropdown(false);
+                            }}
+                            className="block w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 rounded-b-md"
+                            type="button"
+                          >
+                            확인 코드 관리
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            <div className="text-right text-xs text-slate-400">
+              <p>배포: Vercel</p>
+              <p>DB: Supabase</p>
+            </div>
           </div>
         </div>
       </header>
@@ -839,8 +1476,7 @@ export default function Home() {
                     </p>
                   </div>
 
-                  {currentEmployeeSurvey &&
-                    currentEmployeeSurvey.questions.map((question, index) => (
+                  {visibleEmployeeQuestions.map((question, index) => (
                       <div
                         key={question.id}
                         className="rounded-xl border border-white/10 bg-slate-950/40 p-4"
@@ -851,7 +1487,8 @@ export default function Home() {
                         <p className="text-base font-medium text-white">
                           {question.prompt}
                         </p>
-                        {question.type === "객관식" ? (
+                        {/* 객관식(단일) */}
+                        {question.type === "객관식(단일)" && (
                           <div className="mt-3 flex flex-wrap gap-2">
                             {question.options.map((option) => (
                               <button
@@ -870,16 +1507,122 @@ export default function Home() {
                               </button>
                             ))}
                           </div>
-                        ) : (
+                        )}
+
+                        {/* 객관식(다중선택) */}
+                        {question.type === "객관식(다중선택)" && (
+                          <div className="mt-3 space-y-2">
+                            {question.options.map((option) => {
+                              const currentAnswers = employeeAnswers[question.id];
+                              const isChecked = Array.isArray(currentAnswers) && currentAnswers.includes(option);
+                              return (
+                                <label
+                                  key={option}
+                                  className="flex items-center gap-3 rounded-lg border border-white/10 bg-slate-800/50 px-4 py-2 cursor-pointer hover:bg-slate-700/50 transition"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) =>
+                                      handleEmployeeMultipleAnswer(question.id, option, e.target.checked)
+                                    }
+                                    className="w-4 h-4 text-cyan-500 rounded focus:ring-cyan-400"
+                                  />
+                                  <span className="text-sm text-white">{option}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* 객관식(드롭다운) */}
+                        {question.type === "객관식(드롭다운)" && (
+                          <select
+                            value={Array.isArray(employeeAnswers[question.id]) ? "" : (employeeAnswers[question.id] as string) ?? ""}
+                            onChange={(e) => handleEmployeeAnswer(question.id, e.target.value)}
+                            className="mt-3 w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-cyan-400 focus:outline-none"
+                          >
+                            <option value="" className="text-black">선택하세요</option>
+                            {question.options.map((option) => (
+                              <option key={option} value={option} className="text-black">
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+
+                        {/* 객관식(순위선택) */}
+                        {question.type === "객관식(순위선택)" && (
+                          <div className="mt-3 space-y-2">
+                            <p className="text-xs text-slate-400 mb-2">옵션을 클릭하면 순서대로 순위가 부여됩니다 (1순위부터)</p>
+                            {question.options.map((option, optionIndex) => {
+                              const currentAnswer = employeeAnswers[question.id];
+                              const currentRanks = Array.isArray(currentAnswer) 
+                                ? [] 
+                                : (currentAnswer as string)?.split(",").filter(Boolean) || [];
+                              const rankIndex = currentRanks.indexOf(option);
+                              const rank = rankIndex >= 0 ? rankIndex + 1 : null;
+                              
+                              return (
+                                <button
+                                  key={option}
+                                  onClick={() => {
+                                    const current = employeeAnswers[question.id];
+                                    const currentRanks = Array.isArray(current) 
+                                      ? [] 
+                                      : (current as string)?.split(",").filter(Boolean) || [];
+                                    
+                                    // 이미 순위가 있으면 제거, 없으면 추가
+                                    if (currentRanks.includes(option)) {
+                                      // 제거하고 순위 재정렬
+                                      const newRanks = currentRanks.filter((item) => item !== option);
+                                      handleEmployeeAnswer(question.id, newRanks.join(","));
+                                    } else {
+                                      // 맨 뒤에 추가 (다음 순위)
+                                      const newRanks = [...currentRanks, option];
+                                      handleEmployeeAnswer(question.id, newRanks.join(","));
+                                    }
+                                  }}
+                                  type="button"
+                                  className={`w-full flex items-center justify-between rounded-lg border px-4 py-3 transition ${
+                                    rank
+                                      ? "border-cyan-400 bg-cyan-400/20 text-cyan-100"
+                                      : "border-white/10 bg-slate-800/50 text-white hover:bg-slate-700/50"
+                                  }`}
+                                >
+                                  <span className="text-sm">{option}</span>
+                                  {rank && (
+                                    <span className="text-sm font-semibold text-cyan-300">
+                                      {rank}순위
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* 단답형 */}
+                        {question.type === "단답형" && (
+                          <input
+                            type="text"
+                            value={Array.isArray(employeeAnswers[question.id]) ? "" : (employeeAnswers[question.id] as string) ?? ""}
+                            onChange={(e) => handleEmployeeAnswer(question.id, e.target.value)}
+                            placeholder="답변을 입력하세요"
+                            className="mt-3 w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
+                          />
+                        )}
+
+                        {/* 서술형 */}
+                        {question.type === "서술형" && (
                           <textarea
-                            value={employeeAnswers[question.id] ?? ""}
-                            onChange={(event) =>
-                              handleEmployeeAnswer(question.id, event.target.value)
-                            }
+                            value={Array.isArray(employeeAnswers[question.id]) ? "" : (employeeAnswers[question.id] as string) ?? ""}
+                            onChange={(e) => handleEmployeeAnswer(question.id, e.target.value)}
                             placeholder="자유롭게 입력하세요."
                             className="mt-3 h-28 w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
                           />
                         )}
+
                       </div>
                     ))}
 
@@ -898,7 +1641,7 @@ export default function Home() {
             )}
 
             {canUseAdminPanel && (
-              <section className="relative rounded-2xl border border-white/10 bg-slate-900/60 p-6 shadow-xl">
+              <section className="relative z-0 rounded-2xl border border-white/10 bg-slate-900/60 p-6 shadow-xl">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h2 className="text-xl font-semibold text-white">
                     {role} 설문 관리
@@ -947,7 +1690,7 @@ export default function Home() {
                           <p className="text-sm font-medium text-white">
                             {question.prompt}
                           </p>
-                          {question.type === "객관식" ? (
+                          {isObjectiveType(question.type) ? (
                             <ul className="mt-2 space-y-1 text-sm">
                               {question.options.map((option) => (
                                 <li
@@ -1035,16 +1778,85 @@ export default function Home() {
                     </div>
                   </div>
 
+                  {isSelectingSurveyForEdit && !showVerificationCodeManagement && (
+                    <div className="rounded-xl border border-dashed border-cyan-400/40 bg-slate-950/40 p-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <p className="text-sm font-semibold text-white">수정할 설문지 선택</p>
+                        <button
+                          onClick={() => {
+                            setIsSelectingSurveyForEdit(false);
+                          }}
+                          type="button"
+                          className="text-xs text-slate-400 hover:text-white"
+                        >
+                          ✕ 닫기
+                        </button>
+                      </div>
+                      <p className="mb-4 text-xs text-slate-400">
+                        수정할 설문지를 선택해주세요.
+                      </p>
+                      <div className="space-y-2">
+                        {surveys.length === 0 ? (
+                          <p className="text-sm text-slate-400">수정할 설문이 없습니다.</p>
+                        ) : (
+                          surveys.map((survey) => (
+                            <button
+                              key={survey.id}
+                              onClick={() => {
+                                setAdminSurveyId(survey.id);
+                                handleLoadSurveyForEdit(survey);
+                                setShowCreateSurvey(true);
+                                setIsEditMode(true);
+                                setIsSelectingSurveyForEdit(false);
+                              }}
+                              className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-4 py-3 text-left text-sm text-white transition hover:border-cyan-400 hover:bg-slate-800"
+                              type="button"
+                            >
+                              <p className="font-semibold">{survey.title}</p>
+                              <p className="mt-1 text-xs text-slate-400">
+                                문항 {survey.questions.length}개 · 응답 {survey.responses.length}개
+                              </p>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {!isSelectingSurveyForEdit && !showVerificationCodeManagement && !showDeploymentManagement && showCreateSurvey && (
                   <div className="rounded-xl border border-dashed border-cyan-400/40 bg-slate-950/40 p-4">
-                    <p className="text-sm font-semibold text-white">설문조사 추가</p>
-                    <div className="mt-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-sm font-semibold text-white">
+                        {isEditMode ? "설문지 수정" : "설문조사 추가"}
+                      </p>
+                      <button
+                        onClick={() => {
+                          setShowCreateSurvey(false);
+                          setIsEditMode(false);
+                          setIsSelectingSurveyForEdit(false);
+                          resetNewSurveyForm();
+                        }}
+                        type="button"
+                        className="text-xs text-slate-400 hover:text-white"
+                      >
+                        ✕ 닫기
+                      </button>
+                    </div>
+                    <div className="mt-4 space-y-2">
                       <label className="text-xs text-slate-400">조사표 제목</label>
-                      <input
-                        value={newSurveyTitle}
-                        onChange={(event) => setNewSurveyTitle(event.target.value)}
-                        placeholder="예: 신규 복지 아이디어"
-                        className="mt-1 w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
-                      />
+                      <div className="flex gap-2">
+                        <input
+                          value={newSurveyTitle}
+                          onChange={(event) => setNewSurveyTitle(event.target.value)}
+                          placeholder="예: 신규 복지 아이디어"
+                          className="flex-1 rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
+                        />
+                        {isEditMode && role === "마스터" && currentAdminSurvey && (
+                          <div className="rounded-lg border border-cyan-400/60 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-300">
+                            수정 중: {currentAdminSurvey.title}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className="mt-6 space-y-5">
@@ -1054,9 +1866,55 @@ export default function Home() {
                           className="rounded-lg border border-white/10 bg-slate-950/50 p-4"
                         >
                           <div className="flex items-center justify-between">
-                            <p className="text-sm font-semibold text-white">
-                              문항 {index + 1}
-                            </p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-semibold text-white">
+                                문항 {index + 1}
+                              </p>
+                              {isObjectiveType(question.type) && newQuestions.length > index + 1 && (
+                                <button
+                                  onClick={() => {
+                                    // 조건부 로직 활성화/비활성화 토글
+                                    const hasConditionalLogic = question.conditionalLogic && Object.keys(question.conditionalLogic).length > 0;
+                                    if (hasConditionalLogic) {
+                                      // 비활성화 - 모든 옵션의 조건 제거
+                                      setNewQuestions((prev) =>
+                                        prev.map((q) =>
+                                          q.id === question.id
+                                            ? { ...q, conditionalLogic: undefined }
+                                            : q,
+                                        ),
+                                      );
+                                    } else {
+                                      // 활성화 - 기본값 설정 (각 옵션을 다음 질문으로 설정)
+                                      const newLogic: ConditionalLogic = {};
+                                      question.options.forEach((opt) => {
+                                        // 기본적으로 다음 질문으로 설정
+                                        if (newQuestions[index + 1]) {
+                                          newLogic[opt] = newQuestions[index + 1].id;
+                                        }
+                                      });
+                                      setNewQuestions((prev) =>
+                                        prev.map((q) =>
+                                          q.id === question.id
+                                            ? { ...q, conditionalLogic: newLogic }
+                                            : q,
+                                        ),
+                                      );
+                                    }
+                                  }}
+                                  type="button"
+                                  className={`text-xs px-2 py-1 rounded transition ${
+                                    question.conditionalLogic && Object.keys(question.conditionalLogic).length > 0
+                                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 hover:bg-cyan-500/30"
+                                      : "bg-slate-700 text-slate-300 border border-slate-600 hover:bg-slate-600"
+                                  }`}
+                                >
+                                  {question.conditionalLogic && Object.keys(question.conditionalLogic).length > 0
+                                    ? "조건 수정"
+                                    : "조건 추가"}
+                                </button>
+                              )}
+                            </div>
                             <button
                               onClick={() => handleRemoveQuestion(question.id)}
                               type="button"
@@ -1076,50 +1934,98 @@ export default function Home() {
                           />
                           <div className="mt-3">
                             <label className="text-xs text-slate-400">질문 유형</label>
-                            <select
-                              value={question.type}
-                              onChange={(event) =>
-                                handleQuestionTypeChange(
-                                  question.id,
-                                  event.target.value as QuestionType,
-                                )
-                              }
-                              className="mt-1 w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-cyan-400 focus:outline-none"
-                            >
-                              <option value="객관식" className="text-black">
-                                객관식
-                              </option>
-                              <option value="주관식" className="text-black">
-                                주관식
-                              </option>
-                            </select>
+                            <div className="mt-1 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-sm text-cyan-300">
+                              {question.type}
+                            </div>
                           </div>
-                          {question.type === "객관식" && (
+                          {isObjectiveType(question.type) && (
                             <div className="mt-3 space-y-2">
+                              {/* 템플릿 불러오기 버튼 */}
+                              {showCreateSurvey && !isEditMode && (
+                                <div className="mb-3 rounded-lg border border-cyan-400/30 bg-cyan-400/10 p-2">
+                                  <p className="text-xs text-cyan-300 mb-2">템플릿에서 불러오기:</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {questionTemplates
+                                      .filter(t => t.question_type === question.type)
+                                      .map((template) => (
+                                        <button
+                                          key={template.id}
+                                          onClick={() => {
+                                            setNewQuestions((prev) =>
+                                              prev.map((q) =>
+                                                q.id === question.id
+                                                  ? { ...q, options: [...template.options] }
+                                                  : q,
+                                              ),
+                                            );
+                                          }}
+                                          type="button"
+                                          className="rounded-full border border-cyan-400/50 bg-slate-800 px-2 py-1 text-xs text-cyan-300 hover:bg-cyan-400/20"
+                                        >
+                                          {template.name}
+                                        </button>
+                                      ))}
+                                  </div>
+                                </div>
+                              )}
                               {question.options.map((option, optionIndex) => (
-                                <div key={optionIndex} className="flex gap-2">
-                                  <input
-                                    value={option}
-                                    onChange={(event) =>
-                                      handleQuestionOptionChange(
-                                        question.id,
-                                        optionIndex,
-                                        event.target.value,
-                                      )
-                                    }
-                                    placeholder={`선택지 ${optionIndex + 1}`}
-                                    className="flex-1 rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
-                                  />
-                                  <button
-                                    onClick={() =>
-                                      handleRemoveOption(question.id, optionIndex)
-                                    }
-                                    type="button"
-                                    className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-200 hover:border-red-400 hover:text-red-400"
-                                    disabled={question.options.length <= 2}
-                                  >
-                                    삭제
-                                  </button>
+                                <div key={optionIndex} className="space-y-2">
+                                  <div className="flex gap-2">
+                                    <input
+                                      value={option}
+                                      onChange={(event) =>
+                                        handleQuestionOptionChange(
+                                          question.id,
+                                          optionIndex,
+                                          event.target.value,
+                                        )
+                                      }
+                                      placeholder={`선택지 ${optionIndex + 1}`}
+                                      className="flex-1 rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
+                                    />
+                                    <button
+                                      onClick={() =>
+                                        handleRemoveOption(question.id, optionIndex)
+                                      }
+                                      type="button"
+                                      className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-200 hover:border-red-400 hover:text-red-400"
+                                      disabled={question.options.length <= 2}
+                                    >
+                                      삭제
+                                    </button>
+                                  </div>
+                                  {/* 분기 로직 설정 (조건부 로직이 활성화된 경우) */}
+                                  {question.conditionalLogic && Object.keys(question.conditionalLogic).length > 0 && newQuestions.length > index + 1 && (
+                                    <div className="ml-2 flex items-center gap-2 rounded-lg border border-cyan-400/30 bg-slate-900/40 p-2">
+                                      <label className="text-xs text-slate-400 whitespace-nowrap">
+                                        "{option}" 선택 시:
+                                      </label>
+                                      <select
+                                        value={question.conditionalLogic?.[option] ?? ""}
+                                        onChange={(event) =>
+                                          handleConditionalLogicChange(
+                                            question.id,
+                                            option,
+                                            event.target.value,
+                                          )
+                                        }
+                                        className="flex-1 rounded-lg border border-white/10 bg-slate-950/60 px-2 py-1 text-xs text-white focus:border-cyan-400 focus:outline-none"
+                                      >
+                                        <option value="" className="text-black">
+                                          다음 질문 계속
+                                        </option>
+                                        {newQuestions.slice(index + 1).map((nextQuestion, nextIndex) => (
+                                          <option
+                                            key={nextQuestion.id}
+                                            value={nextQuestion.id}
+                                            className="text-black"
+                                          >
+                                            문항 {index + nextIndex + 2}로 이동
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  )}
                                 </div>
                               ))}
                               <button
@@ -1142,30 +2048,409 @@ export default function Home() {
                       </button>
                     </div>
 
+                    {/* 문항 유형 선택 모달 */}
+                    {showQuestionTypeModal && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                        <div className="w-full max-w-md rounded-xl border border-white/10 bg-slate-900 p-6 shadow-xl">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-white">문항 유형 선택</h3>
+                            <button
+                              onClick={() => setShowQuestionTypeModal(false)}
+                              type="button"
+                              className="text-slate-400 hover:text-white"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                          <div className="space-y-4">
+                            {/* 객관식 섹션 */}
+                            <div>
+                              <p className="text-sm font-semibold text-cyan-300 mb-2">객관식</p>
+                              <div className="grid grid-cols-2 gap-2">
+                                <button
+                                  onClick={() => handleQuestionTypeSelect("객관식(단일)")}
+                                  type="button"
+                                  className="rounded-lg border border-white/10 bg-slate-800 px-4 py-3 text-sm text-white transition hover:border-cyan-400 hover:bg-slate-700"
+                                >
+                                  객관식(단일)
+                                </button>
+                                <button
+                                  onClick={() => handleQuestionTypeSelect("객관식(다중선택)")}
+                                  type="button"
+                                  className="rounded-lg border border-white/10 bg-slate-800 px-4 py-3 text-sm text-white transition hover:border-cyan-400 hover:bg-slate-700"
+                                >
+                                  객관식(다중선택)
+                                </button>
+                                <button
+                                  onClick={() => handleQuestionTypeSelect("객관식(드롭다운)")}
+                                  type="button"
+                                  className="rounded-lg border border-white/10 bg-slate-800 px-4 py-3 text-sm text-white transition hover:border-cyan-400 hover:bg-slate-700"
+                                >
+                                  객관식(드롭다운)
+                                </button>
+                                <button
+                                  onClick={() => handleQuestionTypeSelect("객관식(순위선택)")}
+                                  type="button"
+                                  className="rounded-lg border border-white/10 bg-slate-800 px-4 py-3 text-sm text-white transition hover:border-cyan-400 hover:bg-slate-700"
+                                >
+                                  객관식(순위선택)
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* 주관식 섹션 */}
+                            <div>
+                              <p className="text-sm font-semibold text-emerald-300 mb-2">주관식</p>
+                              <div className="grid grid-cols-2 gap-2">
+                                <button
+                                  onClick={() => handleQuestionTypeSelect("단답형")}
+                                  type="button"
+                                  className="rounded-lg border border-white/10 bg-slate-800 px-4 py-3 text-sm text-white transition hover:border-emerald-400 hover:bg-slate-700"
+                                >
+                                  단답형
+                                </button>
+                                <button
+                                  onClick={() => handleQuestionTypeSelect("서술형")}
+                                  type="button"
+                                  className="rounded-lg border border-white/10 bg-slate-800 px-4 py-3 text-sm text-white transition hover:border-emerald-400 hover:bg-slate-700"
+                                >
+                                  서술형
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {newSurveyFeedback && (
                       <p className="mt-4 text-xs text-cyan-300">{newSurveyFeedback}</p>
                     )}
 
-                    <button
-                      onClick={handleAddSurvey}
-                      disabled={isCreatingSurvey}
-                      className="mt-6 w-full rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
-                      type="button"
-                    >
-                      {isCreatingSurvey ? "생성 중..." : "설문 생성"}
-                    </button>
+                    <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+                      {!isEditMode && (
+                        <button
+                          onClick={handleAddSurvey}
+                          disabled={isCreatingSurvey}
+                          className="flex-1 rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+                          type="button"
+                        >
+                          {isCreatingSurvey ? "생성 중..." : "설문 생성"}
+                        </button>
+                      )}
+                      {isEditMode && role === "마스터" && currentAdminSurvey && (
+                        <button
+                          onClick={async () => {
+                            const success = await handleUpdateSurvey();
+                            if (success) {
+                              setIsEditMode(false);
+                              setShowCreateSurvey(false);
+                              setIsSelectingSurveyForEdit(false);
+                              resetNewSurveyForm();
+                            }
+                          }}
+                          disabled={isUpdatingSurvey}
+                          className="flex-1 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                          type="button"
+                        >
+                          {isUpdatingSurvey ? "수정 중..." : "설문 수정 완료"}
+                        </button>
+                      )}
+                    </div>
                   </div>
+                  )}
                 </div>
 
               </section>
             )}
 
-            {role === "마스터" && isLoggedIn && (
+            {(role === "관리자" || role === "마스터") && isLoggedIn && showQuickQuestionTemplates && (
               <section className="rounded-2xl border border-white/10 bg-slate-900/60 p-6 shadow-xl">
-                <h2 className="text-xl font-semibold text-white">확인 코드 관리</h2>
-                <p className="mt-2 text-sm text-slate-400">
-                  관리자 및 마스터 회원가입에 사용되는 확인 코드를 관리합니다.
-                </p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-semibold text-white">빠른문항 설정</h2>
+                    <p className="mt-2 text-sm text-slate-400">
+                      객관식 문항을 빠르게 생성하기 위한 템플릿을 관리합니다.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowQuickQuestionTemplates(false);
+                    }}
+                    type="button"
+                    className="text-xs text-slate-400 hover:text-white"
+                  >
+                    ✕ 닫기
+                  </button>
+                </div>
+
+                <div className="mt-6 space-y-6">
+                  {/* 템플릿 생성 폼 */}
+                  <div className="rounded-xl border border-dashed border-cyan-400/40 bg-slate-950/40 p-4">
+                    <h3 className="text-sm font-semibold text-white mb-4">새 템플릿 생성</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs text-slate-400">템플릿 이름</label>
+                        <input
+                          type="text"
+                          value={newTemplateName}
+                          onChange={(e) => setNewTemplateName(e.target.value)}
+                          placeholder="예: 만족도 조사 (6점 척도)"
+                          className="mt-1 w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-slate-400">질문 유형</label>
+                        <select
+                          value={newTemplateType}
+                          onChange={(e) => setNewTemplateType(e.target.value as typeof newTemplateType)}
+                          className="mt-1 w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-cyan-400 focus:outline-none"
+                        >
+                          <option value="객관식(단일)" className="text-black">객관식(단일)</option>
+                          <option value="객관식(다중선택)" className="text-black">객관식(다중선택)</option>
+                          <option value="객관식(드롭다운)" className="text-black">객관식(드롭다운)</option>
+                          <option value="객관식(순위선택)" className="text-black">객관식(순위선택)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-slate-400">선택지 옵션</label>
+                        <div className="mt-1 space-y-2">
+                          {newTemplateOptions.map((option, index) => (
+                            <div key={index} className="flex gap-2">
+                              <input
+                                type="text"
+                                value={option}
+                                onChange={(e) => {
+                                  const newOptions = [...newTemplateOptions];
+                                  newOptions[index] = e.target.value;
+                                  setNewTemplateOptions(newOptions);
+                                }}
+                                placeholder={`옵션 ${index + 1}`}
+                                className="flex-1 rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
+                              />
+                              <button
+                                onClick={() => {
+                                  if (newTemplateOptions.length > 1) {
+                                    setNewTemplateOptions(newTemplateOptions.filter((_, i) => i !== index));
+                                  }
+                                }}
+                                type="button"
+                                className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-200 hover:border-red-400 hover:text-red-400"
+                                disabled={newTemplateOptions.length <= 1}
+                              >
+                                삭제
+                              </button>
+                            </div>
+                          ))}
+                          <button
+                            onClick={() => setNewTemplateOptions([...newTemplateOptions, ""])}
+                            type="button"
+                            className="w-full rounded-lg border border-cyan-400/60 px-3 py-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-400/10"
+                          >
+                            옵션 추가
+                          </button>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => void handleCreateTemplate()}
+                        disabled={isCreatingTemplate}
+                        className="w-full rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
+                        type="button"
+                      >
+                        {isCreatingTemplate ? "생성 중..." : "템플릿 저장"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 저장된 템플릿 목록 */}
+                  <div className="rounded-xl border border-white/10 bg-slate-950/40 p-4">
+                    <h3 className="text-sm font-semibold text-white mb-4">저장된 템플릿</h3>
+                    {questionTemplates.length === 0 ? (
+                      <p className="text-sm text-slate-400">저장된 템플릿이 없습니다.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {questionTemplates.map((template) => (
+                          <div
+                            key={template.id}
+                            className="flex items-center justify-between rounded-lg border border-white/10 bg-slate-900/50 p-3"
+                          >
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold text-white">{template.name}</p>
+                              <p className="text-xs text-slate-400 mt-1">
+                                {template.question_type} · {template.options.length}개 옵션
+                              </p>
+                              <div className="mt-2 flex flex-wrap gap-1">
+                                {template.options.slice(0, 3).map((opt, idx) => (
+                                  <span key={idx} className="rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-300">
+                                    {opt}
+                                  </span>
+                                ))}
+                                {template.options.length > 3 && (
+                                  <span className="rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-400">
+                                    +{template.options.length - 3}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => void handleDeleteTemplate(template.id)}
+                              type="button"
+                              className="ml-4 rounded-lg border border-red-400/50 px-3 py-1.5 text-xs text-red-300 hover:bg-red-400/10"
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {role === "마스터" && isLoggedIn && showDeploymentManagement && (
+              <section className="rounded-2xl border border-white/10 bg-slate-900/60 p-6 shadow-xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-semibold text-white">배포 관리</h2>
+                    <p className="mt-2 text-sm text-slate-400">
+                      엑셀 파일을 업로드하여 수신자를 등록하고, 설문조사 링크를 이메일로 발송합니다.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowDeploymentManagement(false);
+                    }}
+                    type="button"
+                    className="text-xs text-slate-400 hover:text-white"
+                  >
+                    ✕ 닫기
+                  </button>
+                </div>
+
+                <div className="mt-6 space-y-6">
+                  {/* 설문 선택 */}
+                  <div className="rounded-xl border border-white/10 bg-slate-950/40 p-4">
+                    <label className="text-sm font-semibold text-white mb-2 block">설문 선택</label>
+                    <select
+                      value={selectedSurveyForDeployment}
+                      onChange={(e) => {
+                        setSelectedSurveyForDeployment(e.target.value);
+                        void fetchRecipients(e.target.value);
+                      }}
+                      className="w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-cyan-400 focus:outline-none"
+                    >
+                      <option value="" className="text-black">설문을 선택하세요</option>
+                      {surveys.map((survey) => (
+                        <option key={survey.id} value={survey.id} className="text-black">
+                          {survey.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 엑셀 파일 업로드 */}
+                  {selectedSurveyForDeployment && (
+                    <div className="rounded-xl border border-dashed border-cyan-400/40 bg-slate-950/40 p-4">
+                      <h3 className="text-sm font-semibold text-white mb-4">수신자 목록 업로드</h3>
+                      <p className="text-xs text-slate-400 mb-3">
+                        엑셀 파일 형식: A열=이름, B열=이메일주소 (1행은 헤더)
+                      </p>
+                      <input
+                        type="file"
+                        accept=".xlsx,.xls"
+                        onChange={handleUploadRecipients}
+                        disabled={isUploadingRecipients}
+                        className="w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-cyan-500 file:text-slate-950 hover:file:bg-cyan-400 disabled:opacity-50"
+                      />
+                      {isUploadingRecipients && (
+                        <p className="mt-2 text-xs text-cyan-300">업로드 중...</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 수신자 목록 */}
+                  {selectedSurveyForDeployment && recipients.length > 0 && (
+                    <div className="rounded-xl border border-white/10 bg-slate-950/40 p-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-semibold text-white">
+                          수신자 목록 ({recipients.length}명)
+                        </h3>
+                        <button
+                          onClick={handleSendEmails}
+                          disabled={isSendingEmails || recipients.filter((r) => !r.email_sent).length === 0}
+                          className="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                          type="button"
+                        >
+                          {isSendingEmails ? "발송 중..." : "이메일 발송"}
+                        </button>
+                      </div>
+                      <div className="max-h-64 space-y-2 overflow-y-auto">
+                        {recipients.map((recipient) => (
+                          <div
+                            key={recipient.id}
+                            className={`flex items-center justify-between rounded-lg border p-2 ${
+                              recipient.email_sent
+                                ? "border-emerald-400/50 bg-emerald-400/10"
+                                : "border-white/10 bg-slate-900/50"
+                            }`}
+                          >
+                            <div className="flex-1">
+                              <p className="text-sm text-white">{recipient.name}</p>
+                              <p className="text-xs text-slate-400">{recipient.email}</p>
+                            </div>
+                            {recipient.email_sent && (
+                              <div className="text-xs text-emerald-400">
+                                발송 완료
+                                {recipient.email_sent_at && (
+                                  <div className="text-slate-500">
+                                    {new Date(recipient.email_sent_at).toLocaleString("ko-KR")}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {deploymentMessage && (
+                    <p
+                      className={`text-xs ${
+                        deploymentMessage.includes("성공") ||
+                        deploymentMessage.includes("완료") ||
+                        deploymentMessage.includes("저장")
+                          ? "text-emerald-400"
+                          : "text-red-400"
+                      }`}
+                    >
+                      {deploymentMessage}
+                    </p>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {role === "마스터" && isLoggedIn && showVerificationCodeManagement && (
+              <section className="rounded-2xl border border-white/10 bg-slate-900/60 p-6 shadow-xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-semibold text-white">확인 코드 관리</h2>
+                    <p className="mt-2 text-sm text-slate-400">
+                      관리자 및 마스터 회원가입에 사용되는 확인 코드를 관리합니다.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowVerificationCodeManagement(false);
+                    }}
+                    type="button"
+                    className="text-xs text-slate-400 hover:text-white"
+                  >
+                    ✕ 닫기
+                  </button>
+                </div>
 
                 <div className="mt-6 space-y-4">
                   {isLoadingCodes ? (

@@ -12,9 +12,10 @@ type SurveyAnswerRow = Database["public"]["Tables"]["survey_answers"]["Row"];
 
 type QuestionInput = {
   prompt: string;
-  type: "객관식" | "주관식";
+  type: string; // "객관식(단일)" | "객관식(다중선택)" | ... 등 다양한 유형
   options?: string[];
   sortOrder?: number;
+  conditionalLogic?: Record<string, string>; // { "옵션": "타겟질문ID" }
 };
 
 const shapeOptions = (options?: string[]): Json | null => {
@@ -79,6 +80,9 @@ export async function GET() {
             ? (question.options as string[])
             : [],
           sortOrder: question.sort_order,
+          conditionalLogic: question.conditional_logic
+            ? (question.conditional_logic as Record<string, string>)
+            : undefined,
         })),
         responses: surveyResponses.map((response) => {
           const responseAnswers = answers.filter(
@@ -146,12 +150,20 @@ export async function POST(request: Request) {
 
     const insertedSurvey = insertedSurveyData as SurveyRow;
 
+    const shapeConditionalLogic = (logic?: Record<string, string>): Json | null => {
+      if (!logic || Object.keys(logic).length === 0) {
+        return null;
+      }
+      return logic;
+    };
+
     const questionRows = questions.map((question, index) =>
       ({
         survey_id: insertedSurvey.id,
         prompt: question.prompt,
         question_type: question.type,
         options: shapeOptions(question.options),
+        conditional_logic: shapeConditionalLogic(question.conditionalLogic),
         sort_order: question.sortOrder ?? index,
       }) as SurveyQuestionInsert,
     );

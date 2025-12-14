@@ -39,6 +39,7 @@ export type Database = {
           prompt: string;
           question_type: "객관식" | "주관식";
           options: Json | null;
+          conditional_logic: Json | null;
           sort_order: number;
           created_at: string;
         };
@@ -48,6 +49,7 @@ export type Database = {
           prompt: string;
           question_type: "객관식" | "주관식";
           options?: Json | null;
+          conditional_logic?: Json | null;
           sort_order?: number;
           created_at?: string;
         };
@@ -57,6 +59,7 @@ export type Database = {
           prompt?: string;
           question_type?: "객관식" | "주관식";
           options?: Json | null;
+          conditional_logic?: Json | null;
           sort_order?: number;
           created_at?: string;
         };
@@ -142,6 +145,61 @@ export type Database = {
           role?: "직원" | "관리자" | "마스터";
           code?: string;
           updated_at?: string;
+        };
+      };
+      question_templates: {
+        Row: {
+          id: string;
+          name: string;
+          question_type: "객관식(단일)" | "객관식(다중선택)" | "객관식(드롭다운)" | "객관식(순위선택)";
+          options: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          question_type: "객관식(단일)" | "객관식(다중선택)" | "객관식(드롭다운)" | "객관식(순위선택)";
+          options: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          question_type?: "객관식(단일)" | "객관식(다중선택)" | "객관식(드롭다운)" | "객관식(순위선택)";
+          options?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      survey_recipients: {
+        Row: {
+          id: string;
+          survey_id: string;
+          name: string;
+          email: string;
+          email_sent: boolean;
+          email_sent_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          survey_id: string;
+          name: string;
+          email: string;
+          email_sent?: boolean;
+          email_sent_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          survey_id?: string;
+          name?: string;
+          email?: string;
+          email_sent?: boolean;
+          email_sent_at?: string | null;
+          created_at?: string;
         };
       };
     };
