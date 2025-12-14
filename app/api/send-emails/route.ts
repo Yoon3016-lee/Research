@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import type { Database } from "@/lib/supabase/types";
 import nodemailer from "nodemailer";
+
+type SurveyRecipientRow = Database["public"]["Tables"]["survey_recipients"]["Row"];
+
+type SurveyRecipientRow = Database["public"]["Tables"]["survey_recipients"]["Row"];
 
 export async function POST(request: NextRequest) {
   try {
@@ -66,11 +71,14 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseServerClient();
 
     // 미발송 수신자 조회
-    const { data: recipients, error: fetchError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: recipientsData, error: fetchError } = await supabase
       .from("survey_recipients")
       .select("*")
       .eq("survey_id", body.surveyId)
       .eq("email_sent", false);
+    
+    const recipients = (recipientsData ?? []) as SurveyRecipientRow[];
 
     if (fetchError || !recipients || recipients.length === 0) {
       return NextResponse.json(

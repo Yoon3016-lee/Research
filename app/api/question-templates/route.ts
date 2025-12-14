@@ -52,10 +52,10 @@ export async function POST(request: NextRequest) {
       options: body.options,
     };
 
-    // @ts-expect-error - Supabase type inference issue
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await supabase
       .from("question_templates")
-      .insert(templateData)
+      .insert(templateData as any)
       .select()
       .single();
 

@@ -69,10 +69,10 @@ export async function POST(request: NextRequest) {
       email_sent: false,
     }));
 
-    // @ts-expect-error - Supabase type inference issue
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: insertedData, error } = await supabase
       .from("survey_recipients")
-      .insert(recipientsData)
+      .insert(recipientsData as any)
       .select();
 
     if (error) {
