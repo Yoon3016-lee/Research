@@ -66,7 +66,6 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseServerClient();
 
     // 미발송 수신자 조회
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: recipients, error: fetchError } = await supabase
       .from("survey_recipients")
       .select("*")

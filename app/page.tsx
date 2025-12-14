@@ -261,7 +261,6 @@ export default function Home() {
     if (questions.length === 0) return [];
     
     const visible: Question[] = [];
-    const questionMap = new Map(questions.map(q => [q.id, q]));
     
     // 현재 질문 인덱스를 추적하며 다음 질문 결정
     let currentIndex = 0;
@@ -777,34 +776,6 @@ export default function Home() {
       } else {
         return { ...prev, [questionId]: currentArray.filter((item) => item !== option) };
       }
-    });
-  };
-
-  const handleEmployeeArrayAnswer = (questionId: string, index: number, value: string) => {
-    setEmployeeAnswers((prev) => {
-      const current = prev[questionId];
-      const currentArray = Array.isArray(current) ? current : [""];
-      const newArray = [...currentArray];
-      newArray[index] = value;
-      return { ...prev, [questionId]: newArray };
-    });
-  };
-
-  const addArrayAnswerField = (questionId: string) => {
-    setEmployeeAnswers((prev) => {
-      const current = prev[questionId];
-      const currentArray = Array.isArray(current) ? current : [""];
-      return { ...prev, [questionId]: [...currentArray, ""] };
-    });
-  };
-
-  const removeArrayAnswerField = (questionId: string, index: number) => {
-    setEmployeeAnswers((prev) => {
-      const current = prev[questionId];
-      const currentArray = Array.isArray(current) ? current : [""];
-      if (currentArray.length <= 1) return prev;
-      const newArray = currentArray.filter((_, i) => i !== index);
-      return { ...prev, [questionId]: newArray };
     });
   };
 
@@ -1998,7 +1969,7 @@ export default function Home() {
                                   {question.conditionalLogic && Object.keys(question.conditionalLogic).length > 0 && newQuestions.length > index + 1 && (
                                     <div className="ml-2 flex items-center gap-2 rounded-lg border border-cyan-400/30 bg-slate-900/40 p-2">
                                       <label className="text-xs text-slate-400 whitespace-nowrap">
-                                        "{option}" 선택 시:
+                                        &quot;{option}&quot; 선택 시:
                                       </label>
                                       <select
                                         value={question.conditionalLogic?.[option] ?? ""}

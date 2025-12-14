@@ -59,7 +59,6 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseServerClient();
 
     // 기존 수신자 삭제 (중복 방지)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await supabase.from("survey_recipients").delete().eq("survey_id", surveyId);
 
     // 수신자 추가
@@ -70,10 +69,10 @@ export async function POST(request: NextRequest) {
       email_sent: false,
     }));
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // @ts-expect-error - Supabase type inference issue
     const { data: insertedData, error } = await supabase
       .from("survey_recipients")
-      .insert(recipientsData as any)
+      .insert(recipientsData)
       .select();
 
     if (error) {
@@ -111,7 +110,6 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = getSupabaseServerClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await supabase
       .from("survey_recipients")
       .select("*")
