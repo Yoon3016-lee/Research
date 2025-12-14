@@ -52,9 +52,9 @@ export async function POST(request: NextRequest) {
       options: body.options,
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await supabase
       .from("question_templates")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .insert(templateData as any)
       .select()
       .single();

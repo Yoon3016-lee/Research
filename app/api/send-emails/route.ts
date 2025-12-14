@@ -5,8 +5,6 @@ import nodemailer from "nodemailer";
 
 type SurveyRecipientRow = Database["public"]["Tables"]["survey_recipients"]["Row"];
 
-type SurveyRecipientRow = Database["public"]["Tables"]["survey_recipients"]["Row"];
-
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as {
@@ -71,7 +69,6 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseServerClient();
 
     // 미발송 수신자 조회
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: recipientsData, error: fetchError } = await supabase
       .from("survey_recipients")
       .select("*")
@@ -170,6 +167,7 @@ Gmail을 사용하려면 앱 비밀번호(Application-specific password)를 사�
         // 발송 완료로 업데이트
         await supabase
           .from("survey_recipients")
+          // @ts-expect-error - Supabase type inference issue with survey_recipients table
           .update({ email_sent: true, email_sent_at: new Date().toISOString() })
           .eq("id", recipient.id);
 

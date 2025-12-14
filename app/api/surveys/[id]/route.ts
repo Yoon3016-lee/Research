@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import type { Database } from "@/lib/supabase/types";
+import type { Database, Json } from "@/lib/supabase/types";
 
 type QuestionInput = {
   id?: string;
@@ -12,7 +12,6 @@ type QuestionInput = {
   conditionalLogic?: Record<string, string>; // { "옵션": "타겟질문ID" }
 };
 
-type SurveyQuestionInsert = Database["public"]["Tables"]["survey_questions"]["Insert"];
 type SurveyUpdate = Database["public"]["Tables"]["surveys"]["Update"];
 
 export async function DELETE(
@@ -93,6 +92,7 @@ export async function PUT(
 
     const { error: updateSurveyError } = await supabase
       .from("surveys")
+      // @ts-expect-error - Supabase type inference issue
       .update(surveyData)
       .eq("id", id);
 
@@ -135,7 +135,7 @@ export async function PUT(
     };
 
     // 새 문항 upsert (기존 id 유지, 없으면 새로 삽입)
-    const questionRows: SurveyQuestionInsert[] = questions.map(
+    const questionRows = questions.map(
       (question, index) => ({
         id: question.id, // 기존 문항이면 id 유지
         survey_id: id,
@@ -152,8 +152,8 @@ export async function PUT(
 
     const { error: upsertQuestionsError } = await supabase
       .from("survey_questions")
-      // @ts-expect-error Supabase 타입 제한
-      .upsert(questionRows, { onConflict: "id" });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .upsert(questionRows as any, { onConflict: "id" });
 
     if (upsertQuestionsError) {
       throw new Error(upsertQuestionsError.message);

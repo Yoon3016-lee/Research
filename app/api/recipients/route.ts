@@ -69,9 +69,9 @@ export async function POST(request: NextRequest) {
       email_sent: false,
     }));
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: insertedData, error } = await supabase
       .from("survey_recipients")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .insert(recipientsData as any)
       .select();
 
