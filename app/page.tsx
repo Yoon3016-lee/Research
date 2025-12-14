@@ -1190,7 +1190,7 @@ export default function Home() {
                       className="fixed inset-0 z-[9998]"
                       onClick={() => setShowFunctionsDropdown(false)}
                     />
-                    <div className="fixed top-20 right-6 w-48 rounded-md bg-slate-800 shadow-2xl z-[9999] border border-white/10">
+                    <div className="absolute top-full left-0 mt-2 w-48 rounded-md bg-slate-800 shadow-2xl z-[9999] border border-white/10">
                       <button
                         onClick={() => {
                           setShowCreateSurvey(true);
