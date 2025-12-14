@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 
-type QuestionTemplateRow = Database["public"]["Tables"]["question_templates"]["Row"];
 type QuestionTemplateInsert = Database["public"]["Tables"]["question_templates"]["Insert"];
 
 export async function GET() {
@@ -53,10 +52,10 @@ export async function POST(request: NextRequest) {
       options: body.options,
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // @ts-expect-error - Supabase type inference issue
     const { data, error } = await supabase
       .from("question_templates")
-      .insert(templateData as any)
+      .insert(templateData)
       .select()
       .single();
 
@@ -91,7 +90,6 @@ export async function DELETE(request: NextRequest) {
     }
 
     const supabase = getSupabaseServerClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await supabase
       .from("question_templates")
       .delete()

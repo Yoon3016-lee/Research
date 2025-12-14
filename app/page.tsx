@@ -1526,7 +1526,7 @@ export default function Home() {
                         {question.type === "객관식(순위선택)" && (
                           <div className="mt-3 space-y-2">
                             <p className="text-xs text-slate-400 mb-2">옵션을 클릭하면 순서대로 순위가 부여됩니다 (1순위부터)</p>
-                            {question.options.map((option, optionIndex) => {
+                            {question.options.map((option) => {
                               const currentAnswer = employeeAnswers[question.id];
                               const currentRanks = Array.isArray(currentAnswer) 
                                 ? [] 

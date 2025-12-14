@@ -160,7 +160,6 @@ Gmail을 사용하려면 앱 비밀번호(Application-specific password)를 사�
         console.log(`이메일 발송 성공 [${recipient.email}]:`, info.messageId);
 
         // 발송 완료로 업데이트
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await supabase
           .from("survey_recipients")
           .update({ email_sent: true, email_sent_at: new Date().toISOString() })
