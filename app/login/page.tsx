@@ -68,6 +68,13 @@ function LoginPageContent() {
     }
   };
 
+  const handleGuestLogin = () => {
+    const guestUser: User = { id: "Guest", role: "직원" };
+    localStorage.setItem("user", JSON.stringify(guestUser));
+    document.cookie = "guest_session=1; path=/; max-age=86400";
+    router.push(redirect || "/survey-plaza");
+  };
+
   return (
     <div className="min-h-screen bg-white flex items-center justify-center px-4">
       <div className="w-full max-w-md">
@@ -120,6 +127,13 @@ function LoginPageContent() {
               className="w-full rounded-lg bg-cyan-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isLoading ? "로그인 중..." : "로그인"}
+            </button>
+            <button
+              type="button"
+              onClick={handleGuestLogin}
+              className="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
+            >
+              Guest로 참여하기 (회원가입 없이 설문 참여)
             </button>
           </form>
 

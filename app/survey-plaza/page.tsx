@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 type Survey = {
   id: string;
@@ -18,11 +19,22 @@ type Survey = {
 };
 
 export default function SurveyPlazaPage() {
+  const router = useRouter();
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [user, setUser] = useState<{ id: string; role: string } | null>(null);
 
   useEffect(() => {
+    const savedUser = localStorage.getItem("user");
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (err) {
+        console.error("Failed to parse user:", err);
+      }
+    }
+
     const fetchSurveys = async () => {
       try {
         setIsLoading(true);
@@ -234,6 +246,12 @@ export default function SurveyPlazaPage() {
                   <Link
                     href={`/survey/${survey.id}`}
                     className="block w-full rounded-lg bg-cyan-500 px-4 py-2 text-center text-sm font-semibold text-white transition hover:bg-cyan-600"
+                    onClick={(e) => {
+                      if (!user) {
+                        e.preventDefault();
+                        router.push(`/login?redirect=/survey/${survey.id}`);
+                      }
+                    }}
                   >
                     참여하기
                   </Link>
