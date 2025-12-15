@@ -71,13 +71,17 @@ export async function GET() {
         id: survey.id,
         title: survey.title,
         description: survey.description,
+        imageUrl: (survey as { image_url?: string | null }).image_url ?? null,
         createdAt: survey.created_at,
+        deletedAt: (survey as { deleted_at?: string | null }).deleted_at ?? null,
         questions: surveyQuestions.map((question) => ({
           id: question.id,
           prompt: question.prompt,
-          type: question.question_type as "객관식" | "주관식",
+          type: question.question_type as string,
           options: Array.isArray(question.options)
             ? (question.options as string[])
+            : question.options
+            ? (question.options as unknown as string[])
             : [],
           sortOrder: question.sort_order,
           conditionalLogic: question.conditional_logic
@@ -115,9 +119,10 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { title, description, questions, createdBy } = (await request.json()) as {
+    const { title, description, imageUrl, questions, createdBy } = (await request.json()) as {
       title: string;
       description?: string;
+      imageUrl?: string | null;
       createdBy?: string;
       questions: QuestionInput[];
     };
@@ -134,6 +139,7 @@ export async function POST(request: Request) {
     const surveyData = {
       title,
       description: description ?? null,
+      image_url: imageUrl ?? null,
       created_by: createdBy ?? null,
     } as SurveyInsert;
 

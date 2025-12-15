@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     const { surveyId, employeeId, answers } = (await request.json()) as {
       surveyId: string;
       employeeId: string;
-      answers: Record<string, string>;
+      answers: Record<string, string | string[]>;
     };
 
     if (!surveyId || !employeeId || !answers) {
@@ -43,12 +43,17 @@ export async function POST(request: Request) {
     const insertedResponse = insertedResponseData as SurveyResponseRow;
 
     const answerRows = Object.entries(answers).map(
-      ([questionId, answerText]) =>
-        ({
+      ([questionId, answerValue]) => {
+        // 배열인 경우 쉼표로 구분된 문자열로 변환
+        const answerText = Array.isArray(answerValue) 
+          ? answerValue.join(",")
+          : answerValue;
+        return {
           response_id: insertedResponse.id,
           question_id: questionId,
           answer_text: answerText,
-        }) as SurveyAnswerInsert,
+        } as SurveyAnswerInsert;
+      }
     );
 
     const { error: answersError } = await supabase

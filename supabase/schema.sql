@@ -4,6 +4,7 @@ create table if not exists public.surveys (
   title text not null,
   description text,
   created_by text,
+  deleted_at timestamptz, -- Soft delete: 삭제된 설문은 deleted_at에 타임스탬프 저장
   created_at timestamptz not null default timezone('utc', now())
 );
 

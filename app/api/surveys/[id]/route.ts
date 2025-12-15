@@ -69,12 +69,38 @@ export async function PUT(
       );
     }
 
-    const { title, description, questions } = (await request.json()) as {
-      title: string;
+    const { title, description, imageUrl, questions, deletedAt } = (await request.json()) as {
+      title?: string;
       description?: string | null;
-      questions: QuestionInput[];
+      imageUrl?: string | null;
+      questions?: QuestionInput[];
+      deletedAt?: string | null;
     };
 
+    const supabase = getSupabaseServerClient();
+
+    // deletedAt만 업데이트하는 경우 (soft delete/restore)
+    if (deletedAt !== undefined && title === undefined && questions === undefined) {
+      const surveyData: SurveyUpdate = {
+        deleted_at: deletedAt,
+      };
+
+      const { error: updateSurveyError } = await supabase
+        .from("surveys")
+        // @ts-expect-error - Supabase type inference issue
+        .update(surveyData)
+        .eq("id", id);
+
+      if (updateSurveyError) {
+        throw new Error(updateSurveyError.message);
+      }
+
+      return NextResponse.json({ 
+        message: deletedAt ? "설문이 삭제되었습니다." : "설문이 복원되었습니다." 
+      });
+    }
+
+    // 일반 업데이트 (title, description, questions)
     if (!title || !Array.isArray(questions) || questions.length === 0) {
       return NextResponse.json(
         { error: "제목과 최소 1개 이상의 문항이 필요합니다." },
@@ -82,19 +108,18 @@ export async function PUT(
       );
     }
 
-    const supabase = getSupabaseServerClient();
-
     // 설문 메타 업데이트
-    const surveyData: SurveyUpdate = {
+    const surveyData = {
       title,
       description: description ?? null,
+      image_url: imageUrl ?? null,
     };
 
-    const { error: updateSurveyError } = await supabase
-      .from("surveys")
-      // @ts-expect-error - Supabase type inference issue
-      .update(surveyData)
-      .eq("id", id);
+      const { error: updateSurveyError } = await supabase
+        .from("surveys")
+        // @ts-expect-error - Supabase type inference issue with image_url
+        .update(surveyData)
+        .eq("id", id);
 
     if (updateSurveyError) {
       throw new Error(updateSurveyError.message);
@@ -102,7 +127,7 @@ export async function PUT(
 
     const questionIds = questions
       .map((q) => q.id)
-      .filter(Boolean) as string[];
+      .filter((id) => id && !id.startsWith("temp-")) as string[];
 
     // 기존 문항 중 전달되지 않은 것만 삭제
     if (questionIds.length > 0) {
@@ -134,29 +159,62 @@ export async function PUT(
       return logic;
     };
 
-    // 새 문항 upsert (기존 id 유지, 없으면 새로 삽입)
-    const questionRows = questions.map(
-      (question, index) => ({
-        id: question.id, // 기존 문항이면 id 유지
+    // 새 문항과 기존 문항 분리
+    const shapeOptions = (options?: string[]): Json | null => {
+      if (!options || options.length === 0) {
+        return null;
+      }
+      return options as Json;
+    };
+
+    const existingQuestions = questions.filter((q) => q.id && !q.id.startsWith("temp-"));
+    const newQuestions = questions.filter((q) => !q.id || q.id.startsWith("temp-"));
+
+    // 기존 문항 업데이트 (upsert)
+    if (existingQuestions.length > 0) {
+      const existingQuestionRows = existingQuestions.map((question, index) => ({
+        id: question.id,
         survey_id: id,
         prompt: question.prompt,
         question_type: question.type,
-        options:
-          question.type === "객관식"
-            ? (question.options ?? [])
-            : null,
+        options: question.type.startsWith("객관식")
+          ? shapeOptions(question.options)
+          : null,
         conditional_logic: shapeConditionalLogic(question.conditionalLogic),
         sort_order: question.sortOrder ?? index,
-      }),
-    );
+      }));
 
-    const { error: upsertQuestionsError } = await supabase
-      .from("survey_questions")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .upsert(questionRows as any, { onConflict: "id" });
+      const { error: upsertError } = await supabase
+        .from("survey_questions")
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .upsert(existingQuestionRows as any, { onConflict: "id" });
 
-    if (upsertQuestionsError) {
-      throw new Error(upsertQuestionsError.message);
+      if (upsertError) {
+        throw new Error(upsertError.message);
+      }
+    }
+
+    // 새 문항 삽입 (insert)
+    if (newQuestions.length > 0) {
+      const newQuestionRows = newQuestions.map((question, index) => ({
+        survey_id: id,
+        prompt: question.prompt,
+        question_type: question.type,
+        options: question.type.startsWith("객관식")
+          ? shapeOptions(question.options)
+          : null,
+        conditional_logic: shapeConditionalLogic(question.conditionalLogic),
+        sort_order: question.sortOrder ?? (existingQuestions.length + index),
+      }));
+
+      const { error: insertError } = await supabase
+        .from("survey_questions")
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .insert(newQuestionRows as any);
+
+      if (insertError) {
+        throw new Error(insertError.message);
+      }
     }
 
     return NextResponse.json({ message: "설문이 수정되었습니다." });
