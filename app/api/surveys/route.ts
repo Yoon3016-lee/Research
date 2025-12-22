@@ -16,6 +16,8 @@ type QuestionInput = {
   options?: string[];
   sortOrder?: number;
   conditionalLogic?: Record<string, string>; // { "옵션": "타겟질문ID" }
+  maxRank?: number;
+  maxSelected?: number;
 };
 
 const shapeOptions = (options?: string[]): Json | null => {
@@ -74,20 +76,46 @@ export async function GET() {
         imageUrl: (survey as { image_url?: string | null }).image_url ?? null,
         createdAt: survey.created_at,
         deletedAt: (survey as { deleted_at?: string | null }).deleted_at ?? null,
-        questions: surveyQuestions.map((question) => ({
-          id: question.id,
-          prompt: question.prompt,
-          type: question.question_type as string,
-          options: Array.isArray(question.options)
-            ? (question.options as string[])
-            : question.options
-            ? (question.options as unknown as string[])
-            : [],
-          sortOrder: question.sort_order,
-          conditionalLogic: question.conditional_logic
+        questions: surveyQuestions.map((question) => {
+          const rawLogic = question.conditional_logic
             ? (question.conditional_logic as Record<string, string>)
-            : undefined,
-        })),
+            : undefined;
+
+          const maxRank =
+            (question.question_type as string) === "객관식(순위선택)" && rawLogic?.__maxRank
+              ? Number(rawLogic.__maxRank)
+              : undefined;
+
+          const maxSelected =
+            (question.question_type as string) === "객관식(다중선택)" && rawLogic?.__maxSelected
+              ? Number(rawLogic.__maxSelected)
+              : undefined;
+
+          const conditionalLogic =
+            rawLogic &&
+            (("__maxRank" in rawLogic) || ("__maxSelected" in rawLogic))
+              ? Object.fromEntries(
+                  Object.entries(rawLogic).filter(
+                    ([key]) => key !== "__maxRank" && key !== "__maxSelected",
+                  ),
+                )
+              : rawLogic;
+
+          return {
+            id: question.id,
+            prompt: question.prompt,
+            type: question.question_type as string,
+            options: Array.isArray(question.options)
+              ? (question.options as string[])
+              : question.options
+              ? (question.options as unknown as string[])
+              : [],
+            sortOrder: question.sort_order,
+            conditionalLogic,
+            maxRank,
+            maxSelected,
+          };
+        }),
         responses: surveyResponses.map((response) => {
           const responseAnswers = answers.filter(
             (answer) => answer.response_id === response.id,
@@ -156,23 +184,30 @@ export async function POST(request: Request) {
 
     const insertedSurvey = insertedSurveyData as SurveyRow;
 
-    const shapeConditionalLogic = (logic?: Record<string, string>): Json | null => {
-      if (!logic || Object.keys(logic).length === 0) {
-        return null;
-      }
-      return logic;
-    };
+    const questionRows = questions.map((question, index) => {
+      const baseLogic = question.conditionalLogic ?? {};
+      const logic: Record<string, string> = { ...baseLogic };
 
-    const questionRows = questions.map((question, index) =>
-      ({
+      if (question.type === "객관식(순위선택)" && typeof question.maxRank === "number") {
+        logic.__maxRank = String(question.maxRank);
+      }
+
+      if (question.type === "객관식(다중선택)" && typeof question.maxSelected === "number") {
+        logic.__maxSelected = String(question.maxSelected);
+      }
+
+      const conditionalLogicJson: Json | null =
+        Object.keys(logic).length === 0 ? null : (logic as Json);
+
+      return {
         survey_id: insertedSurvey.id,
         prompt: question.prompt,
         question_type: question.type,
         options: shapeOptions(question.options),
-        conditional_logic: shapeConditionalLogic(question.conditionalLogic),
+        conditional_logic: conditionalLogicJson,
         sort_order: question.sortOrder ?? index,
-      }) as SurveyQuestionInsert,
-    );
+      } as SurveyQuestionInsert;
+    });
 
     const { error: questionError } = await supabase
       .from("survey_questions")

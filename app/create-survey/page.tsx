@@ -15,7 +15,8 @@ type QuestionType =
   | "객관식(드롭다운)"
   | "객관식(순위선택)"
   | "단답형"
-  | "서술형";
+  | "서술형"
+  | "복수형 주관식";
 
 type Question = {
   id: string;
@@ -24,6 +25,8 @@ type Question = {
   options?: string[];
   conditionalLogic?: Record<string, string>;
   sortOrder: number;
+  maxRank?: number;
+  maxSelected?: number;
 };
 
 type QuestionTemplate = {
@@ -131,14 +134,26 @@ function CreateSurveyPageContent() {
             setSurveyImageUrl((survey as { imageUrl?: string }).imageUrl || "");
             setSurveyImagePreview((survey as { imageUrl?: string }).imageUrl || "");
             setQuestions(
-              survey.questions.map((q) => ({
-                id: q.id,
-                prompt: q.prompt,
-                type: q.type as QuestionType,
-                options: q.options || [],
-                conditionalLogic: q.conditionalLogic,
-                sortOrder: q.sortOrder || 0,
-              })),
+              survey.questions.map((q) => {
+                const base: Question = {
+                  id: q.id,
+                  prompt: q.prompt,
+                  type: q.type as QuestionType,
+                  options: q.options || [],
+                  conditionalLogic: q.conditionalLogic,
+                  sortOrder: q.sortOrder || 0,
+                };
+
+                if (q.type === "객관식(순위선택)" && typeof (q as unknown as { maxRank?: number }).maxRank === "number") {
+                  base.maxRank = (q as unknown as { maxRank: number }).maxRank;
+                }
+
+                if (q.type === "객관식(다중선택)" && typeof (q as unknown as { maxSelected?: number }).maxSelected === "number") {
+                  base.maxSelected = (q as unknown as { maxSelected: number }).maxSelected;
+                }
+
+                return base;
+              }),
             );
           }
         } catch (err) {
@@ -152,10 +167,23 @@ function CreateSurveyPageContent() {
   }, [editSurveyId, user]);
 
   const addQuestion = (type: QuestionType) => {
-    const defaultOptions =
-      type.startsWith("객관식") && type !== "객관식(순위선택)"
-        ? ["매우 불만족", "불만족", "약간 불만족", "약간 만족", "만족", "매우 만족"]
-        : [];
+    let defaultOptions: string[] = [];
+
+    if (type.startsWith("객관식")) {
+      if (type === "객관식(순위선택)")
+        defaultOptions = ["선택지 1", "선택지 2", "선택지 3"];
+      else
+        defaultOptions = [
+          "매우 불만족",
+          "불만족",
+          "약간 불만족",
+          "약간 만족",
+          "만족",
+          "매우 만족",
+        ];
+    } else if (type === "복수형 주관식") {
+      defaultOptions = ["항목 1"];
+    }
 
     const newQuestion: Question = {
       id: `temp-${Date.now()}-${Math.random()}`,
@@ -267,9 +295,9 @@ function CreateSurveyPageContent() {
       setIsLoading(true);
 
       const questionData = questions.map((q, index) => {
-        // 객관식인 경우 options를 배열로 변환
+        // 객관식/복수형 주관식인 경우 options를 배열로 변환
         let options: string[] | undefined = undefined;
-        if (q.type.startsWith("객관식")) {
+        if (q.type.startsWith("객관식") || q.type === "복수형 주관식") {
           options = q.options || [];
         }
 
@@ -280,6 +308,17 @@ function CreateSurveyPageContent() {
           options,
           sortOrder: index,
           conditionalLogic: q.conditionalLogic,
+          maxRank: q.maxRank,
+          maxSelected: q.maxSelected,
+        } as {
+          id?: string;
+          prompt: string;
+          type: QuestionType;
+          options?: string[];
+          sortOrder: number;
+          conditionalLogic?: Record<string, string>;
+          maxRank?: number;
+          maxSelected?: number;
         };
       });
 
@@ -401,7 +440,7 @@ function CreateSurveyPageContent() {
                 </div>
               </div>
 
-              {/* 주관식 문항추가 구성 모음 - 한 줄에 4개 (2개만 있음) */}
+              {/* 주관식 문항추가 구성 모음 - 한 줄에 4개 */}
               <div>
                 <div className="grid grid-cols-4 gap-2">
                   <button
@@ -421,6 +460,15 @@ function CreateSurveyPageContent() {
                     type="button"
                   >
                     서술형
+                  </button>
+                  <button
+                    onClick={() => {
+                      addQuestion("복수형 주관식");
+                    }}
+                    className="rounded-lg bg-emerald-500 px-3 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600"
+                    type="button"
+                  >
+                    복수형 주관식
                   </button>
                 </div>
               </div>
@@ -553,13 +601,6 @@ function CreateSurveyPageContent() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-slate-900">문항</h2>
-                <button
-                  onClick={() => setShowQuestionTypeModal(true)}
-                  className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-slate-300"
-                  type="button"
-                >
-                  기타 문항 추가
-                </button>
               </div>
 
             {questions.length === 0 ? (
@@ -612,27 +653,161 @@ function CreateSurveyPageContent() {
                     </button>
                   </div>
 
-                  {/* 객관식 옵션 */}
+                  {/* 객관식 옵션 (단일/다중/드롭다운) */}
                   {question.type.startsWith("객관식") && question.type !== "객관식(순위선택)" && (
+                    <div className="mt-4 space-y-3">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-medium text-slate-700">선택지</label>
+                          <button
+                            onClick={() => addOption(index)}
+                            className="text-sm font-semibold text-cyan-600 hover:text-cyan-700"
+                            type="button"
+                          >
+                            + 선택지 추가
+                          </button>
+                        </div>
+                        {question.options?.map((option, optIndex) => (
+                          <div key={optIndex} className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={option}
+                              onChange={(e) => updateOption(index, optIndex, e.target.value)}
+                              className="flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-900 focus:border-cyan-500 focus:outline-none"
+                              placeholder={`선택지 ${optIndex + 1}`}
+                            />
+                            <button
+                              onClick={() => removeOption(index, optIndex)}
+                              className="text-red-500 hover:text-red-700"
+                              type="button"
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* 객관식(다중선택) 최대 선택 수 설정 */}
+                      {question.type === "객관식(다중선택)" && (
+                        <div className="flex items-center gap-3">
+                          <label className="text-sm font-medium text-slate-700">
+                            최대 선택 수
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={Math.max(1, question.options?.length || 1)}
+                            value={
+                              question.maxSelected && question.maxSelected > 0
+                                ? question.maxSelected
+                                : ""
+                            }
+                            onChange={(e) => {
+                              const raw = Number(e.target.value);
+                              if (Number.isNaN(raw) || raw <= 0) {
+                                // 빈 값이나 0/음수면 제한 없음
+                                updateQuestion(index, { maxSelected: undefined });
+                                return;
+                              }
+                              const max = Math.max(1, question.options?.length || 1);
+                              const clamped = Math.min(Math.max(1, raw), max);
+                              updateQuestion(index, { maxSelected: clamped });
+                            }}
+                            className="w-20 rounded-lg border border-slate-300 px-2 py-1 text-sm text-slate-900 focus:border-cyan-500 focus:outline-none text-center"
+                          />
+                          <span className="text-sm text-slate-600">개 (빈칸이면 제한 없음)</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 객관식(순위선택) 옵션 + 최대 순위 설정 */}
+                  {question.type === "객관식(순위선택)" && (
+                    <div className="mt-4 space-y-3">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-medium text-slate-700">
+                            순위 선택 항목
+                          </label>
+                          <button
+                            onClick={() => addOption(index)}
+                            className="text-sm font-semibold text-cyan-600 hover:text-cyan-700"
+                            type="button"
+                          >
+                            + 선택지 추가
+                          </button>
+                        </div>
+                        {(question.options || []).map((option, optIndex) => (
+                          <div key={optIndex} className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={option}
+                              onChange={(e) => updateOption(index, optIndex, e.target.value)}
+                              className="flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-900 focus:border-cyan-500 focus:outline-none"
+                              placeholder={`순위 선택지 ${optIndex + 1}`}
+                            />
+                            <button
+                              onClick={() => removeOption(index, optIndex)}
+                              className="text-red-500 hover:text-red-700"
+                              type="button"
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <label className="text-sm font-medium text-slate-700">
+                          최대 순위 선택 수
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={Math.max(1, question.options?.length || 1)}
+                          value={
+                            question.maxRank && question.maxRank > 0
+                              ? question.maxRank
+                              : Math.min(3, Math.max(1, question.options?.length || 1))
+                          }
+                          onChange={(e) => {
+                            const raw = Number(e.target.value);
+                            const max = Math.max(1, question.options?.length || 1);
+                            const clamped = Number.isNaN(raw)
+                              ? 1
+                              : Math.min(Math.max(1, raw), max);
+                            updateQuestion(index, { maxRank: clamped });
+                          }}
+                          className="w-20 rounded-lg border border-slate-300 px-2 py-1 text-sm text-slate-900 focus:border-cyan-500 focus:outline-none text-center"
+                        />
+                        <span className="text-sm text-slate-600">개</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 복수형 주관식: 한 질문 안에 여러 개의 주관식 줄 */}
+                  {question.type === "복수형 주관식" && (
                     <div className="mt-4 space-y-2">
                       <div className="flex items-center justify-between">
-                        <label className="text-sm font-medium text-slate-700">선택지</label>
+                        <label className="text-sm font-medium text-slate-700">
+                          주관식 항목 (한 질문 안에 여러 줄의 주관식 문항을 넣을 수 있습니다)
+                        </label>
                         <button
                           onClick={() => addOption(index)}
-                          className="text-xs text-cyan-600 hover:text-cyan-700"
+                          className="text-sm font-semibold text-emerald-600 hover:text-emerald-700"
                           type="button"
                         >
-                          + 선택지 추가
+                          + 줄 추가
                         </button>
                       </div>
-                      {question.options?.map((option, optIndex) => (
+                      {(question.options || []).map((option, optIndex) => (
                         <div key={optIndex} className="flex items-center gap-2">
                           <input
                             type="text"
                             value={option}
                             onChange={(e) => updateOption(index, optIndex, e.target.value)}
-                            className="flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-900 focus:border-cyan-500 focus:outline-none"
-                            placeholder={`선택지 ${optIndex + 1}`}
+                            className="flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none"
+                            placeholder={`주관식 항목 제목 ${optIndex + 1}`}
                           />
                           <button
                             onClick={() => removeOption(index, optIndex)}
@@ -775,6 +950,13 @@ function CreateSurveyPageContent() {
                     type="button"
                   >
                     서술형
+                  </button>
+                  <button
+                    onClick={() => addQuestion("복수형 주관식")}
+                    className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    type="button"
+                  >
+                    복수형 주관식
                   </button>
                 </div>
               </div>

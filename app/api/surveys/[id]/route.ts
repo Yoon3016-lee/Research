@@ -10,6 +10,8 @@ type QuestionInput = {
   options?: string[];
   sortOrder?: number;
   conditionalLogic?: Record<string, string>; // { "옵션": "타겟질문ID" }
+  maxRank?: number;
+  maxSelected?: number;
 };
 
 type SurveyUpdate = Database["public"]["Tables"]["surveys"]["Update"];
@@ -152,10 +154,22 @@ export async function PUT(
       }
     }
 
-    const shapeConditionalLogic = (logic?: Record<string, string>): Json | null => {
-      if (!logic || Object.keys(logic).length === 0) {
+    const shapeConditionalLogic = (question: QuestionInput): Json | null => {
+      const base = question.conditionalLogic ?? {};
+      const logic: Record<string, string> = { ...base };
+
+      if (question.type === "객관식(순위선택)" && typeof question.maxRank === "number") {
+        logic.__maxRank = String(question.maxRank);
+      }
+
+      if (question.type === "객관식(다중선택)" && typeof question.maxSelected === "number") {
+        logic.__maxSelected = String(question.maxSelected);
+      }
+
+      if (Object.keys(logic).length === 0) {
         return null;
       }
+
       return logic;
     };
 
@@ -177,10 +191,11 @@ export async function PUT(
         survey_id: id,
         prompt: question.prompt,
         question_type: question.type,
-        options: question.type.startsWith("객관식")
-          ? shapeOptions(question.options)
-          : null,
-        conditional_logic: shapeConditionalLogic(question.conditionalLogic),
+        options:
+          question.type.startsWith("객관식") || question.type === "복수형 주관식"
+            ? shapeOptions(question.options)
+            : null,
+        conditional_logic: shapeConditionalLogic(question),
         sort_order: question.sortOrder ?? index,
       }));
 
@@ -200,10 +215,11 @@ export async function PUT(
         survey_id: id,
         prompt: question.prompt,
         question_type: question.type,
-        options: question.type.startsWith("객관식")
-          ? shapeOptions(question.options)
-          : null,
-        conditional_logic: shapeConditionalLogic(question.conditionalLogic),
+        options:
+          question.type.startsWith("객관식") || question.type === "복수형 주관식"
+            ? shapeOptions(question.options)
+            : null,
+        conditional_logic: shapeConditionalLogic(question),
         sort_order: question.sortOrder ?? (existingQuestions.length + index),
       }));
 

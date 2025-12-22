@@ -22,8 +22,7 @@ create table if not exists public.survey_questions (
     '객관식(순위선택)',
     '단답형',
     '서술형',
-    '복수형(문자)',
-    '복수형(숫자)'
+    '복수형 주관식'
   )),
   options jsonb,
   conditional_logic jsonb, -- 조건부 분기 로직: { "옵션": "타겟질문ID" }

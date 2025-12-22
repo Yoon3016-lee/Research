@@ -16,6 +16,8 @@ type Question = {
   options?: string[];
   sortOrder?: number;
   conditionalLogic?: Record<string, string>;
+  maxRank?: number;
+  maxSelected?: number;
 };
 
 type Survey = {
@@ -38,6 +40,7 @@ export default function SurveyPage() {
   const [message, setMessage] = useState("");
   const [employeeAnswers, setEmployeeAnswers] = useState<Record<string, string | string[]>>({});
   const [rankSelections, setRankSelections] = useState<Record<string, string[]>>({});
+  const [selectionErrors, setSelectionErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const savedUser = localStorage.getItem("user");
@@ -163,15 +166,38 @@ export default function SurveyPage() {
     handleAnswer(questionId, option);
   };
 
-  const handleMultipleChoice = (questionId: string, option: string) => {
+  const handleMultipleChoice = (questionId: string, option: string, maxSelected?: number) => {
     const currentAnswers = (employeeAnswers[questionId] as string[]) || [];
-    const newAnswers = currentAnswers.includes(option)
-      ? currentAnswers.filter((a) => a !== option)
-      : [...currentAnswers, option];
+
+    if (currentAnswers.includes(option)) {
+      // 이미 선택된 항목이면 해제
+      const newAnswers = currentAnswers.filter((a) => a !== option);
+      handleAnswer(questionId, newAnswers);
+      setSelectionErrors((prev) => {
+        const { [questionId]: _, ...rest } = prev;
+        return rest;
+      });
+      return;
+    }
+
+    // 새로 선택하는 경우: 최대 선택 수 초과라면 경고 후 무시
+    if (maxSelected && currentAnswers.length >= maxSelected) {
+      setSelectionErrors((prev) => ({
+        ...prev,
+        [questionId]: `최대 ${maxSelected}개까지만 선택할 수 있습니다.`,
+      }));
+      return;
+    }
+
+    const newAnswers = [...currentAnswers, option];
     handleAnswer(questionId, newAnswers);
+    setSelectionErrors((prev) => {
+      const { [questionId]: _, ...rest } = prev;
+      return rest;
+    });
   };
 
-  const handleRankSelection = (questionId: string, option: string) => {
+  const handleRankSelection = (questionId: string, option: string, maxRank?: number) => {
     const currentRanks = rankSelections[questionId] || [];
     if (currentRanks.includes(option)) {
       // 이미 선택된 옵션이면 제거
@@ -184,7 +210,10 @@ export default function SurveyPage() {
       const rankValues = newRanks.map((_, idx) => (idx + 1).toString());
       handleAnswer(questionId, rankValues.join(","));
     } else {
-      // 새로 선택하면 순위 추가
+      // 새로 선택: 최대 순위 개수 제한 체크
+      if (maxRank && currentRanks.length >= maxRank) {
+        return;
+      }
       const newRanks = [...currentRanks, option];
       setRankSelections((prev) => ({
         ...prev,
@@ -194,6 +223,22 @@ export default function SurveyPage() {
       const rankValues = newRanks.map((_, idx) => (idx + 1).toString());
       handleAnswer(questionId, rankValues.join(","));
     }
+  };
+
+  const handleMultiTextChange = (
+    questionId: string,
+    index: number,
+    value: string,
+    length: number,
+  ) => {
+    const prev = employeeAnswers[questionId];
+    const arr: string[] = Array.isArray(prev) ? [...prev] : [];
+    // 필요한 길이만큼 확장
+    while (arr.length < length) {
+      arr.push("");
+    }
+    arr[index] = value;
+    handleAnswer(questionId, arr);
   };
 
   const handleSubmit = async () => {
@@ -335,6 +380,11 @@ export default function SurveyPage() {
                   {/* 객관식(다중선택) */}
                   {question.type === "객관식(다중선택)" && (
                     <div className="space-y-2">
+                  {selectionErrors[question.id] && (
+                    <div className="mb-1 text-xs text-red-600">
+                      {selectionErrors[question.id]}
+                    </div>
+                  )}
                       {questionOptions.map((option) => {
                         const currentAnswers = (answer as string[]) || [];
                         const isChecked = currentAnswers.includes(option);
@@ -346,7 +396,9 @@ export default function SurveyPage() {
                             <input
                               type="checkbox"
                               checked={isChecked}
-                              onChange={() => handleMultipleChoice(question.id, option)}
+                          onChange={() =>
+                            handleMultipleChoice(question.id, option, question.maxSelected)
+                          }
                               className="w-4 h-4 text-cyan-500"
                             />
                             <span className="text-slate-700">{option}</span>
@@ -382,7 +434,7 @@ export default function SurveyPage() {
                         return (
                           <button
                             key={option}
-                            onClick={() => handleRankSelection(question.id, option)}
+                        onClick={() => handleRankSelection(question.id, option, question.maxRank)}
                             className={`w-full flex items-center justify-between p-3 rounded-lg border transition ${
                               rank
                                 ? "border-cyan-500 bg-cyan-50"
@@ -420,6 +472,37 @@ export default function SurveyPage() {
                       placeholder="답변을 입력하세요"
                       rows={4}
                     />
+                  )}
+
+                  {/* 복수형 주관식: 한 질문 안에 여러 개의 주관식 줄 */}
+                  {question.type === "복수형 주관식" && (
+                    <div className="space-y-3">
+                      {questionOptions.map((label, idx) => {
+                        const current = Array.isArray(answer) ? (answer as string[]) : [];
+                        const value = current[idx] || "";
+                        return (
+                          <div key={`${question.id}-${idx}`} className="space-y-1">
+                            <p className="text-sm font-medium text-slate-800">
+                              {idx + 1}) {label || "주관식 항목"}
+                            </p>
+                            <input
+                              type="text"
+                              value={value}
+                              onChange={(e) =>
+                                handleMultiTextChange(
+                                  question.id,
+                                  idx,
+                                  e.target.value,
+                                  questionOptions.length,
+                                )
+                              }
+                              className="w-full rounded-lg border border-slate-300 px-4 py-2 text-slate-900 focus:border-cyan-500 focus:outline-none"
+                              placeholder="답변을 입력하세요"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
               );
