@@ -1,21 +1,32 @@
-import { createClient } from "@supabase/supabase-js";
+import "server-only";
 
-import type { Database } from "./types";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
-export const getSupabaseServerClient = () => {
+/** 서버(RSC·Server Actions)용 — anon 키 + 쿠키. RLS가 적용됩니다. */
+export async function createSupabaseServerClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !serviceRoleKey) {
-    throw new Error("Supabase 서버 환경변수가 설정되지 않았습니다.");
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anon) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY 가 없습니다.");
   }
 
-  return createClient<Database>(url, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
+  const cookieStore = await cookies();
+
+  return createServerClient(url, anon, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(cookiesToSet) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options),
+          );
+        } catch {
+          /* Server Component에서는 set이 막힐 수 있음 */
+        }
+      },
     },
   });
-};
-
-
+}

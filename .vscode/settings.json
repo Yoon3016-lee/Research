@@ -1,0 +1,17 @@
+{
+  "explorer.excludeGitIgnore": false,
+  "files.exclude": {
+    "**/.env.local": false,
+    "**/node_modules": true,
+    "**/.next": true
+  },
+  "search.useIgnoreFiles": false,
+  "search.exclude": {
+    "**/.env.local": false,
+    "**/node_modules": true,
+    "**/.next": true
+  },
+  "files.associations": {
+    ".env.local": "properties"
+  }
+}

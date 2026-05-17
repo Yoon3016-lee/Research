@@ -1,0 +1,102 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import type { CreateSurveyPayload } from "@/lib/survey-types";
+import { normalizeSurveyRef } from "@/lib/survey-slug";
+import { persistSurveyQuestions, validateQuestion } from "@/lib/survey-persist";
+import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+export type UpdateSurveyState =
+  | { error: string; ok?: undefined; slug?: undefined }
+  | { ok: true; slug: string; error?: undefined };
+
+export async function updateSurveyAction(
+  slug: string,
+  payload: CreateSurveyPayload,
+): Promise<UpdateSurveyState> {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return { error: "서버에 Service Role 키가 없습니다." };
+  }
+
+  const supabaseUser = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabaseUser.auth.getUser();
+  if (!user) {
+    return { error: "로그인이 필요합니다." };
+  }
+
+  const normalizedSlug = normalizeSurveyRef(slug);
+  const title = payload.title.trim();
+  if (!title) {
+    return { error: "설문 제목을 입력하세요." };
+  }
+  if (!payload.questions.length) {
+    return { error: "문항을 1개 이상 추가하세요." };
+  }
+
+  for (let i = 0; i < payload.questions.length; i++) {
+    const err = validateQuestion(payload.questions[i], i);
+    if (err) return { error: err };
+  }
+
+  const admin = createSupabaseServiceRoleClient();
+  const { data: existing, error: findError } = await admin
+    .from("surveys")
+    .select("id, slug, response_count")
+    .eq("slug", normalizedSlug)
+    .maybeSingle();
+
+  if (findError || !existing) {
+    return { error: "설문을 찾을 수 없습니다." };
+  }
+
+  const surveyId = existing.id as string;
+
+  const { error: updateError } = await admin
+    .from("surveys")
+    .update({
+      title,
+      summary: payload.summary.trim(),
+      period_label: payload.periodLabel.trim(),
+      target_count: Math.max(0, payload.targetCount),
+      status: payload.status,
+      listed_public: payload.listedPublic,
+      response_script: payload.responseScript.trim(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", surveyId);
+
+  if (updateError) {
+    if (updateError.message.includes("response_script")) {
+      return {
+        error:
+          "DB에 response_script 컬럼이 없습니다. Supabase SQL Editor에서 supabase/migrations/20260407200000_survey_response_script.sql 을 실행하세요.",
+      };
+    }
+    return { error: updateError.message };
+  }
+
+  const { error: deleteError } = await admin
+    .from("survey_questions")
+    .delete()
+    .eq("survey_id", surveyId);
+
+  if (deleteError) {
+    return { error: deleteError.message };
+  }
+
+  const persistError = await persistSurveyQuestions(admin, surveyId, payload.questions);
+  if (persistError) {
+    return { error: persistError };
+  }
+
+  revalidatePath("/admin/surveys");
+  revalidatePath("/admin/surveys/edit");
+  revalidatePath("/surveys");
+  revalidatePath(`/survey/${normalizedSlug}`);
+  revalidatePath(`/survey-script/${normalizedSlug}`);
+
+  return { ok: true, slug: normalizedSlug };
+}

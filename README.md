@@ -1,78 +1,92 @@
-## 프로젝트 개요
+# research-a
 
-Next.js(App Router) 기반 설문조사 리서치 웹앱입니다. 현재 버전은 Supabase를 정식 데이터 계층으로 사용하도록 구성되어 있으며, 설문·문항·응답이 모두 Supabase 테이블에 저장됩니다.
+Next.js(App Router) + TypeScript + Tailwind CSS 4 기반 **설문·리서치** 웹앱입니다.  
+**공개(참여자) 영역**과 **관리자 영역**이 URL로 분리되어 있습니다.
 
-## 로컬 개발
+## 로컬에서 확인
 
 ```bash
 npm install
 npm run dev
 ```
 
-브라우저에서 [http://localhost:3000](http://localhost:3000)을 열어 UI를 확인하세요.
+브라우저에서 `http://localhost:3000` 을 엽니다.
 
-## Supabase 연동
+| 구분 | 경로 | 설명 |
+|------|------|------|
+| 메인 | `/` | 랜딩·안내 |
+| 진행중 설문 | `/surveys` | Supabase `surveys` 또는 목업 |
+| 서비스 | `/services` | 안내·데모 챗봇 |
+| 관리자 로그인 | `/admin/login` | 이메일·비밀번호 |
+| 관리자 회원가입 | `/admin/signup` | 가입키 + 이메일·비밀번호 |
+| 관리자 홈 | `/admin` | 대시보드·요약 (로그인 필요) |
+| 가입키 설정 | `/admin/settings` | 총관리자만 |
+| 설문 관리 | `/admin/surveys` | 목록은 Supabase(서비스 롤) 또는 목업 |
+| 새 설문 | `/admin/surveys/new` | 문항·유형·무응답 허용 등 작성 후 저장 |
+| 이메일 | `/admin/emails` | 발송·캠페인(데모) |
+| 진행·업무 | `/admin/progress` | 설문 진행도·직원 업무(목업) |
 
-✅ **데이터베이스 스키마가 이미 생성되었습니다!**
+설문 데이터는 **Supabase `surveys` 테이블**과 연동됩니다(환경 변수 미설정·오류 시 `lib/mock-data.ts` 목업). 이메일·직원 업무는 아직 목업입니다.
 
-현재 사용 중인 프로젝트: **ResearchDataBase** (`mvzyctaetrtgdbaroaou`)
+## Supabase 연결 (최소: `surveys` 테이블)
 
-생성된 테이블:
-- `users` - 사용자 인증 및 역할 관리
-- `surveys` - 설문조사 메타데이터
-- `survey_questions` - 설문 문항
-- `survey_responses` - 설문 응답 헤더
-- `survey_answers` - 문항별 답변
+### 1) 프로젝트에서 키 복사
 
-초기 시드 사용자 데이터도 삽입되었습니다:
-- `emp-001` / `pass1234` (직원)
-- `mgr-001` / `admin123` (관리자)
-- `mst-001` / `master123` (마스터)
+1. [Supabase 대시보드](https://supabase.com/dashboard)에서 해당 프로젝트 열기  
+2. **Project Settings → API**  
+   - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`  
+   - **anon public** → `NEXT_PUBLIC_SUPABASE_ANON_KEY`  
+   - **service_role** → `SUPABASE_SERVICE_ROLE_KEY` (서버 전용, Git·클라이언트에 넣지 않음)
 
-### 환경변수 설정
+### 2) 로컬 `.env.local`
 
-`.env.local` 파일을 생성하고 다음 값을 입력하세요:
+`.env.example`을 참고해 위 세 값을 채웁니다. `npm run dev` 재시작 후 적용됩니다.
 
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://mvzyctaetrtgdbaroaou.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12enljdGFldHJ0Z2RiYXJvYW91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyMTI3ODcsImV4cCI6MjA3OTc4ODc4N30.3TVGzoiUu8r5oExVoqo_u3pZJJDLUraY32MpKTLQiJc
+### 3) DB 스키마·시드 적용
 
-# 서비스 롤 키 (서버 전용)
-# Supabase 대시보드 > Settings > API > service_role key에서 확인
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
-```
+아래 SQL을 **순서대로** **Supabase → SQL Editor**에 붙여 넣고 실행합니다.
 
-⚠️ **중요**: `SUPABASE_SERVICE_ROLE_KEY`는 Supabase 대시보드에서 직접 가져와야 합니다. Vercel 배포 시에도 동일한 키를 환경변수로 등록하세요. 이 키는 **서버 전용**이므로 클라이언트에 노출하지 마세요.
+1. `supabase/migrations/20260407140000_surveys_minimal.sql` — 설문 `surveys`  
+2. `supabase/migrations/20260407150000_admin_auth_profiles.sql` — `profiles`, `admin_settings`(기본 가입키 `please-change-me`)  
+3. `supabase/migrations/20260407160000_survey_questions.sql` — 문항 `survey_questions`, 객관식 선택지 `survey_question_options`
 
-### Vercel 배포 시 환경변수 설정
+관리자 회원가입은 **가입키**가 DB의 `admin_settings.signup_key`와 일치할 때만 진행됩니다. **첫 가입 계정**은 자동으로 **총관리자(`super_admin`)** 역할이 부여되고, 이후 가입자는 **직원(`employee`)**으로 들어갑니다. 역할 승급은 이후 UI·정책으로 확장하면 됩니다.
 
-Vercel에 배포한 경우 다음 환경변수를 설정해야 합니다:
+**Authentication → Providers → Email**에서 로컬 개발 시 **이메일 인증을 끄면** 바로 로그인까지 테스트하기 쉽습니다.
 
-1. **Vercel 대시보드** → 프로젝트 선택 → **Settings** → **Environment Variables**
-2. 다음 3개 환경변수 추가:
-   - `NEXT_PUBLIC_SUPABASE_URL`: `https://mvzyctaetrtgdbaroaou.supabase.co`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12enljdGFldHJ0Z2RiYXJvYW91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyMTI3ODcsImV4cCI6MjA3OTc4ODc4N30.3TVGzoiUu8r5oExVoqo_u3pZJJDLUraY32MpKTLQiJc`
-   - `SUPABASE_SERVICE_ROLE_KEY`: (Supabase 대시보드 > Settings > API > service_role key)
+- 테이블 `public.surveys` 생성  
+- RLS: 익명·로그인 사용자는 **`listed_public = true` 이고 `status = '진행중'`** 인 행만 `SELECT`  
+- 관리자 화면 전체 목록은 **Service Role**로만 조회(서버 코드 `lib/supabase/admin.ts`)
 
-3. **모든 환경** (Production, Preview, Development)에 설정
-4. 환경변수 추가 후 **재배포** 필요
+### 4) 동작 확인
 
-자세한 설정 방법은 `VERCEL_ENV_SETUP.md` 파일을 참조하세요.
+- **`/surveys`**: anon 정책에 맞는 진행중 설문만 표시  
+- **`/admin`**, **`/admin/surveys`**, **`/admin/progress`**: Service Role 키가 있으면 전체 설문, 없으면 목업
 
-## 주요 디렉터리
+### 5) Vercel 배포 시
 
-- `app/page.tsx` : 역할 기반 UI + 설문 CRUD + 응답 제출 클라이언트 로직
-- `app/api/surveys/route.ts` : 설문 조회/생성 API (GET/POST)
-- `app/api/responses/route.ts` : 응답 저장 API (POST)
-- `app/api/auth/login/route.ts` : 로그인 API (POST)
-- `app/api/auth/signup/route.ts` : 회원가입 API (POST)
-- `lib/supabase/*` : 브라우저/서버용 Supabase 클라이언트와 DB 타입
-- `supabase/schema.sql` : DB 스키마 정의 (이미 적용됨)
+환경 변수에 동일 키를 등록합니다. **`SUPABASE_SERVICE_ROLE_KEY`는 서버에서만** 사용되도록, 클라이언트에 `NEXT_PUBLIC_` 접두사를 붙이지 마세요.
 
-## 추천 워크플로
+## 환경 변수
 
-1. `.env.local` 설정 후 `npm run dev`
-2. 회원가입 → 로그인 → 설문 생성 → 응답 제출
-3. 관리자/마스터 뷰에서 실시간 응답 집계 확인
+### 로컬 환경 파일 목록
 
-필요 시 `lib/supabase/types.ts`를 Supabase CLI(`supabase gen types typescript ...`)로 재생성하면 Prisma/TypeScript 타입을 최신 스키마에 맞출 수 있습니다.
+| 파일 | 설명 |
+|------|------|
+| `.env.example` | 저장소에 포함되는 템플릿. 변수 이름·주석만 두고 값은 비웁니다. |
+| `.env.local` | **로컬에서만** 쓰는 실제 값을 넣는 파일. Git에 커밋되지 않습니다. |
+
+`.env.example`을 복사해 프로젝트 루트에 `.env.local`을 만든 뒤 값을 채우면 됩니다.
+
+Cursor·VS Code에서 `.gitignore` 때문에 `.env.local`이 사이드바에 안 보일 수 있습니다. 이 저장소는 `.vscode/settings.json`에서 탐색기에 표시되도록 두었습니다 (`node_modules`, `.next`는 계속 숨김). 배포 시에는 Vercel(또는 호스팅) 환경 변수에 동일한 키를 등록합니다.
+
+### 공개 사이트와 관리자 전용 도메인
+
+같은 코드를 **공개용**·**관리자용** Vercel 프로젝트(또는 서브도메인) 두 곳에 올릴 수 있습니다.
+
+| 변수 | 공개 도메인 배포 예시 | 관리자 전용 도메인 배포 예시 |
+|------|------------------------|------------------------------|
+| `NEXT_PUBLIC_SHOW_PUBLIC_ADMIN_LINK` | `false` (헤더·푸터에 관리자 링크 숨김) | 생략 또는 `true` (내부용으로 `/admin` 링크 유지 가능) |
+| `NEXT_PUBLIC_ADMIN_SITE_URL` | (선택) 숨긴 대신 직원용으로 외부 링크만 쓸 때 `https://admin.example.com` | 비우면 기본 `/admin` |
+
+로컬 개발에서는 변수를 비워 두면 기존처럼 오른쪽 상단 **관리자** → `/admin` 으로 이동합니다.
