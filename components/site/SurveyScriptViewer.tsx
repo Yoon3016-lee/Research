@@ -10,6 +10,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import { ChevronDown, ChevronUp, Search, X } from "lucide-react";
+import type { SharedResponseScript } from "@/lib/shared-scripts";
 
 type Segment = {
   text: string;
@@ -70,22 +71,97 @@ function buildSegments(
   return { segments, count };
 }
 
+function formatSharedScriptsBody(scripts: SharedResponseScript[]): string {
+  return scripts
+    .map((s) => `\u25B8 ${s.title}\n${s.body.trim() || "(\uBCF8\uBB38 \uC5C6\uC74C)"}`)
+    .join("\n\n");
+}
+
+function buildFullScriptDocument(
+  responseScript: string,
+  sharedScripts: SharedResponseScript[],
+): string {
+  const parts: string[] = [];
+
+  if (responseScript.trim()) {
+    parts.push(`\u3010\uC774 \uC124\uBB38 \uC2A4\uD06C\uB9BD\uD2B8\u3011\n${responseScript.trim()}`);
+  }
+
+  if (sharedScripts.length > 0) {
+    parts.push(
+      `\u3010\uACF5\uC6A9 \uC2A4\uD06C\uB9BD\uD2B8\u3011\n${formatSharedScriptsBody(sharedScripts)}`,
+    );
+  }
+
+  return parts.join("\n\n");
+}
+
+function HighlightedBody({
+  content,
+  query,
+  activeIndex,
+  activeMarkRef,
+}: {
+  content: string;
+  query: string;
+  activeIndex: number;
+  activeMarkRef: React.MutableRefObject<HTMLElement | null>;
+}) {
+  const { segments } = useMemo(
+    () => buildSegments(content, query, activeIndex),
+    [content, query, activeIndex],
+  );
+
+  return (
+    <article className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-800">
+      {segments.map((seg) =>
+        seg.match ? (
+          <mark
+            key={seg.key}
+            ref={seg.active ? (el) => { activeMarkRef.current = el; } : undefined}
+            className={
+              seg.active
+                ? "rounded-sm bg-amber-300 px-0.5 text-amber-950 ring-2 ring-amber-500/60"
+                : "rounded-sm bg-yellow-200/90 px-0.5 text-zinc-900"
+            }
+          >
+            {seg.text}
+          </mark>
+        ) : (
+          <span key={seg.key}>{seg.text}</span>
+        ),
+      )}
+    </article>
+  );
+}
+
 type Props = {
   title: string;
   slug: string;
   responseScript: string;
+  sharedScripts: SharedResponseScript[];
 };
 
-export function SurveyScriptViewer({ title, slug, responseScript }: Props) {
-  const hasScript = responseScript.trim().length > 0;
+export function SurveyScriptViewer({
+  title,
+  slug,
+  responseScript,
+  sharedScripts,
+}: Props) {
+  const fullDocument = useMemo(
+    () => buildFullScriptDocument(responseScript, sharedScripts),
+    [responseScript, sharedScripts],
+  );
+  const hasContent = fullDocument.trim().length > 0;
+
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const activeMarkRef = useRef<HTMLElement | null>(null);
 
-  const { segments, count } = useMemo(
-    () => buildSegments(responseScript, query, activeIndex),
-    [responseScript, query, activeIndex],
+  const { count } = useMemo(
+    () => buildSegments(fullDocument, query, activeIndex),
+    [fullDocument, query, activeIndex],
   );
 
   const goToMatch = useCallback(
@@ -144,10 +220,10 @@ export function SurveyScriptViewer({ title, slug, responseScript }: Props) {
           {title}
         </h1>
         <p className="mt-2 text-[11px] text-zinc-500">
-          이 창을 설문 입력 화면 옆에 두고 참고하세요.
+          위에서부터 이 설문 스크립트, 이어서 공용 스크립트가 표시됩니다.
         </p>
 
-        {hasScript ? (
+        {hasContent ? (
           <div className="mt-3 space-y-2">
             <div className="relative">
               <Search
@@ -160,7 +236,7 @@ export function SurveyScriptViewer({ title, slug, responseScript }: Props) {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleSearchKeyDown}
-                placeholder="단어·문장 검색"
+                placeholder="단어·문장 검색 (설문·공용 전체)"
                 className="w-full rounded-lg border border-zinc-200 bg-zinc-50 py-2 pl-9 pr-8 text-sm outline-none ring-indigo-500/30 placeholder:text-zinc-400 focus:border-indigo-300 focus:bg-white focus:ring-2"
                 aria-label="스크립트 검색"
                 autoComplete="off"
@@ -219,30 +295,18 @@ export function SurveyScriptViewer({ title, slug, responseScript }: Props) {
       </header>
 
       <div className="flex-1 overflow-y-auto px-4 py-4">
-        {hasScript ? (
-          <article className="whitespace-pre-wrap rounded-xl border border-zinc-200 bg-white p-4 text-sm leading-relaxed text-zinc-800 shadow-sm">
-            {segments.map((seg) =>
-              seg.match ? (
-                <mark
-                  key={seg.key}
-                  ref={seg.active ? (el) => { activeMarkRef.current = el; } : undefined}
-                  className={
-                    seg.active
-                      ? "rounded-sm bg-amber-300 px-0.5 text-amber-950 ring-2 ring-amber-500/60"
-                      : "rounded-sm bg-yellow-200/90 px-0.5 text-zinc-900"
-                  }
-                >
-                  {seg.text}
-                </mark>
-              ) : (
-                <span key={seg.key}>{seg.text}</span>
-              ),
-            )}
-          </article>
+        {hasContent ? (
+          <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+            <HighlightedBody
+              content={fullDocument}
+              query={query}
+              activeIndex={activeIndex}
+              activeMarkRef={activeMarkRef}
+            />
+          </div>
         ) : (
           <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-            등록된 응답 스크립트가 없습니다. 관리자에게 설문 편집 화면에서 스크립트 등록을
-            요청해 주세요.
+            등록된 스크립트가 없습니다. 관리자에게 설문·공용 스크립트 등록을 요청해 주세요.
           </p>
         )}
       </div>

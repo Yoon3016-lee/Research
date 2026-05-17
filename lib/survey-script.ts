@@ -2,6 +2,7 @@ import "server-only";
 
 import { canViewResponseScript } from "@/lib/roles";
 import { getSurveyParticipant } from "@/lib/participant";
+import { listSharedResponseScripts, type SharedResponseScript } from "@/lib/shared-scripts";
 import { normalizeSurveyRef } from "@/lib/survey-slug";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -11,6 +12,7 @@ export type SurveyScriptLoad =
       title: string;
       slug: string;
       responseScript: string;
+      sharedScripts: SharedResponseScript[];
     }
   | { ok: false; reason: "not_found" }
   | { ok: false; reason: "forbidden" };
@@ -44,10 +46,13 @@ export async function loadSurveyResponseScript(
     return { ok: false, reason: "not_found" };
   }
 
+  const sharedScripts = await listSharedResponseScripts();
+
   return {
     ok: true,
     slug: data.slug as string,
     title: data.title as string,
     responseScript: (data.response_script as string) ?? "",
+    sharedScripts,
   };
 }

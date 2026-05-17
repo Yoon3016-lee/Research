@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   LogOut,
   Mail,
+  FileText,
   ShieldCheck,
   Users,
 } from "lucide-react";
@@ -18,6 +19,12 @@ import { ROLE_LABELS, type StaffRole } from "@/lib/roles";
 const items = [
   { href: "/admin", label: "대시보드", icon: LayoutDashboard, exact: true },
   { href: "/admin/surveys", label: "설문 관리", icon: ClipboardList, exact: false },
+  {
+    href: "/admin/shared-scripts",
+    label: "공용 스크립트 관리",
+    icon: FileText,
+    exact: false,
+  },
   { href: "/admin/staff", label: "직원 권한 관리", icon: ShieldCheck, exact: false },
   { href: "/admin/emails", label: "이메일 발송", icon: Mail, exact: false },
   { href: "/admin/progress", label: "진행·업무 현황", icon: Users, exact: false },

@@ -40,6 +40,7 @@ export default async function SurveyScriptPopupPage({ params }: Props) {
       title={loaded.title}
       slug={loaded.slug}
       responseScript={loaded.responseScript}
+      sharedScripts={loaded.sharedScripts}
     />
   );
 }
