@@ -18,26 +18,34 @@ import {
   toggleSiteBannerActiveAction,
   type SiteBannerActionState,
 } from "@/app/actions/site-banners";
-import type { SiteBanner } from "@/lib/site-banners";
+import type { SiteBanner, SiteBannerPlacement } from "@/lib/site-banners";
 
 const initial: SiteBannerActionState = {};
 
 type Props = {
+  placement: SiteBannerPlacement;
   banners: SiteBanner[];
+  heading: string;
+  description: string;
+  createHeading: string;
 };
 
-export function BannersManager({ banners }: Props) {
+export function BannersManager({
+  placement,
+  banners,
+  heading,
+  description,
+  createHeading,
+}: Props) {
   const [showCreate, setShowCreate] = useState(banners.length === 0);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-base font-semibold text-zinc-900">등록된 팝업 배너</h2>
-            <p className="mt-1 text-sm text-zinc-500">
-              홈 왼쪽 상단에 작은 창으로 순서대로 표시됩니다. JPG·PNG·PDF를 등록할 수 있습니다.
-            </p>
+            <h2 className="text-base font-semibold text-zinc-900">{heading}</h2>
+            <p className="mt-1 text-sm text-zinc-500">{description}</p>
           </div>
           <button
             type="button"
@@ -56,14 +64,25 @@ export function BannersManager({ banners }: Props) {
         ) : (
           <ul className="mt-6 space-y-4">
             {banners.map((banner, idx) => (
-              <BannerRow key={banner.id} banner={banner} isFirst={idx === 0} isLast={idx === banners.length - 1} />
+              <BannerRow
+                key={banner.id}
+                banner={banner}
+                placement={placement}
+                isFirst={idx === 0}
+                isLast={idx === banners.length - 1}
+              />
             ))}
           </ul>
         )}
       </section>
 
       {showCreate ? (
-        <CreateBannerForm onCancel={() => setShowCreate(false)} onSuccess={() => setShowCreate(false)} />
+        <CreateBannerForm
+          placement={placement}
+          createHeading={createHeading}
+          onCancel={() => setShowCreate(false)}
+          onSuccess={() => setShowCreate(false)}
+        />
       ) : null}
     </div>
   );
@@ -71,10 +90,12 @@ export function BannersManager({ banners }: Props) {
 
 function BannerRow({
   banner,
+  placement,
   isFirst,
   isLast,
 }: {
   banner: SiteBanner;
+  placement: SiteBannerPlacement;
   isFirst: boolean;
   isLast: boolean;
 }) {
@@ -97,8 +118,8 @@ function BannerRow({
           {banner.isActive ? "노출 중" : "숨김"}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <OrderButton id={banner.id} direction="up" disabled={isFirst} />
-          <OrderButton id={banner.id} direction="down" disabled={isLast} />
+          <OrderButton id={banner.id} placement={placement} direction="up" disabled={isFirst} />
+          <OrderButton id={banner.id} placement={placement} direction="down" disabled={isLast} />
           <ToggleActiveButton id={banner.id} isActive={banner.isActive} />
           <DeleteBannerButton id={banner.id} title={banner.title} />
         </div>
@@ -109,10 +130,12 @@ function BannerRow({
 
 function OrderButton({
   id,
+  placement,
   direction,
   disabled,
 }: {
   id: string;
+  placement: SiteBannerPlacement;
   direction: "up" | "down";
   disabled: boolean;
 }) {
@@ -121,6 +144,7 @@ function OrderButton({
   return (
     <form action={formAction}>
       <input type="hidden" name="id" value={id} />
+      <input type="hidden" name="placement" value={placement} />
       <input type="hidden" name="direction" value={direction} />
       <button
         type="submit"
@@ -195,9 +219,13 @@ function DeleteBannerButton({ id, title }: { id: string; title: string }) {
 }
 
 function CreateBannerForm({
+  placement,
+  createHeading,
   onCancel,
   onSuccess,
 }: {
+  placement: SiteBannerPlacement;
+  createHeading: string;
   onCancel: () => void;
   onSuccess: () => void;
 }) {
@@ -211,9 +239,10 @@ function CreateBannerForm({
     <section className="rounded-2xl border border-indigo-200/80 bg-indigo-50/30 p-6 shadow-sm">
       <h2 className="flex items-center gap-2 text-base font-semibold text-zinc-900">
         <ImageIcon className="h-4 w-4 text-indigo-600" aria-hidden />
-        새 팝업 배너 등록
+        {createHeading}
       </h2>
-      <form action={formAction} encType="multipart/form-data" className="mt-4 space-y-4">
+      <form action={formAction} className="mt-4 space-y-4">
+        <input type="hidden" name="placement" value={placement} />
         <label className="block text-sm">
           <span className="font-medium text-zinc-700">배너 제목 (선택)</span>
           <input
@@ -221,6 +250,11 @@ function CreateBannerForm({
             className="mt-1 w-full max-w-md rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
             placeholder="예: 2026 봄 프로모션"
           />
+          {placement === "top" ? (
+            <span className="mt-1 block text-xs text-zinc-500">
+              관리자 목록·접근성용입니다. 공개 홈 상단 배너에는 이미지만 표시됩니다.
+            </span>
+          ) : null}
         </label>
         <label className="block text-sm">
           <span className="font-medium text-zinc-700">클릭 시 이동 링크 (선택)</span>
@@ -240,7 +274,10 @@ function CreateBannerForm({
             className="mt-1 block w-full max-w-md text-sm text-zinc-600 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-900 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white"
           />
           <span className="mt-1 block text-xs text-zinc-500">
-            JPG, PNG, GIF, WEBP, PDF · 최대 10MB · 가로형 이미지를 권장합니다.
+            JPG, PNG, GIF, WEBP, PDF · 최대 10MB
+            {placement === "top"
+              ? " · 상단 띠 배너는 가로로 넓은 이미지를 권장합니다."
+              : " · 팝업은 가로형 이미지를 권장합니다."}
           </span>
         </label>
         {state.error ? (

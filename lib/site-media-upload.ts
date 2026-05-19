@@ -12,9 +12,30 @@ export const SITE_IMAGE_MIME_TYPES = new Set([
   "image/webp",
 ]);
 
+/** Supabase Storage object key — ASCII letters, digits, hyphen, underscore, dot only. */
 export function safeMediaFileName(name: string): string {
-  const base = name.replace(/[/\\?%*:|"<>]/g, "-").trim() || "file";
-  return base.slice(0, 120);
+  const trimmed = name.trim() || "file";
+  const dot = trimmed.lastIndexOf(".");
+  const rawExt = dot > 0 ? trimmed.slice(dot + 1) : "";
+  const rawBase = dot > 0 ? trimmed.slice(0, dot) : trimmed;
+
+  const ext = rawExt
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .toLowerCase()
+    .slice(0, 10);
+
+  const base =
+    rawBase
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9_-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^[-_]+|[-_]+$/g, "")
+      .slice(0, 80) || "file";
+
+  return ext ? `${base}.${ext}` : base.slice(0, 120);
 }
 
 export type UploadedSiteMedia = {

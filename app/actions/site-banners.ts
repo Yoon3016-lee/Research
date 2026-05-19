@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSuperAdmin } from "@/lib/require-super-admin";
+import type { SiteBannerPlacement } from "@/lib/site-banners";
 import { deleteSiteMediaFile, uploadSiteMediaFile } from "@/lib/site-media-upload";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -13,6 +14,10 @@ export type SiteBannerActionState = {
 function revalidateBanners() {
   revalidatePath("/", "layout");
   revalidatePath("/admin/banners");
+}
+
+function parsePlacement(raw: string): SiteBannerPlacement | null {
+  return raw === "top" || raw === "popup" ? raw : null;
 }
 
 function normalizeLinkUrl(raw: string): string | null {
@@ -29,15 +34,20 @@ export async function createSiteBannerAction(
 ): Promise<SiteBannerActionState> {
   await requireSuperAdmin();
 
+  const placement = parsePlacement(String(formData.get("placement") ?? ""));
   const title = String(formData.get("title") ?? "").trim();
   const linkUrl = normalizeLinkUrl(String(formData.get("link_url") ?? ""));
   const file = formData.get("file");
+
+  if (!placement) {
+    return { error: "배너 종류가 올바르지 않습니다." };
+  }
 
   if (!(file instanceof File)) {
     return { error: "배너 이미지 또는 PDF 파일을 선택하세요." };
   }
 
-  const uploaded = await uploadSiteMediaFile(file, "banners");
+  const uploaded = await uploadSiteMediaFile(file, `banners/${placement}`);
   if (!uploaded.ok) {
     return { error: uploaded.error };
   }
@@ -46,6 +56,7 @@ export async function createSiteBannerAction(
   const { data: maxRow } = await admin
     .from("site_banners")
     .select("sort_order")
+    .eq("placement", placement)
     .order("sort_order", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -61,6 +72,7 @@ export async function createSiteBannerAction(
     is_active: true,
     sort_order: sortOrder,
     storage_path: uploaded.data.storagePath,
+    placement,
   });
 
   if (error) {
@@ -68,7 +80,7 @@ export async function createSiteBannerAction(
     if (error.message.includes("site_banners")) {
       return {
         error:
-          "site_banners 테이블이 없습니다. supabase/migrations/20260407240000_site_banners.sql 을 실행하세요.",
+          "site_banners 테이블이 없습니다. supabase/migrations/20260407240000_site_banners.sql 및 20260407250000_site_banners_placement.sql 을 실행하세요.",
       };
     }
     return { error: error.message };
@@ -144,9 +156,10 @@ export async function moveSiteBannerOrderAction(
   await requireSuperAdmin();
 
   const id = String(formData.get("id") ?? "").trim();
+  const placement = parsePlacement(String(formData.get("placement") ?? ""));
   const direction = String(formData.get("direction") ?? "");
 
-  if (!id || (direction !== "up" && direction !== "down")) {
+  if (!id || !placement || (direction !== "up" && direction !== "down")) {
     return { error: "잘못된 요청입니다." };
   }
 
@@ -154,6 +167,7 @@ export async function moveSiteBannerOrderAction(
   const { data: rows, error: listError } = await admin
     .from("site_banners")
     .select("id, sort_order")
+    .eq("placement", placement)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
 

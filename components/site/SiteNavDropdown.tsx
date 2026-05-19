@@ -92,7 +92,7 @@ export function SiteNavDropdown({ group }: Props) {
                 href={item.href}
                 role="menuitem"
                 onClick={() => setOpen(false)}
-                className={`block px-3 py-2 text-sm ${
+                className={`block px-3 py-2.5 text-base ${
                   itemActive
                     ? "bg-indigo-50 font-medium text-indigo-900"
                     : "text-zinc-700 hover:bg-zinc-50"
@@ -120,7 +120,7 @@ export function SiteNavDropdown({ group }: Props) {
             return next;
           });
         }}
-        className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition ${
+        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-base font-medium transition sm:px-4 ${
           isActive || open
             ? "bg-indigo-50 text-indigo-900"
             : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900"
@@ -133,7 +133,7 @@ export function SiteNavDropdown({ group }: Props) {
           <span className="sr-only">({group.items.length}개 하위 메뉴)</span>
         ) : null}
         <ChevronDown
-          className={`h-4 w-4 opacity-70 transition ${open ? "rotate-180" : ""}`}
+          className={`h-5 w-5 opacity-70 transition ${open ? "rotate-180" : ""}`}
           aria-hidden
         />
       </button>

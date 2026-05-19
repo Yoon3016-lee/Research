@@ -54,16 +54,16 @@ function AdminEntryLink({ adminLink }: { adminLink: PublicAdminLinkConfig }) {
 export function SiteHeader({ homepage, adminLink, participant }: SiteHeaderProps) {
   return (
     <header className="sticky top-0 z-50 overflow-visible border-b border-slate-200/90 bg-white/95 backdrop-blur-md">
-      <div className="mx-auto flex min-h-16 max-w-6xl items-center gap-4 px-4 sm:px-6">
+      <div className="mx-auto grid min-h-16 max-w-6xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 sm:gap-4 sm:px-6">
         <Link
           href="/"
-          className="shrink-0 text-base font-bold tracking-tight text-slate-900 sm:text-lg"
+          className="justify-self-start text-base font-bold tracking-tight text-slate-900 sm:text-lg"
         >
           {homepage.siteName}
         </Link>
 
         <nav
-          className="flex min-w-0 flex-1 items-center gap-1 overflow-visible"
+          className="flex items-center justify-center gap-0.5 overflow-visible sm:gap-1"
           aria-label={SITE_HEADER_LABELS.mainNavAria}
         >
           {homepage.groups.map((group) => (
@@ -71,7 +71,7 @@ export function SiteHeader({ homepage, adminLink, participant }: SiteHeaderProps
           ))}
         </nav>
 
-        <div className="relative z-10 flex shrink-0 items-center gap-2">
+        <div className="relative z-10 flex shrink-0 items-center justify-self-end gap-2">
           {adminLink.show ? <AdminEntryLink adminLink={adminLink} /> : null}
           <SiteAuthNav participant={participant} />
         </div>

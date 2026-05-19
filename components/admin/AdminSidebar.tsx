@@ -105,7 +105,7 @@ export function AdminSidebar({ email, role }: Props) {
             }`}
           >
             <ImageIcon className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
-            팝업 배너
+            배너 관리
           </Link>
         ) : null}
         {role === "super_admin" ? (
