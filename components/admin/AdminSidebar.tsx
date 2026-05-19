@@ -10,6 +10,7 @@ import {
   LogOut,
   Mail,
   FileText,
+  Globe,
   ShieldCheck,
   Users,
 } from "lucide-react";
@@ -80,6 +81,19 @@ export function AdminSidebar({ email, role }: Props) {
             </Link>
           );
         })}
+        {role === "super_admin" ? (
+          <Link
+            href="/admin/homepage"
+            className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+              pathname.startsWith("/admin/homepage")
+                ? "bg-zinc-900 text-white"
+                : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+            }`}
+          >
+            <Globe className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
+            홈페이지 관리
+          </Link>
+        ) : null}
         {role === "super_admin" ? (
           <Link
             href="/admin/settings"

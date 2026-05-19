@@ -1,0 +1,170 @@
+import "server-only";
+
+import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
+
+export const SITE_NAV_GROUP_KEYS = ["intro", "survey", "service"] as const;
+export type SiteNavGroupKey = (typeof SITE_NAV_GROUP_KEYS)[number];
+
+export type SiteNavItem = {
+  id: string;
+  groupKey: SiteNavGroupKey;
+  label: string;
+  href: string;
+  sortOrder: number;
+  pageId: string | null;
+};
+
+export type SiteNavGroup = {
+  key: SiteNavGroupKey;
+  label: string;
+  sortOrder: number;
+  items: SiteNavItem[];
+};
+
+export type SiteHomepageConfig = {
+  siteName: string;
+  groups: SiteNavGroup[];
+};
+
+export type SitePage = {
+  id: string;
+  slug: string;
+  title: string;
+  body: string;
+};
+
+const DEFAULT_CONFIG: SiteHomepageConfig = {
+  siteName: "[ OO리서치 ]",
+  groups: [
+    { key: "intro", label: "회사 소개", sortOrder: 0, items: [] },
+    { key: "survey", label: "설문 조사", sortOrder: 1, items: [] },
+    { key: "service", label: "서비스", sortOrder: 2, items: [] },
+  ],
+};
+
+export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return DEFAULT_CONFIG;
+  }
+
+  const admin = createSupabaseServiceRoleClient();
+
+  const [
+    { data: settings, error: settingsError },
+    { data: groups, error: groupsError },
+    { data: items, error: itemsError },
+  ] = await Promise.all([
+    admin.from("site_settings").select("site_name").eq("id", 1).maybeSingle(),
+    admin.from("site_nav_groups").select("key, label, sort_order").order("sort_order"),
+    admin
+      .from("site_nav_items")
+      .select("id, group_key, label, href, sort_order, page_id")
+      .order("sort_order", { ascending: true }),
+  ]);
+
+  if (settingsError) {
+    console.error("[getSiteHomepageConfig] site_settings:", settingsError.message);
+  }
+  if (groupsError) {
+    console.error("[getSiteHomepageConfig] site_nav_groups:", groupsError.message);
+  }
+  if (itemsError) {
+    console.error("[getSiteHomepageConfig] site_nav_items:", itemsError.message);
+  }
+
+  const siteName =
+    (settings?.site_name as string | undefined)?.trim() || DEFAULT_CONFIG.siteName;
+
+  const groupRows = (groups ?? []) as {
+    key: string;
+    label: string;
+    sort_order: number;
+  }[];
+
+  const itemRows = (items ?? []) as {
+    id: string;
+    group_key: string;
+    label: string;
+    href: string;
+    sort_order: number;
+    page_id: string | null;
+  }[];
+
+  const itemsByGroup = new Map<string, SiteNavItem[]>();
+  for (const row of itemRows) {
+    if (!SITE_NAV_GROUP_KEYS.includes(row.group_key as SiteNavGroupKey)) continue;
+    const list = itemsByGroup.get(row.group_key) ?? [];
+    list.push({
+      id: row.id,
+      groupKey: row.group_key as SiteNavGroupKey,
+      label: row.label,
+      href: row.href,
+      sortOrder: row.sort_order,
+      pageId: row.page_id,
+    });
+    itemsByGroup.set(row.group_key, list);
+  }
+
+  const builtGroups: SiteNavGroup[] =
+    groupRows.length > 0
+      ? groupRows
+          .filter((g) => SITE_NAV_GROUP_KEYS.includes(g.key as SiteNavGroupKey))
+          .map((g) => ({
+            key: g.key as SiteNavGroupKey,
+            label: g.label,
+            sortOrder: g.sort_order,
+            items: itemsByGroup.get(g.key) ?? [],
+          }))
+      : DEFAULT_CONFIG.groups;
+
+  return { siteName, groups: builtGroups };
+}
+
+export async function getSitePagesByIds(ids: string[]): Promise<Record<string, SitePage>> {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (!unique.length || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return {};
+  }
+
+  const admin = createSupabaseServiceRoleClient();
+  const { data, error } = await admin
+    .from("site_pages")
+    .select("id, slug, title, body")
+    .in("id", unique);
+
+  if (error || !data) return {};
+
+  const map: Record<string, SitePage> = {};
+  for (const row of data) {
+    map[row.id as string] = {
+      id: row.id as string,
+      slug: row.slug as string,
+      title: row.title as string,
+      body: (row.body as string) ?? "",
+    };
+  }
+  return map;
+}
+
+export async function getSitePageBySlug(slug: string): Promise<SitePage | null> {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return null;
+
+  const normalized = slug.trim().toLowerCase();
+  if (!normalized) return null;
+
+  const admin = createSupabaseServiceRoleClient();
+  const { data, error } = await admin
+    .from("site_pages")
+    .select("id, slug, title, body")
+    .eq("slug", normalized)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  return {
+    id: data.id as string,
+    slug: data.slug as string,
+    title: data.title as string,
+    body: (data.body as string) ?? "",
+  };
+}
