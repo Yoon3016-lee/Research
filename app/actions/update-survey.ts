@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import type { CreateSurveyPayload } from "@/lib/survey-types";
 import { normalizeSurveyRef } from "@/lib/survey-slug";
 import { persistSurveyQuestions, validateQuestion } from "@/lib/survey-persist";
+import { requireAdminPanelAccess } from "@/lib/require-admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type UpdateSurveyState =
   | { error: string; ok?: undefined; slug?: undefined }
@@ -19,13 +19,7 @@ export async function updateSurveyAction(
     return { error: "서버에 Service Role 키가 없습니다." };
   }
 
-  const supabaseUser = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabaseUser.auth.getUser();
-  if (!user) {
-    return { error: "로그인이 필요합니다." };
-  }
+  await requireAdminPanelAccess();
 
   const normalizedSlug = normalizeSurveyRef(slug);
   const title = payload.title.trim();

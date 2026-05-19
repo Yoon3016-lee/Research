@@ -1,15 +1,21 @@
 import Link from "next/link";
 import { ArrowRight, ClipboardList, LineChart, Users } from "lucide-react";
+import { HomePopupBanners } from "@/components/site/HomePopupBanners";
+import { listActiveSiteBanners } from "@/lib/site-banners";
 import { getSiteHomepageConfig } from "@/lib/site-homepage";
 
 export default async function HomePage() {
-  const { siteName, groups } = await getSiteHomepageConfig();
+  const [{ siteName, groups }, banners] = await Promise.all([
+    getSiteHomepageConfig(),
+    listActiveSiteBanners(),
+  ]);
   const surveyItems = groups.find((g) => g.key === "survey")?.items ?? [];
   const primarySurveyHref = surveyItems[0]?.href ?? "/surveys";
   const introItems = groups.find((g) => g.key === "intro")?.items ?? [];
 
   return (
     <main>
+      <HomePopupBanners banners={banners} />
       <section className="relative overflow-hidden border-b border-slate-200 bg-gradient-to-b from-white via-slate-50 to-slate-100">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(59,130,246,0.14),transparent)]" />
         <div className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">

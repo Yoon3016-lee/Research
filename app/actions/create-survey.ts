@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import type { CreateSurveyPayload } from "@/lib/survey-types";
 import { persistSurveyQuestions, validateQuestion } from "@/lib/survey-persist";
+import { requireAdminPanelAccess } from "@/lib/require-admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 function makeSlug(title: string): string {
   const t = title
@@ -29,13 +29,7 @@ export async function createSurveyAction(
     return { error: "서버에 Service Role 키가 없습니다." };
   }
 
-  const supabaseUser = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabaseUser.auth.getUser();
-  if (!user) {
-    return { error: "로그인이 필요합니다." };
-  }
+  await requireAdminPanelAccess();
 
   const title = payload.title.trim();
   if (!title) {
