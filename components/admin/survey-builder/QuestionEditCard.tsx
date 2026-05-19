@@ -21,6 +21,7 @@ const TYPE_BADGE: Record<QuestionType, string> = {
   mc_multi: "bg-violet-100 text-violet-900 ring-violet-200",
   text_single: "bg-sky-100 text-sky-900 ring-sky-200",
   text_multi: "bg-sky-100 text-sky-900 ring-sky-200",
+  likert_7: "bg-emerald-100 text-emerald-900 ring-emerald-200",
 };
 
 export function QuestionEditCard({
@@ -167,6 +168,44 @@ export function QuestionEditCard({
                 </span>
               </label>
             )}
+          </div>
+        )}
+
+        {q.type === "likert_7" && (
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3">
+            <p className="text-sm font-medium text-zinc-800">1~7 리커트 척도</p>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              응답자는 1(낮음)부터 7(높음) 중 하나를 선택합니다. 양끝 설명은
+              선택 사항입니다.
+            </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="block text-sm">
+                <span className="font-medium text-zinc-700">1점 라벨 (선택)</span>
+                <input
+                  value={q.options[0] ?? ""}
+                  onChange={(e) => {
+                    const opts = [...(q.options.length >= 2 ? q.options : ["", ""])];
+                    opts[0] = e.target.value;
+                    onChange({ options: opts });
+                  }}
+                  className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                  placeholder="예: 전혀 그렇지 않다"
+                />
+              </label>
+              <label className="block text-sm">
+                <span className="font-medium text-zinc-700">7점 라벨 (선택)</span>
+                <input
+                  value={q.options[1] ?? ""}
+                  onChange={(e) => {
+                    const opts = [...(q.options.length >= 2 ? q.options : ["", ""])];
+                    opts[1] = e.target.value;
+                    onChange({ options: opts });
+                  }}
+                  className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                  placeholder="예: 매우 그렇다"
+                />
+              </label>
+            </div>
           </div>
         )}
 

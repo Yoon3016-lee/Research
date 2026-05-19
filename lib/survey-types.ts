@@ -4,7 +4,16 @@ export const QUESTION_TYPES = [
   "mc_multi",
   "text_single",
   "text_multi",
+  "likert_7",
 ] as const;
+
+/** 리커트 7점 척도 값 */
+export const LIKERT_7_VALUES = [1, 2, 3, 4, 5, 6, 7] as const;
+export type Likert7Value = (typeof LIKERT_7_VALUES)[number];
+
+export function isLikert7Value(value: number): value is Likert7Value {
+  return Number.isInteger(value) && value >= 1 && value <= 7;
+}
 
 export type QuestionType = (typeof QUESTION_TYPES)[number];
 
@@ -13,6 +22,7 @@ export const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
   mc_multi: "객관식 (다중 선택)",
   text_single: "주관식 (단일 응답)",
   text_multi: "주관식 (다중 응답)",
+  likert_7: "리커트 척도 (1~7)",
 };
 
 /** 패널·툴팁용 한 줄 설명 */
@@ -21,6 +31,7 @@ export const QUESTION_TYPE_DESCRIPTIONS: Record<QuestionType, string> = {
   mc_multi: "보기 중 여러 개 선택 · 최대 개수를 지정합니다.",
   text_single: "짧은 서술·한 줄 답변을 받습니다.",
   text_multi: "같은 질문에 여러 입력 칸을 둡니다.",
+  likert_7: "1(낮음)부터 7(높음)까지 하나를 고릅니다.",
 };
 
 export type DraftQuestion = {
@@ -62,8 +73,24 @@ export function createDraftQuestion(type: QuestionType): DraftQuestion {
   if (type === "text_multi") {
     base.textLineCount = 2;
   }
+  if (type === "likert_7") {
+    base.options = ["", ""];
+  }
 
   return base;
+}
+
+/** likert_7: options[0]=1점 라벨, options[1]=7점 라벨 (선택) */
+export function likertEndpointLabels(options: string[]): {
+  minLabel: string | null;
+  maxLabel: string | null;
+} {
+  const min = options[0]?.trim() ?? "";
+  const max = options[1]?.trim() ?? "";
+  return {
+    minLabel: min || null,
+    maxLabel: max || null,
+  };
 }
 
 export type CreateSurveyPayload = {

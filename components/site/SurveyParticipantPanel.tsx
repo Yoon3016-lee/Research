@@ -3,11 +3,8 @@
 import { useState, useTransition, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  guestSignupAction,
-  surveyLoginAction,
-  surveyLogoutAction,
-} from "@/app/actions/site-auth";
+import { guestSignupAction, surveyLoginAction } from "@/app/actions/site-auth";
+import { SurveyLogoutButton } from "@/components/site/SurveyLogoutButton";
 import type { SurveyParticipant } from "@/lib/participant-types";
 import type { SiteAuthResult } from "@/app/actions/site-auth";
 
@@ -89,7 +86,7 @@ export function SurveyParticipantPanel({ slug, participant }: Props) {
             <p className="mt-0.5 text-sm font-semibold text-indigo-950">{participant.email}</p>
             <p className="text-xs text-indigo-800/80">{participant.roleLabel}</p>
           </div>
-          <LogoutButton slug={slug} surveyPath={surveyPath} />
+          <SurveyLogoutButton slug={slug} surveyPath={surveyPath} />
         </div>
       ) : null}
 
@@ -100,7 +97,7 @@ export function SurveyParticipantPanel({ slug, participant }: Props) {
             <p className="mt-0.5 text-sm font-semibold text-zinc-900">{participant.email}</p>
             <p className="text-xs text-zinc-500">게스트 작업량에 합산됩니다</p>
           </div>
-          <LogoutButton slug={slug} surveyPath={surveyPath} />
+          <SurveyLogoutButton slug={slug} surveyPath={surveyPath} />
         </div>
       ) : null}
 
@@ -317,32 +314,5 @@ function AuthFields({ withConfirm = false }: { withConfirm?: boolean }) {
         </div>
       ) : null}
     </>
-  );
-}
-
-function LogoutButton({ slug, surveyPath }: { slug: string; surveyPath: string }) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-
-  const handleLogout = () => {
-    startTransition(async () => {
-      const fd = new FormData();
-      fd.set("slug", slug);
-      fd.set("next", surveyPath);
-      const { redirectTo } = await surveyLogoutAction(fd);
-      router.push(redirectTo);
-      router.refresh();
-    });
-  };
-
-  return (
-    <button
-      type="button"
-      onClick={handleLogout}
-      disabled={pending}
-      className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
-    >
-      {pending ? "처리 중…" : "로그아웃"}
-    </button>
   );
 }

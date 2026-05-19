@@ -5,6 +5,7 @@ import {
   CircleDot,
   FileText,
   LayoutList,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   QUESTION_TYPE_DESCRIPTIONS,
@@ -36,6 +37,11 @@ const TYPE_META: Record<
     accent:
       "border-sky-200 bg-sky-50/80 hover:border-sky-300 hover:bg-sky-50",
   },
+  likert_7: {
+    icon: SlidersHorizontal,
+    accent:
+      "border-emerald-200 bg-emerald-50/80 hover:border-emerald-300 hover:bg-emerald-50",
+  },
 };
 
 type Props = {
@@ -46,6 +52,7 @@ type Props = {
 export function QuestionAddPanel({ onAdd, disabled }: Props) {
   const groups: { title: string; types: QuestionType[] }[] = [
     { title: "객관식", types: ["mc_single", "mc_multi"] },
+    { title: "척도", types: ["likert_7"] },
     { title: "주관식", types: ["text_single", "text_multi"] },
   ];
 

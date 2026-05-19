@@ -7,11 +7,11 @@ export function validateQuestion(q: DraftQuestion, index: number): string | null
   if (!q.prompt.trim()) {
     return `문항 ${index + 1}: 질문 내용을 입력하세요.`;
   }
-  if (q.type === "mc_single" || q.type === "mc_multi") {
-    const opts = q.options.map((o) => o.trim()).filter(Boolean);
-    if (opts.length < 2) {
-      return `문항 ${index + 1}: 객관식은 선택지를 2개 이상 입력하세요.`;
-    }
+    if (q.type === "mc_single" || q.type === "mc_multi") {
+      const opts = q.options.map((o) => o.trim()).filter(Boolean);
+      if (opts.length < 2) {
+        return `문항 ${index + 1}: 객관식은 선택지를 2개 이상 입력하세요.`;
+      }
     if (q.type === "mc_multi") {
       const max = q.maxSelections;
       if (max < 1 || max > opts.length) {
@@ -81,6 +81,20 @@ export async function persistSurveyQuestions(
       const { error: oErr } = await admin.from("survey_question_options").insert(opts);
       if (oErr) {
         return oErr.message;
+      }
+    }
+
+    if (q.type === "likert_7") {
+      const min = q.options[0]?.trim() ?? "";
+      const max = q.options[1]?.trim() ?? "";
+      const opts: { question_id: string; order_index: number; label: string }[] = [];
+      if (min) opts.push({ question_id: questionId, order_index: 0, label: min });
+      if (max) opts.push({ question_id: questionId, order_index: 1, label: max });
+      if (opts.length > 0) {
+        const { error: oErr } = await admin.from("survey_question_options").insert(opts);
+        if (oErr) {
+          return oErr.message;
+        }
       }
     }
   }

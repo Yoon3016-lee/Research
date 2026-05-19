@@ -4,11 +4,7 @@ import { useEffect, useRef, useState, useTransition, type FormEvent } from "reac
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, LogIn, LogOut, UserPlus } from "lucide-react";
-import {
-  guestSignupAction,
-  surveyLoginAction,
-  surveyLogoutAction,
-} from "@/app/actions/site-auth";
+import { guestSignupAction, surveyLoginAction } from "@/app/actions/site-auth";
 import type { SiteAuthResult } from "@/app/actions/site-auth";
 import type { SurveyParticipant } from "@/lib/participant-types";
 
@@ -107,9 +103,13 @@ export function SiteAuthNav({ participant }: Props) {
     startLogout(async () => {
       const fd = new FormData();
       fd.set("next", returnPath);
-      const { redirectTo } = await surveyLogoutAction(fd);
-      router.push(redirectTo);
-      router.refresh();
+      try {
+        const { surveyLogoutAction } = await import("@/app/actions/site-auth");
+        const { redirectTo } = await surveyLogoutAction(fd);
+        window.location.assign(redirectTo);
+      } catch {
+        window.location.assign(returnPath);
+      }
     });
   };
 

@@ -8,6 +8,7 @@ import {
 } from "@/app/actions/submit-survey-response";
 import type { PublicSurveyDetail, SurveyAnswerInput } from "@/lib/survey-public";
 import { QUESTION_TYPE_LABELS } from "@/lib/survey-types";
+import { Likert7Input } from "@/components/site/Likert7Input";
 
 type Props = {
   survey: PublicSurveyDetail;
@@ -27,6 +28,7 @@ export function SurveyResponseForm({ survey }: Props) {
   const [mcMulti, setMcMulti] = useState<Record<string, string[]>>({});
   const [textSingle, setTextSingle] = useState<Record<string, string>>({});
   const [textMulti, setTextMulti] = useState<Record<string, string[]>>({});
+  const [likert7, setLikert7] = useState<Record<string, number | null>>({});
 
   const toggleMulti = (questionId: string, optionId: string, max: number) => {
     setMcMulti((prev) => {
@@ -66,6 +68,13 @@ export function SurveyResponseForm({ survey }: Props) {
         const n = q.textLineCount ?? 2;
         const lines = textMulti[q.id] ?? emptyTextMulti(n);
         out.push({ questionId: q.id, type: "text_multi", lines });
+      } else if (q.type === "likert_7") {
+        const value = likert7[q.id];
+        out.push({
+          questionId: q.id,
+          type: "likert_7",
+          value: value ?? Number.NaN,
+        });
       }
     }
     return out;
@@ -76,6 +85,7 @@ export function SurveyResponseForm({ survey }: Props) {
     setMcMulti({});
     setTextSingle({});
     setTextMulti({});
+    setLikert7({});
   };
 
   const submit = (after: SubmitSurveyAfter) => {
@@ -189,6 +199,19 @@ export function SurveyResponseForm({ survey }: Props) {
                   </li>
                 ))}
               </ul>
+            )}
+
+            {q.type === "likert_7" && (
+              <Likert7Input
+                questionId={q.id}
+                prompt={q.prompt}
+                options={q.options}
+                value={likert7[q.id] ?? null}
+                disabled={pending}
+                onChange={(value) =>
+                  setLikert7((prev) => ({ ...prev, [q.id]: value }))
+                }
+              />
             )}
           </li>
         ))}

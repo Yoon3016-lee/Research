@@ -2,7 +2,7 @@ import "server-only";
 
 import { normalizeSurveyRef, isUuid } from "@/lib/survey-slug";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
-import type { QuestionType } from "@/lib/survey-types";
+import { LIKERT_7_VALUES, isLikert7Value, type QuestionType } from "@/lib/survey-types";
 
 export const NO_ANSWER_LABEL = "무응답";
 
@@ -60,6 +60,30 @@ type AnswerRow = {
 function pct(count: number, total: number): number {
   if (total <= 0) return 0;
   return Math.round((count / total) * 1000) / 10;
+}
+
+function buildLikertBuckets(
+  total: number,
+  noAnswerCount: number,
+  entries: { key: string; label: string; count: number }[],
+): FrequencyBucket[] {
+  const buckets: FrequencyBucket[] = [
+    {
+      key: "__no_answer__",
+      label: NO_ANSWER_LABEL,
+      count: noAnswerCount,
+      percent: pct(noAnswerCount, total),
+    },
+  ];
+  for (const e of entries) {
+    buckets.push({
+      key: e.key,
+      label: e.label,
+      count: e.count,
+      percent: pct(e.count, total),
+    });
+  }
+  return buckets;
 }
 
 function buildBuckets(
@@ -132,6 +156,13 @@ function parseTextSingle(answer: unknown): string | null {
   const text = (answer as { text?: string }).text;
   const t = text?.trim() ?? "";
   return t.length > 0 ? t : null;
+}
+
+function parseLikert7(answer: unknown): number | null {
+  if (!answer || typeof answer !== "object") return null;
+  const value = (answer as { value?: number }).value;
+  if (value == null || !isLikert7Value(value)) return null;
+  return value;
 }
 
 function parseTextMulti(answer: unknown): string | null {
@@ -305,18 +336,59 @@ export async function getSurveyResponseStats(ref: string): Promise<SurveyRespons
       };
     }
 
-    // text_multi
-    const counts = new Map<string, number>();
-    for (const a of answers) {
-      const combined = parseTextMulti(a.answer);
-      if (!combined) continue;
-      counts.set(combined, (counts.get(combined) ?? 0) + 1);
+    if (type === "text_multi") {
+      const counts = new Map<string, number>();
+      for (const a of answers) {
+        const combined = parseTextMulti(a.answer);
+        if (!combined) continue;
+        counts.set(combined, (counts.get(combined) ?? 0) + 1);
+      }
+      const entries = [...counts.entries()].map(([label, count]) => ({
+        key: label,
+        label,
+        count,
+      }));
+      return {
+        questionId: q.id,
+        orderIndex: q.order_index,
+        prompt: q.prompt,
+        type,
+        allowSkip: q.allow_skip,
+        totalSubmissions,
+        answeredCount,
+        noAnswerCount,
+        buckets: buildBuckets(totalSubmissions, noAnswerCount, entries),
+      };
     }
-    const entries = [...counts.entries()].map(([label, count]) => ({
-      key: label,
-      label,
-      count,
-    }));
+
+    if (type === "likert_7") {
+      const counts = new Map<number, number>();
+      for (const v of LIKERT_7_VALUES) {
+        counts.set(v, 0);
+      }
+      for (const a of answers) {
+        const value = parseLikert7(a.answer);
+        if (value == null) continue;
+        counts.set(value, (counts.get(value) ?? 0) + 1);
+      }
+      const entries = LIKERT_7_VALUES.map((v) => ({
+        key: String(v),
+        label: `${v}점`,
+        count: counts.get(v) ?? 0,
+      }));
+      return {
+        questionId: q.id,
+        orderIndex: q.order_index,
+        prompt: q.prompt,
+        type,
+        allowSkip: q.allow_skip,
+        totalSubmissions,
+        answeredCount,
+        noAnswerCount,
+        buckets: buildLikertBuckets(totalSubmissions, noAnswerCount, entries),
+      };
+    }
+
     return {
       questionId: q.id,
       orderIndex: q.order_index,
@@ -326,7 +398,7 @@ export async function getSurveyResponseStats(ref: string): Promise<SurveyRespons
       totalSubmissions,
       answeredCount,
       noAnswerCount,
-      buckets: buildBuckets(totalSubmissions, noAnswerCount, entries),
+      buckets: buildBuckets(totalSubmissions, noAnswerCount, []),
     };
   });
 

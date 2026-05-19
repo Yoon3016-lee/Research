@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { PublicSurveyDetail, SurveyAnswerInput } from "@/lib/survey-public";
 import { getPublicSurveyBySlug } from "@/lib/survey-public";
-import type { QuestionType } from "@/lib/survey-types";
+import { isLikert7Value, type QuestionType } from "@/lib/survey-types";
 import { resolveRespondentForInsert } from "@/lib/participant";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -76,6 +76,17 @@ function validateAnswers(
         return `문항 ${i + 1}: ${required}개의 답변 칸을 채워 주세요.`;
       }
     }
+
+    if (q.type === "likert_7") {
+      if (a.type !== "likert_7") continue;
+      const empty = a.value == null || Number.isNaN(a.value);
+      if (empty && !q.allowSkip) {
+        return `문항 ${i + 1}: 1~7 중 하나를 선택하세요.`;
+      }
+      if (!empty && !isLikert7Value(a.value)) {
+        return `문항 ${i + 1}: 1~7 사이의 값만 선택할 수 있습니다.`;
+      }
+    }
   }
 
   return null;
@@ -103,6 +114,10 @@ function toAnswerJson(
     const lines = (a.lines ?? []).map((l) => l.trim()).filter(Boolean);
     if (lines.length === 0) return null;
     return { lines };
+  }
+  if (qType === "likert_7" && a.type === "likert_7") {
+    if (a.value == null || !isLikert7Value(a.value)) return null;
+    return { value: a.value };
   }
   return null;
 }

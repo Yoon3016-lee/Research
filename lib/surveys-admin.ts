@@ -145,7 +145,14 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
       type,
       prompt: q.prompt,
       allowSkip: q.allow_skip,
-      options: opts.length > 0 ? opts : type === "mc_single" || type === "mc_multi" ? ["", ""] : [],
+      options:
+        type === "likert_7"
+          ? [opts[0] ?? "", opts[1] ?? ""]
+          : opts.length > 0
+            ? opts
+            : type === "mc_single" || type === "mc_multi"
+              ? ["", ""]
+              : [],
       maxSelections: q.max_selections ?? Math.min(2, opts.length || 2),
       textLineCount: q.text_line_count ?? (type === "text_multi" ? 2 : 1),
     };

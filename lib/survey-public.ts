@@ -34,7 +34,8 @@ export type SurveyAnswerInput =
   | { questionId: string; type: "mc_single"; optionId: string }
   | { questionId: string; type: "mc_multi"; optionIds: string[] }
   | { questionId: string; type: "text_single"; text: string }
-  | { questionId: string; type: "text_multi"; lines: string[] };
+  | { questionId: string; type: "text_multi"; lines: string[] }
+  | { questionId: string; type: "likert_7"; value: number };
 
 export type SurveyParticipationLoad =
   | { ok: true; survey: PublicSurveyDetail }

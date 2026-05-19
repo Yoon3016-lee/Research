@@ -100,7 +100,11 @@ export default async function SurveyParticipatePage({ params }: Props) {
         </p>
       ) : (
         <div className="mt-8 space-y-6">
-          <SurveyParticipantPanel slug={survey.slug} participant={participant} />
+          <SurveyParticipantPanel
+            key={participant.mode}
+            slug={survey.slug}
+            participant={participant}
+          />
           <SurveyResponseForm survey={survey} />
         </div>
       )}
