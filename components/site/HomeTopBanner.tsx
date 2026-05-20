@@ -9,7 +9,7 @@ export function HomeTopBanner({ banners }: Props) {
   if (banners.length === 0) return null;
 
   return (
-    <section className="border-b border-slate-200 bg-white" aria-label="상단 배너">
+    <section className="relative z-0 border-b border-slate-200 bg-white" aria-label="상단 배너">
       <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6 sm:py-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
           {banners.map((banner) => (

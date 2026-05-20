@@ -36,10 +36,10 @@ export function HomePopupBanners({ banners }: Props) {
 
   return (
     <div
-      className="pointer-events-none relative z-40 h-0 w-full overflow-visible"
+      className="pointer-events-none absolute inset-x-0 top-0 z-50 h-0 overflow-visible"
       aria-label="팝업 배너"
     >
-      <div className="absolute inset-x-0 top-0 mx-auto max-w-6xl px-4 sm:px-6">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="flex flex-wrap items-start gap-4">
           {visible.map((banner) => (
             <PopupBannerWindow

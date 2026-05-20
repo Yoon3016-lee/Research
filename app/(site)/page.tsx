@@ -15,10 +15,17 @@ export default async function HomePage() {
   const primarySurveyHref = surveyItems[0]?.href ?? "/surveys";
   const introItems = groups.find((g) => g.key === "intro")?.items ?? [];
 
+  const hasBannerArea = topBanners.length > 0 || popupBanners.length > 0;
+
   return (
     <main>
-      <HomeTopBanner banners={topBanners} />
-      <HomePopupBanners banners={popupBanners} />
+      {hasBannerArea ? (
+        <div className="relative">
+          {/* 팝업은 DOM 상 먼저 + absolute → 상단 띠 배너 위에 겹침 */}
+          <HomePopupBanners banners={popupBanners} />
+          <HomeTopBanner banners={topBanners} />
+        </div>
+      ) : null}
       <section className="relative overflow-hidden border-b border-slate-200 bg-gradient-to-b from-white via-slate-50 to-slate-100">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(59,130,246,0.14),transparent)]" />
         <div className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
