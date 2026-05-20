@@ -6,8 +6,57 @@ type Props = {
   stats: Extract<SurveyResponseStats, { ok: true }>;
 };
 
+function RespondentLegend() {
+  return (
+    <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-600">
+      <span className="inline-flex items-center gap-1.5">
+        <span className="h-2.5 w-2.5 rounded-sm bg-blue-600" aria-hidden />
+        직원
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="h-2.5 w-2.5 rounded-sm bg-amber-400" aria-hidden />
+        게스트
+      </span>
+    </div>
+  );
+}
+
+function RespondentDistributionBar({
+  staffCount,
+  guestCount,
+  maxTotal,
+}: {
+  staffCount: number;
+  guestCount: number;
+  maxTotal: number;
+}) {
+  const total = staffCount + guestCount;
+  if (total <= 0) {
+    return <div className="h-2 rounded-full bg-zinc-100" role="presentation" />;
+  }
+
+  const scale = maxTotal > 0 ? 100 / maxTotal : 0;
+  const staffW = staffCount * scale;
+  const guestW = guestCount * scale;
+
+  return (
+    <div
+      className="flex h-2 min-w-[4rem] overflow-hidden rounded-full bg-zinc-100"
+      role="presentation"
+      title={`직원 ${staffCount} · 게스트 ${guestCount}`}
+    >
+      {staffCount > 0 ? (
+        <div className="h-full bg-blue-600" style={{ width: `${staffW}%` }} />
+      ) : null}
+      {guestCount > 0 ? (
+        <div className="h-full bg-amber-400" style={{ width: `${guestW}%` }} />
+      ) : null}
+    </div>
+  );
+}
+
 function QuestionFrequencyCard({ q, index }: { q: QuestionFrequencyStats; index: number }) {
-  const maxCount = Math.max(...q.buckets.map((b) => b.count), 1);
+  const maxTotal = Math.max(...q.buckets.map((b) => b.count), 1);
 
   return (
     <article className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
@@ -28,57 +77,61 @@ function QuestionFrequencyCard({ q, index }: { q: QuestionFrequencyStats; index:
         </p>
       </div>
 
+      <div className="mt-3">
+        <RespondentLegend />
+      </div>
+
       {q.buckets.length === 0 ? (
         <p className="mt-4 text-sm text-zinc-500">집계할 응답이 없습니다.</p>
       ) : (
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[320px] text-left text-sm">
+          <table className="w-full min-w-[420px] text-left text-sm">
             <thead>
               <tr className="border-b border-zinc-100 text-xs text-zinc-500">
-                <th className="pb-2 pr-4 font-medium">항목</th>
-                <th className="pb-2 pr-4 text-right font-medium tabular-nums">빈도</th>
-                <th className="pb-2 pr-4 text-right font-medium tabular-nums">비율</th>
+                <th className="pb-2 pr-3 font-medium">항목</th>
+                <th className="pb-2 pr-3 text-right font-medium tabular-nums text-blue-700">
+                  직원
+                </th>
+                <th className="pb-2 pr-3 text-right font-medium tabular-nums text-amber-800">
+                  게스트
+                </th>
+                <th className="pb-2 pr-3 text-right font-medium tabular-nums">합계</th>
+                <th className="pb-2 pr-3 text-right font-medium tabular-nums">비율</th>
                 <th className="pb-2 font-medium">분포</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-50">
               {q.buckets.map((b) => {
                 const isNoAnswer = b.label === NO_ANSWER_LABEL;
-                const barPct = maxCount > 0 ? (b.count / maxCount) * 100 : 0;
                 return (
-                  <tr
-                    key={b.key}
-                    className={isNoAnswer ? "bg-amber-50/60" : undefined}
-                  >
-                    <td className="py-2.5 pr-4 align-middle">
+                  <tr key={b.key} className={isNoAnswer ? "bg-zinc-50/80" : undefined}>
+                    <td className="py-2.5 pr-3 align-middle">
                       <span
                         className={
-                          isNoAnswer
-                            ? "font-medium text-amber-900"
-                            : "text-zinc-800"
+                          isNoAnswer ? "font-medium text-zinc-700" : "text-zinc-800"
                         }
                       >
                         {b.label}
                       </span>
                     </td>
-                    <td className="py-2.5 pr-4 text-right align-middle tabular-nums text-zinc-800">
+                    <td className="py-2.5 pr-3 text-right align-middle tabular-nums font-medium text-blue-700">
+                      {b.staffCount.toLocaleString()}
+                    </td>
+                    <td className="py-2.5 pr-3 text-right align-middle tabular-nums font-medium text-amber-800">
+                      {b.guestCount.toLocaleString()}
+                    </td>
+                    <td className="py-2.5 pr-3 text-right align-middle tabular-nums text-zinc-800">
                       {b.count.toLocaleString()}
                     </td>
-                    <td className="py-2.5 pr-4 text-right align-middle tabular-nums text-zinc-600">
+                    <td className="py-2.5 pr-3 text-right align-middle tabular-nums text-zinc-600">
                       {b.percent}%
                     </td>
                     <td className="py-2.5 align-middle">
-                      <div
-                        className="h-2 overflow-hidden rounded-full bg-zinc-100"
-                        role="presentation"
-                      >
-                        <div
-                          className={`h-full rounded-full ${
-                            isNoAnswer ? "bg-amber-500" : "bg-indigo-500"
-                          }`}
-                          style={{ width: `${barPct}%` }}
-                        />
-                      </div>
+                      <RespondentDistributionBar
+                        staffCount={b.staffCount}
+                        guestCount={b.guestCount}
+                        maxTotal={maxTotal}
+                      />
                     </td>
                   </tr>
                 );
@@ -109,6 +162,9 @@ export function SurveyFrequencyBreakdown({ stats }: Props) {
           <span className="mx-2 text-indigo-300">|</span>
           slug <code className="rounded bg-white/80 px-1 text-xs">{stats.slug}</code>
         </p>
+        <div className="mt-2">
+          <RespondentLegend />
+        </div>
       </div>
 
       {stats.questions.length === 0 ? (

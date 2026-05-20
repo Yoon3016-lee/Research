@@ -11,6 +11,21 @@ export type FrequencyBucket = {
   label: string;
   count: number;
   percent: number;
+  staffCount: number;
+  guestCount: number;
+};
+
+type RespondentKind = "staff" | "guest";
+
+type AnswerWithKind = {
+  question_id: string;
+  answer: unknown;
+  kind: RespondentKind;
+};
+
+type BucketCounts = {
+  staff: number;
+  guest: number;
 };
 
 export type QuestionFrequencyStats = {
@@ -52,9 +67,9 @@ type OptionRow = {
   label: string;
 };
 
-type AnswerRow = {
-  question_id: string;
-  answer: unknown;
+type ResponseRow = {
+  id: string;
+  respondent_kind: string;
 };
 
 function pct(count: number, total: number): number {
@@ -62,56 +77,78 @@ function pct(count: number, total: number): number {
   return Math.round((count / total) * 1000) / 10;
 }
 
+function toBucket(
+  key: string,
+  label: string,
+  counts: BucketCounts,
+  total: number,
+): FrequencyBucket {
+  const count = counts.staff + counts.guest;
+  return {
+    key,
+    label,
+    count,
+    percent: pct(count, total),
+    staffCount: counts.staff,
+    guestCount: counts.guest,
+  };
+}
+
 function buildLikertBuckets(
   total: number,
-  noAnswerCount: number,
-  entries: { key: string; label: string; count: number }[],
+  noAnswer: BucketCounts,
+  entries: { key: string; label: string; counts: BucketCounts }[],
 ): FrequencyBucket[] {
-  const buckets: FrequencyBucket[] = [
-    {
-      key: "__no_answer__",
-      label: NO_ANSWER_LABEL,
-      count: noAnswerCount,
-      percent: pct(noAnswerCount, total),
-    },
-  ];
+  const buckets: FrequencyBucket[] = [toBucket("__no_answer__", NO_ANSWER_LABEL, noAnswer, total)];
   for (const e of entries) {
-    buckets.push({
-      key: e.key,
-      label: e.label,
-      count: e.count,
-      percent: pct(e.count, total),
-    });
+    buckets.push(toBucket(e.key, e.label, e.counts, total));
   }
   return buckets;
 }
 
 function buildBuckets(
   total: number,
-  noAnswerCount: number,
-  entries: { key: string; label: string; count: number }[],
+  noAnswer: BucketCounts,
+  entries: { key: string; label: string; counts: BucketCounts }[],
 ): FrequencyBucket[] {
-  const buckets: FrequencyBucket[] = [];
+  const buckets: FrequencyBucket[] = [toBucket("__no_answer__", NO_ANSWER_LABEL, noAnswer, total)];
 
-  buckets.push({
-    key: "__no_answer__",
-    label: NO_ANSWER_LABEL,
-    count: noAnswerCount,
-    percent: pct(noAnswerCount, total),
-  });
-
-  const sorted = [...entries].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "ko"));
+  const sorted = [...entries].sort(
+    (a, b) =>
+      b.counts.staff + b.counts.guest - (a.counts.staff + a.counts.guest) ||
+      a.label.localeCompare(b.label, "ko"),
+  );
   for (const e of sorted) {
-    if (e.count <= 0) continue;
-    buckets.push({
-      key: e.key,
-      label: e.label,
-      count: e.count,
-      percent: pct(e.count, total),
-    });
+    if (e.counts.staff + e.counts.guest <= 0) continue;
+    buckets.push(toBucket(e.key, e.label, e.counts, total));
   }
 
   return buckets;
+}
+
+function emptyCounts(): BucketCounts {
+  return { staff: 0, guest: 0 };
+}
+
+function bump(counts: BucketCounts, kind: RespondentKind): void {
+  if (kind === "staff") counts.staff += 1;
+  else counts.guest += 1;
+}
+
+function responseKind(row: ResponseRow): RespondentKind {
+  return row.respondent_kind === "staff" ? "staff" : "guest";
+}
+
+function noAnswerByKind(
+  responses: ResponseRow[],
+  answeredResponseIds: Set<string>,
+): BucketCounts {
+  const counts = emptyCounts();
+  for (const r of responses) {
+    if (answeredResponseIds.has(r.id)) continue;
+    bump(counts, responseKind(r));
+  }
+  return counts;
 }
 
 async function fetchSurveyByRef(ref: string): Promise<SurveyRow | null> {
@@ -217,7 +254,7 @@ export async function getSurveyResponseStats(ref: string): Promise<SurveyRespons
 
   const { data: responseRows, error: rError } = await admin
     .from("survey_responses")
-    .select("id")
+    .select("id, respondent_kind")
     .eq("survey_id", survey.id);
 
   if (rError) {
@@ -225,23 +262,43 @@ export async function getSurveyResponseStats(ref: string): Promise<SurveyRespons
     return { ok: false, reason: "not_found" };
   }
 
-  const responseIds = (responseRows ?? []).map((r) => r.id as string);
+  const responses = (responseRows ?? []) as ResponseRow[];
+  const responseIds = responses.map((r) => r.id);
   const totalSubmissions = responseIds.length;
 
-  const answersByQuestion = new Map<string, AnswerRow[]>();
+  const kindByResponseId = new Map<string, RespondentKind>();
+  for (const r of responses) {
+    kindByResponseId.set(r.id, responseKind(r));
+  }
+
+  const answersByQuestion = new Map<string, AnswerWithKind[]>();
+  const answeredByQuestion = new Map<string, Set<string>>();
+
   if (responseIds.length > 0) {
     const { data: answerRows, error: aError } = await admin
       .from("survey_response_answers")
-      .select("question_id, answer")
+      .select("response_id, question_id, answer")
       .in("response_id", responseIds);
 
     if (aError) {
       console.error("[getSurveyResponseStats] answers:", aError.message);
     } else {
-      for (const row of (answerRows ?? []) as AnswerRow[]) {
-        const list = answersByQuestion.get(row.question_id) ?? [];
-        list.push(row);
-        answersByQuestion.set(row.question_id, list);
+      for (const row of answerRows ?? []) {
+        const responseId = row.response_id as string;
+        const questionId = row.question_id as string;
+        const kind = kindByResponseId.get(responseId) ?? "guest";
+        const item: AnswerWithKind = {
+          question_id: questionId,
+          answer: row.answer,
+          kind,
+        };
+        const list = answersByQuestion.get(questionId) ?? [];
+        list.push(item);
+        answersByQuestion.set(questionId, list);
+
+        const answered = answeredByQuestion.get(questionId) ?? new Set<string>();
+        answered.add(responseId);
+        answeredByQuestion.set(questionId, answered);
       }
     }
   }
@@ -249,147 +306,13 @@ export async function getSurveyResponseStats(ref: string): Promise<SurveyRespons
   const questionStats: QuestionFrequencyStats[] = questions.map((q) => {
     const type = q.question_type as QuestionType;
     const answers = answersByQuestion.get(q.id) ?? [];
-    const answeredCount = answers.length;
+    const answeredResponseIds = answeredByQuestion.get(q.id) ?? new Set<string>();
+    const answeredCount = answeredResponseIds.size;
     const noAnswerCount = Math.max(0, totalSubmissions - answeredCount);
+    const noAnswer = noAnswerByKind(responses, answeredResponseIds);
     const optionLabels = optionsByQuestion.get(q.id) ?? new Map<string, string>();
 
-    if (type === "mc_single") {
-      const counts = new Map<string, number>();
-      for (const [, label] of optionLabels) {
-        counts.set(label, 0);
-      }
-      for (const a of answers) {
-        const optionId = parseMcSingle(a.answer);
-        if (!optionId) continue;
-        const label = optionLabels.get(optionId) ?? `(삭제된 보기: ${optionId.slice(0, 8)}…)`;
-        counts.set(label, (counts.get(label) ?? 0) + 1);
-      }
-      const entries = [...counts.entries()].map(([label, count]) => ({
-        key: label,
-        label,
-        count,
-      }));
-      return {
-        questionId: q.id,
-        orderIndex: q.order_index,
-        prompt: q.prompt,
-        type,
-        allowSkip: q.allow_skip,
-        totalSubmissions,
-        answeredCount,
-        noAnswerCount,
-        buckets: buildBuckets(totalSubmissions, noAnswerCount, entries),
-      };
-    }
-
-    if (type === "mc_multi") {
-      const counts = new Map<string, number>();
-      for (const [, label] of optionLabels) {
-        counts.set(label, 0);
-      }
-      for (const a of answers) {
-        for (const optionId of parseMcMulti(a.answer)) {
-          const label = optionLabels.get(optionId) ?? `(삭제된 보기: ${optionId.slice(0, 8)}…)`;
-          counts.set(label, (counts.get(label) ?? 0) + 1);
-        }
-      }
-      const entries = [...counts.entries()].map(([label, count]) => ({
-        key: label,
-        label,
-        count,
-      }));
-      return {
-        questionId: q.id,
-        orderIndex: q.order_index,
-        prompt: q.prompt,
-        type,
-        allowSkip: q.allow_skip,
-        totalSubmissions,
-        answeredCount,
-        noAnswerCount,
-        buckets: buildBuckets(totalSubmissions, noAnswerCount, entries),
-      };
-    }
-
-    if (type === "text_single") {
-      const counts = new Map<string, number>();
-      for (const a of answers) {
-        const text = parseTextSingle(a.answer);
-        if (!text) continue;
-        counts.set(text, (counts.get(text) ?? 0) + 1);
-      }
-      const entries = [...counts.entries()].map(([label, count]) => ({
-        key: label,
-        label,
-        count,
-      }));
-      return {
-        questionId: q.id,
-        orderIndex: q.order_index,
-        prompt: q.prompt,
-        type,
-        allowSkip: q.allow_skip,
-        totalSubmissions,
-        answeredCount,
-        noAnswerCount,
-        buckets: buildBuckets(totalSubmissions, noAnswerCount, entries),
-      };
-    }
-
-    if (type === "text_multi") {
-      const counts = new Map<string, number>();
-      for (const a of answers) {
-        const combined = parseTextMulti(a.answer);
-        if (!combined) continue;
-        counts.set(combined, (counts.get(combined) ?? 0) + 1);
-      }
-      const entries = [...counts.entries()].map(([label, count]) => ({
-        key: label,
-        label,
-        count,
-      }));
-      return {
-        questionId: q.id,
-        orderIndex: q.order_index,
-        prompt: q.prompt,
-        type,
-        allowSkip: q.allow_skip,
-        totalSubmissions,
-        answeredCount,
-        noAnswerCount,
-        buckets: buildBuckets(totalSubmissions, noAnswerCount, entries),
-      };
-    }
-
-    if (type === "likert_7") {
-      const counts = new Map<number, number>();
-      for (const v of LIKERT_7_VALUES) {
-        counts.set(v, 0);
-      }
-      for (const a of answers) {
-        const value = parseLikert7(a.answer);
-        if (value == null) continue;
-        counts.set(value, (counts.get(value) ?? 0) + 1);
-      }
-      const entries = LIKERT_7_VALUES.map((v) => ({
-        key: String(v),
-        label: `${v}점`,
-        count: counts.get(v) ?? 0,
-      }));
-      return {
-        questionId: q.id,
-        orderIndex: q.order_index,
-        prompt: q.prompt,
-        type,
-        allowSkip: q.allow_skip,
-        totalSubmissions,
-        answeredCount,
-        noAnswerCount,
-        buckets: buildLikertBuckets(totalSubmissions, noAnswerCount, entries),
-      };
-    }
-
-    return {
+    const base = {
       questionId: q.id,
       orderIndex: q.order_index,
       prompt: q.prompt,
@@ -398,8 +321,105 @@ export async function getSurveyResponseStats(ref: string): Promise<SurveyRespons
       totalSubmissions,
       answeredCount,
       noAnswerCount,
-      buckets: buildBuckets(totalSubmissions, noAnswerCount, []),
     };
+
+    if (type === "mc_single") {
+      const counts = new Map<string, BucketCounts>();
+      for (const [, label] of optionLabels) {
+        counts.set(label, emptyCounts());
+      }
+      for (const a of answers) {
+        const optionId = parseMcSingle(a.answer);
+        if (!optionId) continue;
+        const label = optionLabels.get(optionId) ?? `(삭제된 보기: ${optionId.slice(0, 8)}…)`;
+        const c = counts.get(label) ?? emptyCounts();
+        bump(c, a.kind);
+        counts.set(label, c);
+      }
+      const entries = [...counts.entries()].map(([label, counts]) => ({
+        key: label,
+        label,
+        counts,
+      }));
+      return { ...base, buckets: buildBuckets(totalSubmissions, noAnswer, entries) };
+    }
+
+    if (type === "mc_multi") {
+      const counts = new Map<string, BucketCounts>();
+      for (const [, label] of optionLabels) {
+        counts.set(label, emptyCounts());
+      }
+      for (const a of answers) {
+        for (const optionId of parseMcMulti(a.answer)) {
+          const label = optionLabels.get(optionId) ?? `(삭제된 보기: ${optionId.slice(0, 8)}…)`;
+          const c = counts.get(label) ?? emptyCounts();
+          bump(c, a.kind);
+          counts.set(label, c);
+        }
+      }
+      const entries = [...counts.entries()].map(([label, counts]) => ({
+        key: label,
+        label,
+        counts,
+      }));
+      return { ...base, buckets: buildBuckets(totalSubmissions, noAnswer, entries) };
+    }
+
+    if (type === "text_single") {
+      const counts = new Map<string, BucketCounts>();
+      for (const a of answers) {
+        const text = parseTextSingle(a.answer);
+        if (!text) continue;
+        const c = counts.get(text) ?? emptyCounts();
+        bump(c, a.kind);
+        counts.set(text, c);
+      }
+      const entries = [...counts.entries()].map(([label, counts]) => ({
+        key: label,
+        label,
+        counts,
+      }));
+      return { ...base, buckets: buildBuckets(totalSubmissions, noAnswer, entries) };
+    }
+
+    if (type === "text_multi") {
+      const counts = new Map<string, BucketCounts>();
+      for (const a of answers) {
+        const combined = parseTextMulti(a.answer);
+        if (!combined) continue;
+        const c = counts.get(combined) ?? emptyCounts();
+        bump(c, a.kind);
+        counts.set(combined, c);
+      }
+      const entries = [...counts.entries()].map(([label, counts]) => ({
+        key: label,
+        label,
+        counts,
+      }));
+      return { ...base, buckets: buildBuckets(totalSubmissions, noAnswer, entries) };
+    }
+
+    if (type === "likert_7") {
+      const counts = new Map<number, BucketCounts>();
+      for (const v of LIKERT_7_VALUES) {
+        counts.set(v, emptyCounts());
+      }
+      for (const a of answers) {
+        const value = parseLikert7(a.answer);
+        if (value == null) continue;
+        const c = counts.get(value) ?? emptyCounts();
+        bump(c, a.kind);
+        counts.set(value, c);
+      }
+      const entries = LIKERT_7_VALUES.map((v) => ({
+        key: String(v),
+        label: `${v}점`,
+        counts: counts.get(v) ?? emptyCounts(),
+      }));
+      return { ...base, buckets: buildLikertBuckets(totalSubmissions, noAnswer, entries) };
+    }
+
+    return { ...base, buckets: buildBuckets(totalSubmissions, noAnswer, []) };
   });
 
   return {
