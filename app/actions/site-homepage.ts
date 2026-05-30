@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSuperAdmin } from "@/lib/require-super-admin";
-import { SITE_NAV_GROUP_KEYS, type SiteNavGroupKey } from "@/lib/site-homepage";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 
 export type SiteHomepageActionState = {
@@ -13,12 +12,32 @@ export type SiteHomepageActionState = {
 function revalidateSite() {
   revalidatePath("/", "layout");
   revalidatePath("/admin/homepage");
+  revalidatePath("/admin/nav");
 }
 
-function parseGroupKey(raw: string): SiteNavGroupKey | null {
-  return SITE_NAV_GROUP_KEYS.includes(raw as SiteNavGroupKey)
-    ? (raw as SiteNavGroupKey)
-    : null;
+function normalizeGroupKey(raw: string): string | null {
+  const key = raw
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
+  if (!key || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(key)) return null;
+  if (key.length > 64) return null;
+  return key;
+}
+
+async function parseGroupKey(raw: string): Promise<string | null> {
+  const key = normalizeGroupKey(raw);
+  if (!key) return null;
+
+  const admin = createSupabaseServiceRoleClient();
+  const { data } = await admin
+    .from("site_nav_groups")
+    .select("key")
+    .eq("key", key)
+    .maybeSingle();
+
+  return data?.key ?? null;
 }
 
 function normalizeHref(raw: string): string | null {
@@ -77,7 +96,7 @@ export async function createNavItemAction(
 ): Promise<SiteHomepageActionState> {
   await requireSuperAdmin();
 
-  const groupKey = parseGroupKey(String(formData.get("group_key") ?? ""));
+  const groupKey = await parseGroupKey(String(formData.get("group_key") ?? ""));
   const label = String(formData.get("label") ?? "").trim();
   const hrefInput = String(formData.get("href") ?? "").trim();
   const createPage = String(formData.get("create_page") ?? "") === "on";
@@ -223,8 +242,112 @@ export async function deleteNavItemAction(
   const id = String(formData.get("id") ?? "").trim();
   if (!id) return { error: "메뉴 ID가 없습니다." };
 
+  revalidateSite();
+  return { ok: true };
+}
+
+export async function createNavGroupAction(
+  _prev: SiteHomepageActionState,
+  formData: FormData,
+): Promise<SiteHomepageActionState> {
+  await requireSuperAdmin();
+
+  const label = String(formData.get("label") ?? "").trim();
+  const keyInput = String(formData.get("key") ?? "").trim();
+  const key = normalizeGroupKey(keyInput || label);
+
+  if (!label) return { error: "탭 이름을 입력하세요." };
+  if (!key) {
+    return {
+      error:
+        "탭 ID는 영문 소문자·숫자·하이픈만 사용할 수 있습니다. (예: company, news)",
+    };
+  }
+
   const admin = createSupabaseServiceRoleClient();
-  const { error } = await admin.from("site_nav_items").delete().eq("id", id);
+
+  const { data: existing } = await admin
+    .from("site_nav_groups")
+    .select("key")
+    .eq("key", key)
+    .maybeSingle();
+
+  if (existing) {
+    return { error: "이미 사용 중인 탭 ID입니다. 다른 ID를 입력하세요." };
+  }
+
+  const { data: maxRow } = await admin
+    .from("site_nav_groups")
+    .select("sort_order")
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const sortOrder =
+    typeof maxRow?.sort_order === "number" ? maxRow.sort_order + 1 : 0;
+
+  const { error } = await admin.from("site_nav_groups").insert({
+    key,
+    label,
+    sort_order: sortOrder,
+  });
+
+  if (error) {
+    if (error.message.includes("site_nav_groups")) {
+      return {
+        error:
+          "site_nav_groups 테이블이 없습니다. supabase/migrations/20260407220000_site_homepage_cms.sql 을 실행하세요.",
+      };
+    }
+    return { error: error.message };
+  }
+
+  revalidateSite();
+  return { ok: true };
+}
+
+export async function updateNavGroupAction(
+  _prev: SiteHomepageActionState,
+  formData: FormData,
+): Promise<SiteHomepageActionState> {
+  await requireSuperAdmin();
+
+  const key = normalizeGroupKey(String(formData.get("key") ?? ""));
+  const label = String(formData.get("label") ?? "").trim();
+
+  if (!key) return { error: "탭 ID가 올바르지 않습니다." };
+  if (!label) return { error: "탭 이름을 입력하세요." };
+
+  const admin = createSupabaseServiceRoleClient();
+  const { data, error } = await admin
+    .from("site_nav_groups")
+    .update({ label })
+    .eq("key", key)
+    .select("key")
+    .maybeSingle();
+
+  if (error) {
+    return { error: error.message };
+  }
+  if (!data) {
+    return { error: "해당 탭을 찾을 수 없습니다." };
+  }
+
+  revalidateSite();
+  return { ok: true };
+}
+
+export async function deleteNavGroupAction(
+  _prev: SiteHomepageActionState,
+  formData: FormData,
+): Promise<SiteHomepageActionState> {
+  await requireSuperAdmin();
+
+  const key = normalizeGroupKey(String(formData.get("key") ?? ""));
+  if (!key) return { error: "탭 ID가 올바르지 않습니다." };
+
+  const admin = createSupabaseServiceRoleClient();
+  const { error } = await admin.from("site_nav_groups").delete().eq("key", key);
 
   if (error) {
     return { error: error.message };

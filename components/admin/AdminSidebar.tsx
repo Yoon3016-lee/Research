@@ -7,6 +7,7 @@ import {
   ClipboardList,
   KeyRound,
   LayoutDashboard,
+  LayoutList,
   LogOut,
   Mail,
   FileText,
@@ -82,6 +83,19 @@ export function AdminSidebar({ email, role }: Props) {
             </Link>
           );
         })}
+        {role === "super_admin" ? (
+          <Link
+            href="/admin/nav"
+            className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+              pathname.startsWith("/admin/nav")
+                ? "bg-zinc-900 text-white"
+                : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+            }`}
+          >
+            <LayoutList className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
+            상단 메뉴 관리
+          </Link>
+        ) : null}
         {role === "super_admin" ? (
           <Link
             href="/admin/homepage"

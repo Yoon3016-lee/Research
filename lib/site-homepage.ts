@@ -2,12 +2,14 @@ import "server-only";
 
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 
-export const SITE_NAV_GROUP_KEYS = ["intro", "survey", "service"] as const;
-export type SiteNavGroupKey = (typeof SITE_NAV_GROUP_KEYS)[number];
+/** 기본 시드 데이터용 (DB에 그룹이 없을 때만 사용) */
+export const DEFAULT_NAV_GROUP_KEYS = ["intro", "survey", "service"] as const;
+
+export type SiteNavGroupKey = string;
 
 export type SiteNavItem = {
   id: string;
-  groupKey: SiteNavGroupKey;
+  groupKey: string;
   label: string;
   href: string;
   sortOrder: number;
@@ -15,7 +17,7 @@ export type SiteNavItem = {
 };
 
 export type SiteNavGroup = {
-  key: SiteNavGroupKey;
+  key: string;
   label: string;
   sortOrder: number;
   items: SiteNavItem[];
@@ -90,13 +92,15 @@ export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
     page_id: string | null;
   }[];
 
+  const groupKeySet = new Set(groupRows.map((g) => g.key));
+
   const itemsByGroup = new Map<string, SiteNavItem[]>();
   for (const row of itemRows) {
-    if (!SITE_NAV_GROUP_KEYS.includes(row.group_key as SiteNavGroupKey)) continue;
+    if (!groupKeySet.has(row.group_key)) continue;
     const list = itemsByGroup.get(row.group_key) ?? [];
     list.push({
       id: row.id,
-      groupKey: row.group_key as SiteNavGroupKey,
+      groupKey: row.group_key,
       label: row.label,
       href: row.href,
       sortOrder: row.sort_order,
@@ -107,14 +111,12 @@ export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
 
   const builtGroups: SiteNavGroup[] =
     groupRows.length > 0
-      ? groupRows
-          .filter((g) => SITE_NAV_GROUP_KEYS.includes(g.key as SiteNavGroupKey))
-          .map((g) => ({
-            key: g.key as SiteNavGroupKey,
-            label: g.label,
-            sortOrder: g.sort_order,
-            items: itemsByGroup.get(g.key) ?? [],
-          }))
+      ? groupRows.map((g) => ({
+          key: g.key,
+          label: g.label,
+          sortOrder: g.sort_order,
+          items: itemsByGroup.get(g.key) ?? [],
+        }))
       : DEFAULT_CONFIG.groups;
 
   return { siteName, groups: builtGroups };

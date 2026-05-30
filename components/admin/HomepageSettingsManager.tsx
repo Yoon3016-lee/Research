@@ -11,7 +11,7 @@ import {
   type SiteHomepageActionState,
 } from "@/app/actions/site-homepage";
 import { PageBodyEditor } from "@/components/admin/PageBodyEditor";
-import type { SiteHomepageConfig, SiteNavGroupKey, SitePage } from "@/lib/site-homepage";
+import type { SiteHomepageConfig, SitePage } from "@/lib/site-homepage";
 
 const initial: SiteHomepageActionState = {};
 
@@ -21,13 +21,21 @@ type Props = {
 };
 
 export function HomepageSettingsManager({ config, pages }: Props) {
-  const [addingGroup, setAddingGroup] = useState<SiteNavGroupKey | null>(null);
+  const [addingGroup, setAddingGroup] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
 
   return (
     <div className="space-y-10">
       <SiteNameSection initialName={config.siteName} />
+
+      <p className="rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-3 text-sm text-indigo-950">
+        상단 탭(회사 소개 · 설문 조사 등) 추가·삭제는{" "}
+        <a href="/admin/nav" className="font-semibold underline underline-offset-2">
+          상단 메뉴 관리
+        </a>
+        에서 할 수 있습니다. 아래에서는 각 탭의 하위 메뉴만 편집합니다.
+      </p>
 
       {config.groups.map((group) => (
         <section
@@ -173,7 +181,7 @@ function NavItemCreateForm({
   groupKey,
   onDone,
 }: {
-  groupKey: SiteNavGroupKey;
+  groupKey: string;
   onDone: () => void;
 }) {
   const [state, formAction, pending] = useActionState(createNavItemAction, initial);

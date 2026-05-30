@@ -19,7 +19,7 @@ export default async function AdminHomepagePage() {
     <>
       <AdminHeader
         title="홈페이지 관리"
-        description="공개 사이트 이름과 상단 메뉴(회사 소개 · 설문 조사 · 서비스) 하위 항목을 편집합니다."
+        description="공개 사이트 이름과 각 상단 탭의 하위 메뉴를 편집합니다. 상단 탭 추가·삭제는 「상단 메뉴 관리」에서 합니다."
       />
       <div className="p-4 sm:p-6">
         <HomepageSettingsManager config={config} pages={pages} />

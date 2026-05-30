@@ -7,7 +7,7 @@ import type { SiteHomepageConfig } from "@/lib/site-homepage";
 import type { SurveyParticipant } from "@/lib/participant-types";
 import { SITE_HEADER_LABELS } from "@/lib/ui-labels";
 import { SiteAuthNav } from "@/components/site/SiteAuthNav";
-import { SiteNavDropdown } from "@/components/site/SiteNavDropdown";
+import { SiteNavMegaMenu } from "@/components/site/SiteNavMegaMenu";
 
 const adminLinkClass =
   "inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-800 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/60 hover:text-indigo-900";
@@ -63,12 +63,10 @@ export function SiteHeader({ homepage, adminLink, participant }: SiteHeaderProps
         </Link>
 
         <nav
-          className="flex items-center justify-center gap-0.5 overflow-visible sm:gap-1"
+          className="overflow-visible"
           aria-label={SITE_HEADER_LABELS.mainNavAria}
         >
-          {homepage.groups.map((group) => (
-            <SiteNavDropdown key={group.key} group={group} />
-          ))}
+          <SiteNavMegaMenu groups={homepage.groups} />
         </nav>
 
         <div className="relative z-10 flex shrink-0 items-center justify-self-end gap-2">
