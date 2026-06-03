@@ -11,13 +11,13 @@ export function SitePageBody({
 }: Props) {
   const trimmed = body.trim();
   if (!trimmed) {
-    return <p className="text-sm text-slate-500">{emptyMessage}</p>;
+    return <p className="text-slate-500">{emptyMessage}</p>;
   }
 
   const segments = parseSitePageBody(trimmed);
 
   return (
-    <div className="space-y-6 text-sm leading-relaxed text-slate-700">
+    <div className="space-y-6 text-[1.0625rem] leading-relaxed text-slate-700">
       {segments.map((seg, i) => {
         if (seg.type === "text") {
           const text = seg.value.trim();

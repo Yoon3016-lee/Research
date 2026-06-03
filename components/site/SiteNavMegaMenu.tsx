@@ -12,6 +12,12 @@ type Props = {
 
 type ColumnPos = { left: number; width: number };
 
+type PanelLayout = {
+  top: number;
+  left: number;
+  width: number;
+};
+
 const CLOSE_DELAY_MS = 150;
 
 export function SiteNavMegaMenu({ groups }: Props) {
@@ -21,7 +27,7 @@ export function SiteNavMegaMenu({ groups }: Props) {
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [open, setOpen] = useState(false);
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
-  const [panelTop, setPanelTop] = useState(0);
+  const [panelLayout, setPanelLayout] = useState<PanelLayout | null>(null);
   const [columnPos, setColumnPos] = useState<Map<string, ColumnPos>>(new Map());
 
   const isGroupActive = (group: SiteNavGroup) =>
@@ -31,8 +37,16 @@ export function SiteNavMegaMenu({ groups }: Props) {
 
   const updateLayout = useCallback(() => {
     const header = navRef.current?.closest("header");
-    if (!header) return;
-    setPanelTop(header.getBoundingClientRect().bottom);
+    const band = header?.querySelector(".site-content-band");
+    if (!header || !(band instanceof HTMLElement)) return;
+
+    const headerRect = header.getBoundingClientRect();
+    const bandRect = band.getBoundingClientRect();
+    setPanelLayout({
+      top: headerRect.bottom,
+      left: bandRect.left,
+      width: bandRect.width,
+    });
 
     const next = new Map<string, ColumnPos>();
     for (const group of groups) {
@@ -40,7 +54,7 @@ export function SiteNavMegaMenu({ groups }: Props) {
       if (!col) continue;
       const rect = col.getBoundingClientRect();
       next.set(group.key, {
-        left: rect.left,
+        left: rect.left - bandRect.left,
         width: rect.width,
       });
     }
@@ -105,13 +119,17 @@ export function SiteNavMegaMenu({ groups }: Props) {
   const panelMinHeight = 16 + maxItemCount * 40 + 8;
 
   const panel =
-    open && panelTop > 0 && columnPos.size > 0 ? (
+    open && panelLayout && columnPos.size > 0 ? (
       <div
         id="site-nav-mega-panel"
         role="navigation"
         aria-label="전체 하위 메뉴"
-        className="fixed inset-x-0 z-[200] border-b border-zinc-200 bg-white shadow-lg"
-        style={{ top: panelTop }}
+        className="fixed z-[200] overflow-hidden border-b border-zinc-200 bg-white shadow-lg"
+        style={{
+          top: panelLayout.top,
+          left: panelLayout.left,
+          width: panelLayout.width,
+        }}
         onMouseEnter={openPanel}
         onMouseLeave={scheduleClose}
       >
@@ -120,17 +138,32 @@ export function SiteNavMegaMenu({ groups }: Props) {
             const pos = columnPos.get(group.key);
             if (!pos) return null;
 
+            const groupActive = isGroupActive(group);
+            const columnHighlighted =
+              hoveredKey === group.key || (!hoveredKey && groupActive);
+
             return (
               <div
                 key={group.key}
-                className="absolute top-3 box-border pl-3 sm:pl-4"
+                className={`absolute top-3 box-border rounded-xl py-1 pl-2 pr-1 transition-all duration-150 sm:pl-3 ${
+                  columnHighlighted
+                    ? "bg-indigo-50/90 ring-1 ring-inset ring-indigo-200/80"
+                    : "opacity-40"
+                }`}
                 style={{
                   left: pos.left,
                   width: pos.width,
                 }}
+                onMouseEnter={() => setHoveredKey(group.key)}
               >
                 {group.items.length === 0 ? (
-                  <p className="text-sm text-zinc-500">등록된 메뉴가 없습니다.</p>
+                  <p
+                    className={`text-sm ${
+                      columnHighlighted ? "font-medium text-indigo-800" : "text-zinc-500"
+                    }`}
+                  >
+                    등록된 메뉴가 없습니다.
+                  </p>
                 ) : (
                   <ul className="space-y-0.5">
                     {group.items.map((item) => {
@@ -146,8 +179,10 @@ export function SiteNavMegaMenu({ groups }: Props) {
                             }}
                             className={`block rounded-lg py-2 pr-2 text-left text-sm transition ${
                               itemActive
-                                ? "bg-indigo-50 font-medium text-indigo-900"
-                                : "text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
+                                ? "bg-indigo-100 font-semibold text-indigo-900"
+                                : columnHighlighted
+                                  ? "font-medium text-indigo-900 hover:bg-indigo-100/80"
+                                  : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
                             }`}
                           >
                             {item.label}
@@ -187,14 +222,14 @@ export function SiteNavMegaMenu({ groups }: Props) {
               <button
                 type="button"
                 onFocus={openPanel}
-                className={`whitespace-nowrap rounded-lg px-3 py-2 text-left text-base font-medium transition sm:px-4 ${
+                className={`whitespace-nowrap rounded-lg px-3 py-2 text-left text-[1.0625rem] font-medium transition sm:px-4 ${
                   highlighted || (open && active)
-                    ? "bg-indigo-50 text-indigo-900"
+                    ? "bg-indigo-50 text-indigo-900 ring-1 ring-indigo-200/80"
                     : open
-                      ? "text-zinc-700 hover:bg-zinc-100"
+                      ? "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
                       : active
-                        ? "bg-indigo-50/80 text-indigo-900"
-                        : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900"
+                        ? "bg-indigo-50/90 text-indigo-900"
+                        : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
                 }`}
                 aria-expanded={open}
                 aria-controls="site-nav-mega-panel"

@@ -1,1 +1,148 @@
 @import "tailwindcss";
+
+@layer components {
+  .site-container {
+    padding-inline: var(--site-container-padding);
+  }
+
+  /* 좌우 세로선(site-side-rail)과 동일한 폭 — 2 × --site-content-half */
+  .site-content-band {
+    width: min(var(--site-content-max), calc(2 * var(--site-content-half)));
+    margin-inline: auto;
+  }
+
+  .site-header {
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  /* 좌우 세로선(site-side-rail)과 동일한 콘텐츠 폭 — 상·하단 그라데이션 */
+  .site-header-content-band {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(
+        180deg,
+        rgba(147, 197, 253, 0.32) 0%,
+        rgba(226, 232, 240, 0.45) 14%,
+        rgba(255, 255, 255, 0) 34%,
+        rgba(255, 255, 255, 0) 66%,
+        rgba(226, 232, 240, 0.45) 86%,
+        rgba(147, 197, 253, 0.32) 100%
+      ),
+      #ffffff;
+  }
+
+  .site-header-nav-band {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+  }
+
+  .site-visual-frame {
+    background:
+      radial-gradient(ellipse 120% 80% at 50% -20%, rgba(59, 130, 246, 0.08), transparent 55%),
+      linear-gradient(180deg, #eef2f7 0%, #f4f7fb 38%, #f8fafc 100%);
+  }
+
+  .site-side-rail {
+    position: fixed;
+    top: var(--site-header-height);
+    bottom: 0;
+    width: 1px;
+    pointer-events: none;
+    z-index: 2;
+    background: linear-gradient(
+      180deg,
+      rgba(30, 58, 138, 0.45) 0%,
+      rgba(15, 23, 42, 0.22) 45%,
+      rgba(59, 130, 246, 0.18) 100%
+    );
+  }
+
+  .site-side-rail-left {
+    left: max(0px, calc(50% - var(--site-content-half)));
+  }
+
+  .site-side-rail-right {
+    right: max(0px, calc(50% - var(--site-content-half)));
+  }
+}
+
+@layer base {
+  .site-public {
+    --site-header-height: 4.25rem;
+    --site-content-max: 1440px;
+    --site-container-padding: clamp(1rem, 2.5vw, 1.75rem);
+    --site-content-half: min(720px, 50vw - var(--site-container-padding));
+    font-size: 1.0625rem;
+    line-height: 1.7;
+    letter-spacing: -0.011em;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .site-public :where(h1, h2, h3) {
+    font-family: var(--font-site-display), "Source Serif 4", Georgia, serif;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+  }
+
+  .site-public :where(h1) {
+    font-size: clamp(2rem, 4vw, 3.25rem);
+    font-weight: 600;
+  }
+
+  .site-public :where(h2) {
+    font-size: clamp(1.375rem, 2.5vw, 1.75rem);
+    font-weight: 600;
+  }
+
+  .site-public :where(h3) {
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+
+  .site-public :where(p, li) {
+    font-size: 1.0625rem;
+  }
+
+  .site-public :where(.text-xs) {
+    font-size: 0.8125rem;
+  }
+
+  .site-public :where(.text-sm) {
+    font-size: 0.9375rem;
+  }
+
+  .site-public :where(.text-lg) {
+    font-size: 1.1875rem;
+  }
+
+  .site-public :where(.text-xl) {
+    font-size: 1.3125rem;
+  }
+
+  .site-public :where(.text-2xl) {
+    font-size: clamp(1.5rem, 2.5vw, 1.875rem);
+  }
+
+  .site-public :where(.text-3xl) {
+    font-size: clamp(1.75rem, 3vw, 2.25rem);
+  }
+
+  .site-public :where(.text-4xl) {
+    font-size: clamp(2rem, 4vw, 2.75rem);
+  }
+
+  .site-public :where(.text-5xl) {
+    font-size: clamp(2.25rem, 4.5vw, 3.25rem);
+  }
+}
+
+@media (min-width: 640px) {
+  .site-public {
+    --site-header-height: 4.5rem;
+  }
+}

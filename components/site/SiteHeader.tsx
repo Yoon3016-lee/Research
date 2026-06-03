@@ -10,7 +10,7 @@ import { SiteAuthNav } from "@/components/site/SiteAuthNav";
 import { SiteNavMegaMenu } from "@/components/site/SiteNavMegaMenu";
 
 const adminLinkClass =
-  "inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-800 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/60 hover:text-indigo-900";
+  "inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[0.9375rem] font-medium text-slate-800 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/60 hover:text-indigo-900";
 
 type SiteHeaderProps = {
   homepage: SiteHomepageConfig;
@@ -53,25 +53,28 @@ function AdminEntryLink({ adminLink }: { adminLink: PublicAdminLinkConfig }) {
 
 export function SiteHeader({ homepage, adminLink, participant }: SiteHeaderProps) {
   return (
-    <header className="sticky top-0 z-50 overflow-visible border-b border-slate-200/90 bg-white/95 backdrop-blur-md">
-      <div className="mx-auto grid min-h-16 max-w-6xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 sm:gap-4 sm:px-6">
-        <Link
-          href="/"
-          className="justify-self-start text-base font-bold tracking-tight text-slate-900 sm:text-lg"
-        >
-          {homepage.siteName}
-        </Link>
+    <header className="site-header relative sticky top-0 z-[60] overflow-visible backdrop-blur-sm">
+      <div className="site-content-band relative">
+        <div className="site-header-content-band" aria-hidden />
+        <div className="site-container relative grid min-h-[4.25rem] grid-cols-[1fr_auto_1fr] items-center gap-3 sm:min-h-[4.5rem] sm:gap-4">
+          <Link
+            href="/"
+            className="relative z-[1] justify-self-start text-lg font-bold tracking-tight text-slate-900 sm:text-xl"
+          >
+            {homepage.siteName}
+          </Link>
 
-        <nav
-          className="overflow-visible"
-          aria-label={SITE_HEADER_LABELS.mainNavAria}
-        >
-          <SiteNavMegaMenu groups={homepage.groups} />
-        </nav>
+          <nav
+            className="site-header-nav-band overflow-visible"
+            aria-label={SITE_HEADER_LABELS.mainNavAria}
+          >
+            <SiteNavMegaMenu groups={homepage.groups} />
+          </nav>
 
-        <div className="relative z-10 flex shrink-0 items-center justify-self-end gap-2">
-          {adminLink.show ? <AdminEntryLink adminLink={adminLink} /> : null}
-          <SiteAuthNav participant={participant} />
+          <div className="relative z-[1] flex shrink-0 items-center justify-self-end gap-2">
+            {adminLink.show ? <AdminEntryLink adminLink={adminLink} /> : null}
+            <SiteAuthNav participant={participant} />
+          </div>
         </div>
       </div>
     </header>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, ClipboardList, LineChart, Users } from "lucide-react";
+import { SiteContainer } from "@/components/site/SiteContainer";
 import { HomePopupBanners } from "@/components/site/HomePopupBanners";
 import { HomeTopBanner } from "@/components/site/HomeTopBanner";
 import { listActiveSiteBanners } from "@/lib/site-banners";
@@ -15,32 +16,25 @@ export default async function HomePage() {
   const primarySurveyHref = surveyItems[0]?.href ?? "/surveys";
   const introItems = groups.find((g) => g.key === "intro")?.items ?? [];
 
-  const hasBannerArea = topBanners.length > 0 || popupBanners.length > 0;
-
   return (
     <main>
-      {hasBannerArea ? (
-        <div className="relative">
-          {/* 팝업은 DOM 상 먼저 + absolute → 상단 띠 배너 위에 겹침 */}
-          <HomePopupBanners banners={popupBanners} />
-          <HomeTopBanner banners={topBanners} />
-        </div>
-      ) : null}
-      <section className="relative overflow-hidden border-b border-slate-200 bg-gradient-to-b from-white via-slate-50 to-slate-100">
+      {popupBanners.length > 0 ? <HomePopupBanners banners={popupBanners} /> : null}
+      {topBanners.length > 0 ? <HomeTopBanner banners={topBanners} /> : null}
+      <section className="relative overflow-hidden border-b border-slate-200/80 bg-gradient-to-b from-white/90 via-slate-50/80 to-transparent">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(59,130,246,0.14),transparent)]" />
-        <div className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
-          <p className="text-sm font-medium tracking-wide text-blue-700">Market Research</p>
-          <h1 className="mt-4 max-w-3xl text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-            {siteName}
-          </h1>
-          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-slate-600">
+        <SiteContainer className="relative py-16 sm:py-24 lg:py-28">
+          <p className="text-[0.9375rem] font-semibold tracking-wide text-blue-700">
+            Market Research
+          </p>
+          <h1 className="mt-4 max-w-4xl font-semibold text-slate-900">{siteName}</h1>
+          <p className="mt-5 max-w-3xl text-lg leading-relaxed text-slate-600">
             데이터 기반 인사이트와 설문 리서치를 제공합니다. 상단 메뉴에서 회사 소개, 설문
             참여, 서비스 안내를 확인하세요.
           </p>
           <div className="mt-10 flex flex-wrap gap-3">
             <Link
               href={primarySurveyHref}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3.5 text-base font-semibold text-white shadow-sm transition hover:bg-blue-700"
             >
               설문 참여하기
               <ArrowRight className="h-4 w-4" aria-hidden />
@@ -48,18 +42,18 @@ export default async function HomePage() {
             {introItems[0] ? (
               <Link
                 href={introItems[0].href}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-blue-200 hover:bg-blue-50/50"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3.5 text-base font-semibold text-slate-800 shadow-sm transition hover:border-blue-200 hover:bg-blue-50/50"
               >
                 {introItems[0].label}
               </Link>
             ) : null}
           </div>
-        </div>
+        </SiteContainer>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-        <h2 className="text-lg font-semibold text-slate-900">리서치 서비스</h2>
-        <p className="mt-1 text-sm text-slate-600">
+      <SiteContainer as="section" className="py-14 sm:py-16 lg:py-20">
+        <h2 className="font-semibold text-slate-900">리서치 서비스</h2>
+        <p className="mt-2 text-slate-600">
           설계부터 수집·분석까지, 맞춤형 조사 프로젝트를 지원합니다.
         </p>
         <ul className="mt-10 grid gap-6 sm:grid-cols-3">
@@ -92,7 +86,7 @@ export default async function HomePage() {
             </li>
           ))}
         </ul>
-      </section>
+      </SiteContainer>
     </main>
   );
 }

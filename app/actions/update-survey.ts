@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import type { CreateSurveyPayload } from "@/lib/survey-types";
+import { buildSurveyPeriodPersist } from "@/lib/survey-period";
 import { normalizeSurveyRef } from "@/lib/survey-slug";
 import { persistSurveyQuestions, validateQuestion } from "@/lib/survey-persist";
 import { requireAdminPanelAccess } from "@/lib/require-admin";
@@ -35,6 +36,9 @@ export async function updateSurveyAction(
     if (err) return { error: err };
   }
 
+  const periodBuilt = buildSurveyPeriodPersist(payload.periodStart, payload.periodEnd);
+  if (!periodBuilt.ok) return { error: periodBuilt.error };
+
   const admin = createSupabaseServiceRoleClient();
   const { data: existing, error: findError } = await admin
     .from("surveys")
@@ -53,9 +57,11 @@ export async function updateSurveyAction(
     .update({
       title,
       summary: payload.summary.trim(),
-      period_label: payload.periodLabel.trim(),
+      period_start: periodBuilt.data.periodStart,
+      period_end: periodBuilt.data.periodEnd,
+      period_label: periodBuilt.data.periodLabel,
       target_count: Math.max(0, payload.targetCount),
-      status: payload.status,
+      status: periodBuilt.data.status,
       listed_public: payload.listedPublic,
       response_script: payload.responseScript.trim(),
       updated_at: new Date().toISOString(),
@@ -67,6 +73,15 @@ export async function updateSurveyAction(
       return {
         error:
           "DB에 response_script 컬럼이 없습니다. Supabase SQL Editor에서 supabase/migrations/20260407200000_survey_response_script.sql 을 실행하세요.",
+      };
+    }
+    if (
+      updateError.message.includes("period_start") ||
+      updateError.message.includes("period_end")
+    ) {
+      return {
+        error:
+          "DB에 period_start·period_end 컬럼이 없습니다. supabase/migrations/20260407270000_survey_period_dates.sql 을 실행하세요.",
       };
     }
     return { error: updateError.message };

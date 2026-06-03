@@ -1,8 +1,24 @@
+import { Noto_Sans_KR, Source_Serif_4 } from "next/font/google";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
+import { SiteVisualFrame } from "@/components/site/SiteVisualFrame";
 import { getSurveyParticipant } from "@/lib/participant";
 import { getPublicAdminLinkConfig } from "@/lib/public-admin-link";
 import { getSiteHomepageConfig } from "@/lib/site-homepage";
+
+const siteBody = Noto_Sans_KR({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-site-body",
+  display: "swap",
+});
+
+const siteDisplay = Source_Serif_4({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-site-display",
+  display: "swap",
+});
 
 export const dynamic = "force-dynamic";
 
@@ -18,9 +34,11 @@ export default async function SiteLayout({
   ]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
+    <div
+      className={`site-public ${siteBody.className} ${siteBody.variable} ${siteDisplay.variable} flex min-h-screen flex-col text-slate-900`}
+    >
       <SiteHeader homepage={homepage} adminLink={adminLink} participant={participant} />
-      <div className="flex-1">{children}</div>
+      <SiteVisualFrame>{children}</SiteVisualFrame>
       <SiteFooter siteName={homepage.siteName} groups={homepage.groups} />
     </div>
   );

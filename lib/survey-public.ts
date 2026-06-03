@@ -1,6 +1,8 @@
 import "server-only";
 
 import type { QuestionType } from "@/lib/survey-types";
+import { resolveSurveyStatus, normalizeStoredDate } from "@/lib/survey-period";
+import { syncSurveyPeriodStatuses } from "@/lib/sync-survey-statuses";
 import { normalizeSurveyRef } from "@/lib/survey-slug";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -54,9 +56,18 @@ type SurveyRow = {
   title: string;
   summary: string;
   period_label: string;
+  period_start: string | null;
+  period_end: string | null;
   status: string;
   listed_public: boolean;
 };
+
+function effectiveSurveyStatus(row: SurveyRow): string {
+  const start = normalizeStoredDate(row.period_start);
+  const end = normalizeStoredDate(row.period_end);
+  if (start && end) return resolveSurveyStatus(start, end);
+  return row.status;
+}
 
 type QuestionRow = {
   id: string;
@@ -179,9 +190,13 @@ export async function loadSurveyForParticipation(
 
   if (useServiceRole) {
     const admin = createSupabaseServiceRoleClient();
+    await syncSurveyPeriodStatuses(admin);
+
     const { data: row, error } = await admin
       .from("surveys")
-      .select("id, slug, title, summary, period_label, status, listed_public")
+      .select(
+        "id, slug, title, summary, period_label, period_start, period_end, status, listed_public",
+      )
       .eq("slug", normalized)
       .maybeSingle();
 
@@ -192,12 +207,13 @@ export async function loadSurveyForParticipation(
     if (!row) return { ok: false, reason: "not_found" };
 
     const s = row as SurveyRow;
-    if (s.status !== "진행중" || !s.listed_public) {
+    const status = effectiveSurveyStatus(s);
+    if (status !== "진행중" || !s.listed_public) {
       return {
         ok: false,
         reason: "not_open",
         title: s.title,
-        status: s.status,
+        status,
         listedPublic: s.listed_public,
       };
     }
@@ -212,9 +228,10 @@ export async function loadSurveyForParticipation(
   const supabase = await createSupabaseServerClient();
   const { data: row, error } = await supabase
     .from("surveys")
-    .select("id, slug, title, summary, period_label, status, listed_public")
+    .select(
+      "id, slug, title, summary, period_label, period_start, period_end, status, listed_public",
+    )
     .eq("slug", normalized)
-    .eq("status", "진행중")
     .eq("listed_public", true)
     .maybeSingle();
 
@@ -225,6 +242,17 @@ export async function loadSurveyForParticipation(
   if (!row) return { ok: false, reason: "not_found" };
 
   const s = row as SurveyRow;
+  const status = effectiveSurveyStatus(s);
+  if (status !== "진행중") {
+    return {
+      ok: false,
+      reason: "not_open",
+      title: s.title,
+      status,
+      listedPublic: s.listed_public,
+    };
+  }
+
   return { ok: true, survey: await buildSurveyDetail(s, false) };
 }
 

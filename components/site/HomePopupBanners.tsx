@@ -8,6 +8,7 @@ import {
   filterVisiblePopupBanners,
   snoozePopupBannerIdForToday,
 } from "@/lib/popup-banner-storage";
+import { SiteContainer } from "@/components/site/SiteContainer";
 import type { SiteBanner } from "@/lib/site-banners";
 
 type Props = {
@@ -36,10 +37,11 @@ export function HomePopupBanners({ banners }: Props) {
 
   return (
     <div
-      className="pointer-events-none absolute inset-x-0 top-0 z-50 h-0 overflow-visible"
+      className="pointer-events-none fixed inset-x-0 z-40 h-0 overflow-visible"
+      style={{ top: "calc(var(--site-header-height) + 0.5rem)" }}
       aria-label="팝업 배너"
     >
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+      <SiteContainer>
         <div className="flex flex-wrap items-start gap-4">
           {visible.map((banner) => (
             <PopupBannerWindow
@@ -49,7 +51,7 @@ export function HomePopupBanners({ banners }: Props) {
             />
           ))}
         </div>
-      </div>
+      </SiteContainer>
     </div>
   );
 }

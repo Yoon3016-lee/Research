@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { CreateSurveyPayload, DraftQuestion, QuestionType } from "@/lib/survey-types";
+import { normalizeStoredDate } from "@/lib/survey-period";
 import { isUuid, normalizeSurveyRef } from "@/lib/survey-slug";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -19,6 +20,8 @@ type SurveyRow = {
   title: string;
   summary: string;
   period_label: string;
+  period_start: string | null;
+  period_end: string | null;
   target_count: number;
   status: string;
   listed_public: boolean;
@@ -52,7 +55,7 @@ async function fetchSurveyRow(
   }
 
   const select =
-    "id, slug, title, summary, period_label, target_count, status, listed_public, response_count, response_script";
+    "id, slug, title, summary, period_label, period_start, period_end, target_count, status, listed_public, response_count, response_script";
 
   const bySlug = await admin.from("surveys").select(select).eq("slug", normalized).maybeSingle();
   if (bySlug.error) {
@@ -165,10 +168,10 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
       responseCount: surveyRow.response_count,
       title: surveyRow.title,
       summary: surveyRow.summary,
-      periodLabel: surveyRow.period_label,
+      periodStart: normalizeStoredDate(surveyRow.period_start),
+      periodEnd: normalizeStoredDate(surveyRow.period_end),
       targetCount: surveyRow.target_count,
       listedPublic: surveyRow.listed_public,
-      status: surveyRow.status as "예정" | "진행중" | "종료",
       responseScript: surveyRow.response_script ?? "",
       questions: draftQuestions,
     },

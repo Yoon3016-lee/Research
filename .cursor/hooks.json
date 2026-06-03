@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": "node .cursor/hooks/mark-build-pending.mjs",
+        "matcher": "Write"
+      }
+    ],
+    "stop": [
+      {
+        "command": "node .cursor/hooks/run-build-on-stop.mjs"
+      }
+    ]
+  }
+}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
+import { SurveyTemplateImportButton } from "@/components/admin/SurveyTemplateImportButton";
 import { getAdminSurveys } from "@/lib/surveys-db";
 import { ExternalLink, Plus, Pencil } from "lucide-react";
 
@@ -40,12 +41,10 @@ export default async function AdminSurveysPage({
             <Plus className="h-4 w-4" aria-hidden />
             새 설문 만들기
           </Link>
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-50"
-          >
-            템플릿 불러오기
-          </button>
+          <SurveyTemplateImportButton
+            surveys={adminSurveys}
+            mode="navigate"
+          />
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">

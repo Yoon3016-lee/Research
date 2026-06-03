@@ -9,19 +9,26 @@ export function HomeTopBanner({ banners }: Props) {
   if (banners.length === 0) return null;
 
   return (
-    <section className="relative z-0 border-b border-slate-200 bg-white" aria-label="상단 배너">
-      <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6 sm:py-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
-          {banners.map((banner) => (
-            <TopBannerCard key={banner.id} banner={banner} />
-          ))}
-        </div>
+    <section
+      className="site-content-band relative z-0 border-b border-slate-200 bg-white"
+      aria-label="상단 배너"
+    >
+      <div className="flex flex-col">
+        {banners.map((banner, index) => (
+          <TopBannerCard key={banner.id} banner={banner} stacked={index > 0} />
+        ))}
       </div>
     </section>
   );
 }
 
-function TopBannerCard({ banner }: { banner: SiteBanner }) {
+function TopBannerCard({
+  banner,
+  stacked,
+}: {
+  banner: SiteBanner;
+  stacked: boolean;
+}) {
   const label = banner.title.trim() || "상단 배너";
 
   const media =
@@ -29,32 +36,30 @@ function TopBannerCard({ banner }: { banner: SiteBanner }) {
       <iframe
         title={label}
         src={banner.fileUrl}
-        className="aspect-[4/1] min-h-24 w-full rounded-lg border border-slate-100 bg-slate-50 sm:min-h-28"
+        className="aspect-[4/1] min-h-[7rem] w-full border-0 bg-slate-50 sm:min-h-[9rem]"
       />
     ) : (
-      <div className="relative aspect-[4/1] min-h-24 w-full overflow-hidden rounded-lg border border-slate-100 bg-slate-50 sm:min-h-28">
+      <div className="relative aspect-[4/1] min-h-[7rem] w-full overflow-hidden bg-slate-50 sm:min-h-[9rem]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={banner.fileUrl}
           alt={label}
-          className="h-full w-full object-contain object-center"
+          className="h-full w-full object-cover object-center"
         />
       </div>
     );
 
-  const inner = <div className="min-w-0 flex-1">{media}</div>;
+  const cardClass = `block w-full transition-opacity hover:opacity-[0.98] ${
+    stacked ? "border-t border-slate-200" : ""
+  }`;
 
   if (banner.linkUrl) {
     return (
-      <Link
-        href={banner.linkUrl}
-        aria-label={label}
-        className="block min-w-0 flex-1 transition opacity-95 hover:opacity-100"
-      >
-        {inner}
+      <Link href={banner.linkUrl} aria-label={label} className={cardClass}>
+        {media}
       </Link>
     );
   }
 
-  return inner;
+  return <div className={stacked ? "border-t border-slate-200" : undefined}>{media}</div>;
 }

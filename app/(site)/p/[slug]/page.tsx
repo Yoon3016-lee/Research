@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { SiteContainer } from "@/components/site/SiteContainer";
 import { SitePageBody } from "@/components/site/SitePageBody";
 import { getSitePageBySlug } from "@/lib/site-homepage";
 
@@ -23,8 +24,8 @@ export default async function SiteCmsPage({ params }: Props) {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
-      <nav className="mb-6 text-sm text-slate-500">
+    <SiteContainer as="main" width="article" className="py-12 sm:py-14">
+      <nav className="mb-6 text-slate-500">
         <Link href="/" className="hover:text-slate-800">
           홈
         </Link>
@@ -37,6 +38,6 @@ export default async function SiteCmsPage({ params }: Props) {
           <SitePageBody body={page.body} />
         </div>
       </article>
-    </main>
+    </SiteContainer>
   );
 }

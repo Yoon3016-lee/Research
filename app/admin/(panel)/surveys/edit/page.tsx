@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { SurveyBuilderForm } from "@/components/admin/SurveyBuilderForm";
 import { loadSurveyForEdit } from "@/lib/surveys-admin";
+import { getAdminSurveys } from "@/lib/surveys-db";
 
 export const metadata = { title: "설문 편집" };
 
@@ -33,7 +34,10 @@ export default async function EditSurveyByQueryPage({ searchParams }: Props) {
     );
   }
 
-  const loaded = await loadSurveyForEdit(slug);
+  const [loaded, adminSurveys] = await Promise.all([
+    loadSurveyForEdit(slug),
+    getAdminSurveys(),
+  ]);
 
   if (!loaded.ok) {
     if (loaded.reason === "not_configured") {
@@ -72,6 +76,7 @@ export default async function EditSurveyByQueryPage({ searchParams }: Props) {
           slug={surveySlug}
           initial={initial}
           responseCount={responseCount}
+          templateSurveys={adminSurveys}
         />
       </div>
     </>

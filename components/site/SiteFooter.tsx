@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SiteContainer } from "@/components/site/SiteContainer";
 import { PublicAdminFooterLink } from "@/components/site/PublicAdminLink";
 import type { SiteNavGroup } from "@/lib/site-homepage";
 
@@ -12,10 +13,10 @@ export function SiteFooter({ siteName, groups }: Props) {
 
   return (
     <footer className="border-t border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-10 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+      <SiteContainer className="flex flex-col gap-8 py-10 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="font-semibold text-slate-900">{siteName}</p>
-          <p className="mt-2 max-w-sm text-sm leading-relaxed text-slate-600">
+          <p className="text-lg font-semibold text-slate-900">{siteName}</p>
+          <p className="mt-2 max-w-md leading-relaxed text-slate-600">
             설문조사·리서치 전문 기관 홈페이지입니다. 상단 메뉴에서 회사 소개, 설문 참여,
             서비스 안내를 확인하실 수 있습니다.
           </p>
@@ -43,8 +44,8 @@ export function SiteFooter({ siteName, groups }: Props) {
           )}
           <PublicAdminFooterLink />
         </div>
-      </div>
-      <div className="border-t border-slate-200/80 py-4 text-center text-xs text-slate-500">
+      </SiteContainer>
+      <div className="border-t border-slate-200/80 py-4 text-center text-slate-500">
         © {new Date().getFullYear()} {siteName.replace(/^\[|\]$/g, "").trim() || siteName}. All
         rights reserved.
       </div>

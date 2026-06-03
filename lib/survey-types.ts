@@ -96,10 +96,12 @@ export function likertEndpointLabels(options: string[]): {
 export type CreateSurveyPayload = {
   title: string;
   summary: string;
-  periodLabel: string;
+  /** YYYY-MM-DD */
+  periodStart: string;
+  /** YYYY-MM-DD */
+  periodEnd: string;
   targetCount: number;
   listedPublic: boolean;
-  status: "예정" | "진행중" | "종료";
   /** 직원 전화 조사용 응답 스크립트·메뉴얼 */
   responseScript: string;
   questions: DraftQuestion[];

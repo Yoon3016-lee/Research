@@ -12,12 +12,19 @@ type Panel = "login" | "signup" | null;
 
 type Props = {
   participant: SurveyParticipant;
+  headerTheme?: "light" | "dark";
 };
 
-const btnOutline =
+const btnOutlineDark =
+  "site-header-btn inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:border-blue-300/40 hover:bg-white/15";
+
+const btnPrimaryDark =
+  "inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-blue-500 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-400";
+
+const btnOutlineLight =
   "inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-800 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/60 hover:text-indigo-900";
 
-const btnPrimary =
+const btnPrimaryLight =
   "inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700";
 
 function getAuthError(result: SiteAuthResult): string | null {
@@ -28,11 +35,14 @@ function getAuthRedirect(result: SiteAuthResult): string | null {
   return result.redirectTo ?? null;
 }
 
-export function SiteAuthNav({ participant }: Props) {
+export function SiteAuthNav({ participant, headerTheme = "light" }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const returnPath = pathname || "/";
   const containerRef = useRef<HTMLDivElement>(null);
+  const dark = headerTheme === "dark";
+  const btnOutline = dark ? btnOutlineDark : btnOutlineLight;
+  const btnPrimary = dark ? btnPrimaryDark : btnPrimaryLight;
 
   const [panel, setPanel] = useState<Panel>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
@@ -129,8 +139,12 @@ export function SiteAuthNav({ participant }: Props) {
           className="hidden max-w-[10rem] truncate text-right leading-tight sm:block"
           title={participant.email}
         >
-          <p className="truncate text-xs font-medium text-zinc-900">{participant.email}</p>
-          <p className="truncate text-[11px] text-zinc-500">{subtitle}</p>
+          <p className={`truncate text-xs font-medium ${dark ? "text-slate-100" : "text-zinc-900"}`}>
+            {participant.email}
+          </p>
+          <p className={`truncate text-[11px] ${dark ? "text-slate-300" : "text-zinc-500"}`}>
+            {subtitle}
+          </p>
         </div>
         <button
           type="button"

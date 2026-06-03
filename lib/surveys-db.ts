@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { AdminSurveyRow, OngoingSurvey, SurveyStatus } from "@/lib/survey-list-types";
+import { syncSurveyPeriodStatuses } from "@/lib/sync-survey-statuses";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -44,25 +45,60 @@ function mapToAdmin(row: SurveyRow): AdminSurveyRow {
   };
 }
 
-/** 공개 `/surveys` — anon + RLS(진행중·노출만) */
+const PUBLIC_LIST_STATUSES: SurveyStatus[] = ["진행중", "예정"];
+
+const STATUS_SORT: Record<SurveyStatus, number> = {
+  진행중: 0,
+  예정: 1,
+  종료: 2,
+};
+
+function sortPublicSurveys(rows: SurveyRow[]): OngoingSurvey[] {
+  return [...rows]
+    .sort((a, b) => {
+      const byStatus =
+        STATUS_SORT[a.status as SurveyStatus] - STATUS_SORT[b.status as SurveyStatus];
+      if (byStatus !== 0) return byStatus;
+      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+    })
+    .map(mapToOngoing);
+}
+
+/** 공개 `/surveys` — 노출 설정된 진행중·예정 설문 (참여는 진행중만) */
 export async function getPublicOngoingSurveys(): Promise<OngoingSurvey[]> {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     return [];
   }
   try {
+    const select =
+      "slug, title, summary, period_label, response_count, target_count, status, updated_at";
+
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const admin = createSupabaseServiceRoleClient();
+      await syncSurveyPeriodStatuses(admin);
+      const { data, error } = await admin
+        .from("surveys")
+        .select(select)
+        .eq("listed_public", true)
+        .in("status", PUBLIC_LIST_STATUSES)
+        .order("updated_at", { ascending: false });
+
+      if (error) throw error;
+      if (!data?.length) return [];
+      return sortPublicSurveys(data as SurveyRow[]);
+    }
+
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase
       .from("surveys")
-      .select(
-        "slug, title, summary, period_label, response_count, target_count, status, updated_at",
-      )
-      .eq("status", "진행중")
+      .select(select)
       .eq("listed_public", true)
+      .in("status", PUBLIC_LIST_STATUSES)
       .order("updated_at", { ascending: false });
 
     if (error) throw error;
     if (!data?.length) return [];
-    return (data as SurveyRow[]).map(mapToOngoing);
+    return sortPublicSurveys(data as SurveyRow[]);
   } catch (err) {
     console.error("[getPublicOngoingSurveys]", err);
     return [];
@@ -79,6 +115,8 @@ export async function getAdminSurveys(): Promise<AdminSurveyRow[]> {
   }
   try {
     const supabase = createSupabaseServiceRoleClient();
+    await syncSurveyPeriodStatuses(supabase);
+
     const { data, error } = await supabase
       .from("surveys")
       .select(

@@ -1,25 +1,44 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ClipboardList } from "lucide-react";
 import { createSurveyAction } from "@/app/actions/create-survey";
 import { updateSurveyAction } from "@/app/actions/update-survey";
 import {
+  addDaysToDateOnly,
+  resolveSurveyStatus,
+  toDateOnlyString,
+  validateSurveyPeriod,
+} from "@/lib/survey-period";
+import type { SurveyStatus } from "@/lib/survey-list-types";
+import {
   createDraftQuestion,
   type CreateSurveyPayload,
   type DraftQuestion,
   type QuestionType,
 } from "@/lib/survey-types";
+import { SurveyTemplateImportButton } from "@/components/admin/SurveyTemplateImportButton";
+import type { SurveyTemplatePickerSurvey } from "@/components/admin/SurveyTemplatePicker";
 import { QuestionAddPanel } from "@/components/admin/survey-builder/QuestionAddPanel";
 import { QuestionEditCard } from "@/components/admin/survey-builder/QuestionEditCard";
+
+export type SurveyTemplateFrom = {
+  sourceTitle: string;
+  sourceSlug: string;
+  questions: DraftQuestion[];
+};
 
 type SurveyBuilderFormProps = {
   mode?: "create" | "edit";
   slug?: string;
   initial?: CreateSurveyPayload;
   responseCount?: number;
+  /** URL ?template= 또는 서버에서 미리 로드한 문항 */
+  templateFrom?: SurveyTemplateFrom;
+  /** 템플릿 선택 모달용 설문 목록 */
+  templateSurveys?: SurveyTemplatePickerSurvey[];
 };
 
 export function SurveyBuilderForm({
@@ -27,21 +46,63 @@ export function SurveyBuilderForm({
   slug,
   initial,
   responseCount = 0,
+  templateFrom,
+  templateSurveys = [],
 }: SurveyBuilderFormProps) {
   const isEdit = mode === "edit";
   const router = useRouter();
+  const today = toDateOnlyString();
+  const defaultEnd = addDaysToDateOnly(today, 30);
+
   const [title, setTitle] = useState(initial?.title ?? "");
   const [summary, setSummary] = useState(initial?.summary ?? "");
-  const [periodLabel, setPeriodLabel] = useState(initial?.periodLabel ?? "");
+  const [periodStart, setPeriodStart] = useState(
+    initial?.periodStart?.trim() || (isEdit ? "" : today),
+  );
+  const [periodEnd, setPeriodEnd] = useState(
+    initial?.periodEnd?.trim() || (isEdit ? "" : defaultEnd),
+  );
   const [targetCount, setTargetCount] = useState(initial?.targetCount ?? 100);
   const [listedPublic, setListedPublic] = useState(initial?.listedPublic ?? true);
-  const [status, setStatus] = useState<"예정" | "진행중" | "종료">(
-    initial?.status ?? "진행중",
-  );
   const [responseScript, setResponseScript] = useState(initial?.responseScript ?? "");
-  const [questions, setQuestions] = useState<DraftQuestion[]>(initial?.questions ?? []);
+  const [questions, setQuestions] = useState<DraftQuestion[]>(
+    templateFrom?.questions ?? initial?.questions ?? [],
+  );
+  const [templateSource, setTemplateSource] = useState<{
+    title: string;
+    slug: string;
+  } | null>(
+    templateFrom
+      ? { title: templateFrom.sourceTitle, slug: templateFrom.sourceSlug }
+      : null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const applyTemplate = (payload: {
+    questions: DraftQuestion[];
+    sourceTitle: string;
+    sourceSlug: string;
+  }) => {
+    const replace = () => {
+      setQuestions(payload.questions);
+      setTemplateSource({ title: payload.sourceTitle, slug: payload.sourceSlug });
+      setError(null);
+    };
+
+    if (questions.length > 0) {
+      const ok = confirm(
+        `현재 문항 ${questions.length}개를 「${payload.sourceTitle}」 설문의 문항 ${payload.questions.length}개로 바꿀까요?`,
+      );
+      if (!ok) return;
+    }
+    replace();
+  };
+
+  const autoStatus: SurveyStatus | null = useMemo(() => {
+    if (validateSurveyPeriod(periodStart, periodEnd)) return null;
+    return resolveSurveyStatus(periodStart, periodEnd);
+  }, [periodStart, periodEnd]);
 
   const updateQuestion = (index: number, patch: Partial<DraftQuestion>) => {
     setQuestions((prev) => {
@@ -72,10 +133,10 @@ export function SurveyBuilderForm({
   const buildPayload = (): CreateSurveyPayload => ({
     title,
     summary,
-    periodLabel,
+    periodStart,
+    periodEnd,
     targetCount: Number.isFinite(targetCount) ? Math.max(0, Math.floor(targetCount)) : 0,
     listedPublic,
-    status,
     responseScript,
     questions: questions.map((q) => ({ ...q })),
   });
@@ -83,6 +144,11 @@ export function SurveyBuilderForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    const periodErr = validateSurveyPeriod(periodStart, periodEnd);
+    if (periodErr) {
+      setError(periodErr);
+      return;
+    }
     if (questions.length === 0) {
       setError(
         "문항을 하나 이상 추가해 주세요.「문항 추가」패널에서 유형을 선택하세요.",
@@ -131,6 +197,12 @@ export function SurveyBuilderForm({
             바꾸면 기존 응답에 연결된 문항·선택지 데이터가 삭제될 수 있습니다.
           </p>
         ) : null}
+        {templateSource ? (
+          <p className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/60 px-3 py-2 text-xs text-indigo-950">
+            템플릿: 「{templateSource.title}」({templateSource.slug})에서 문항{" "}
+            {questions.length}개를 불러왔습니다. 제목·기간 등은 새로 입력·저장됩니다.
+          </p>
+        ) : null}
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <label className="block sm:col-span-2">
             <span className="text-sm font-medium text-zinc-800">제목 *</span>
@@ -153,14 +225,49 @@ export function SurveyBuilderForm({
             />
           </label>
           <label className="block">
-            <span className="text-sm font-medium text-zinc-800">기간 표기</span>
+            <span className="text-sm font-medium text-zinc-800">시작일 *</span>
             <input
-              value={periodLabel}
-              onChange={(e) => setPeriodLabel(e.target.value)}
+              type="date"
+              required
+              value={periodStart}
+              onChange={(e) => setPeriodStart(e.target.value)}
               className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
-              placeholder="예: 2026.04.01 — 2026.04.30"
             />
           </label>
+          <label className="block">
+            <span className="text-sm font-medium text-zinc-800">종료일 *</span>
+            <input
+              type="date"
+              required
+              value={periodEnd}
+              min={periodStart || undefined}
+              onChange={(e) => setPeriodEnd(e.target.value)}
+              className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
+            />
+          </label>
+          <div className="block sm:col-span-2">
+            <span className="text-sm font-medium text-zinc-800">설문 상태</span>
+            <p className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-zinc-600">
+              {autoStatus ? (
+                <span
+                  className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                    autoStatus === "진행중"
+                      ? "bg-emerald-100 text-emerald-900"
+                      : autoStatus === "예정"
+                        ? "bg-amber-100 text-amber-900"
+                        : "bg-zinc-200 text-zinc-800"
+                  }`}
+                >
+                  {autoStatus}
+                </span>
+              ) : (
+                <span className="text-zinc-500">날짜를 선택하면 자동으로 표시됩니다.</span>
+              )}
+              <span className="text-xs text-zinc-500">
+                오늘 날짜와 시작·종료일을 비교해 예정 / 진행중 / 종료로 설정됩니다.
+              </span>
+            </p>
+          </div>
           <label className="block">
             <span className="text-sm font-medium text-zinc-800">목표 응답 수</span>
             <input
@@ -179,22 +286,8 @@ export function SurveyBuilderForm({
               className="h-4 w-4 rounded border-zinc-300 text-indigo-600"
             />
             <span className="text-sm text-zinc-700">
-              공개 사이트에 노출 (진행중·노출 설정일 때)
+              공개 사이트 목록에 표시 (진행중·예정). 참여는 진행중일 때만 가능
             </span>
-          </label>
-          <label className="block sm:col-span-2">
-            <span className="text-sm font-medium text-zinc-800">상태</span>
-            <select
-              value={status}
-              onChange={(e) =>
-                setStatus(e.target.value as "예정" | "진행중" | "종료")
-              }
-              className="mt-1.5 w-full max-w-xs rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
-            >
-              <option value="예정">예정</option>
-              <option value="진행중">진행중</option>
-              <option value="종료">종료</option>
-            </select>
           </label>
         </div>
       </div>
@@ -221,13 +314,23 @@ export function SurveyBuilderForm({
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_17.5rem]">
         <div className="order-2 min-w-0 space-y-4 lg:order-1">
-          <div className="flex items-end justify-between gap-2 border-b border-zinc-200 pb-2">
+          <div className="flex flex-wrap items-end justify-between gap-2 border-b border-zinc-200 pb-2">
             <div>
               <h2 className="text-base font-semibold text-zinc-900">문항 목록</h2>
               <p className="mt-0.5 text-xs text-zinc-500">
                 총 {questions.length}문항
               </p>
             </div>
+            {templateSurveys.length > 0 ? (
+              <SurveyTemplateImportButton
+                surveys={templateSurveys}
+                excludeSlug={isEdit ? slug : undefined}
+                mode="apply"
+                onApply={applyTemplate}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-900 hover:bg-indigo-100"
+                label="다른 설문에서 문항 가져오기"
+              />
+            ) : null}
           </div>
 
           {questions.length === 0 ? (
@@ -240,9 +343,10 @@ export function SurveyBuilderForm({
                 아직 문항이 없습니다
               </p>
               <p className="mt-2 max-w-sm text-sm leading-relaxed text-zinc-500">
-                화면 상단(또는 오른쪽)의{" "}
                 <strong className="font-medium text-zinc-700">문항 추가</strong> 패널에서
-                유형을 누르면 여기에 편집 카드가 추가됩니다.
+                유형을 선택하거나,{" "}
+                <strong className="font-medium text-zinc-700">다른 설문에서 문항 가져오기</strong>
+                로 기존 설문 문항을 복사할 수 있습니다.
               </p>
             </div>
           ) : (

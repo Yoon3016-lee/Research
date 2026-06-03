@@ -1,4 +1,5 @@
 import { Bot, Headphones, MessageCircle } from "lucide-react";
+import { SiteContainer } from "@/components/site/SiteContainer";
 import { ServiceChatPanel } from "@/components/site/ServiceChatPanel";
 
 export const metadata = {
@@ -8,11 +9,9 @@ export const metadata = {
 
 export default function ServicesPage() {
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <div className="max-w-2xl">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 sm:text-3xl">
-          서비스
-        </h1>
+    <SiteContainer as="main" className="py-10 sm:py-12 lg:py-14">
+      <div className="max-w-3xl">
+        <h1 className="font-semibold text-zinc-900">서비스</h1>
         <p className="mt-2 text-zinc-600">
           참여 방법 안내·FAQ·챗봇 등 참여자 지원 기능을 한곳에 모았습니다. (UI 데모)
         </p>
@@ -26,8 +25,8 @@ export default function ServicesPage() {
                 <Headphones className="h-5 w-5" aria-hidden />
               </span>
               <div>
-                <h2 className="font-semibold text-zinc-900">참여 안내</h2>
-                <p className="mt-1 text-sm text-zinc-600">
+                <h2 className="text-xl font-semibold text-zinc-900">참여 안내</h2>
+                <p className="mt-2 text-zinc-600">
                   초대 메일의 링크로 접속하거나, 조직에서 안내한 코드가 있다면 입력
                   화면에서 사용합니다. 응답은 저장 전까지 수정할 수 있습니다.
                 </p>
@@ -41,12 +40,12 @@ export default function ServicesPage() {
                 <MessageCircle className="h-5 w-5" aria-hidden />
               </span>
               <div>
-                <h2 className="font-semibold text-zinc-900">문의·지원</h2>
-                <p className="mt-1 text-sm text-zinc-600">
+                <h2 className="text-xl font-semibold text-zinc-900">문의·지원</h2>
+                <p className="mt-2 text-zinc-600">
                   기술 오류·계정 문의는 운영 시간 내 담당자 이메일로 연락 주세요. (데모
                   텍스트)
                 </p>
-                <p className="mt-3 text-sm font-medium text-zinc-800">
+                <p className="mt-3 font-medium text-zinc-800">
                   support@example.com · 평일 09:00–18:00
                 </p>
               </div>
@@ -59,8 +58,8 @@ export default function ServicesPage() {
                 <Bot className="h-5 w-5" aria-hidden />
               </span>
               <div>
-                <h2 className="font-semibold text-zinc-900">챗봇</h2>
-                <p className="mt-1 text-sm text-zinc-600">
+                <h2 className="text-xl font-semibold text-zinc-900">챗봇</h2>
+                <p className="mt-2 text-zinc-600">
                   오른쪽 패널에서 데모 대화를 시험해 보세요. 실제 서비스에서는 LLM·지식
                   베이스와 연동합니다.
                 </p>
@@ -73,6 +72,6 @@ export default function ServicesPage() {
           <ServiceChatPanel />
         </aside>
       </div>
-    </main>
+    </SiteContainer>
   );
 }
