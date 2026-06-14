@@ -2,10 +2,14 @@
 
 import {
   CheckSquare,
+  ChevronDown,
   CircleDot,
   FileText,
   LayoutList,
+  ListOrdered,
   SlidersHorizontal,
+  Star,
+  TableProperties,
 } from "lucide-react";
 import {
   QUESTION_TYPE_DESCRIPTIONS,
@@ -27,6 +31,16 @@ const TYPE_META: Record<
     accent:
       "border-violet-200 bg-violet-50/80 hover:border-violet-300 hover:bg-violet-50",
   },
+  dropdown: {
+    icon: ChevronDown,
+    accent:
+      "border-violet-200 bg-violet-50/80 hover:border-violet-300 hover:bg-violet-50",
+  },
+  rank: {
+    icon: ListOrdered,
+    accent:
+      "border-amber-200 bg-amber-50/80 hover:border-amber-300 hover:bg-amber-50",
+  },
   text_single: {
     icon: FileText,
     accent:
@@ -42,6 +56,16 @@ const TYPE_META: Record<
     accent:
       "border-emerald-200 bg-emerald-50/80 hover:border-emerald-300 hover:bg-emerald-50",
   },
+  likert_multi: {
+    icon: TableProperties,
+    accent:
+      "border-emerald-200 bg-emerald-50/80 hover:border-emerald-300 hover:bg-emerald-50",
+  },
+  star_rating: {
+    icon: Star,
+    accent:
+      "border-amber-200 bg-amber-50/80 hover:border-amber-300 hover:bg-amber-50",
+  },
 };
 
 type Props = {
@@ -51,8 +75,8 @@ type Props = {
 
 export function QuestionAddPanel({ onAdd, disabled }: Props) {
   const groups: { title: string; types: QuestionType[] }[] = [
-    { title: "객관식", types: ["mc_single", "mc_multi"] },
-    { title: "척도", types: ["likert_7"] },
+    { title: "객관식", types: ["mc_single", "mc_multi", "dropdown"] },
+    { title: "순위·척도", types: ["rank", "likert_7", "likert_multi", "star_rating"] },
     { title: "주관식", types: ["text_single", "text_multi"] },
   ];
 

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { PublicSurveyDetail, SurveyAnswerInput } from "@/lib/survey-public";
 import { getPublicSurveyBySlug } from "@/lib/survey-public";
-import { isLikert7Value, type QuestionType } from "@/lib/survey-types";
+import { isLikert7Value, isStarRatingValue, type QuestionType } from "@/lib/survey-types";
 import { resolveRespondentForInsert } from "@/lib/participant";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -87,6 +87,70 @@ function validateAnswers(
         return `문항 ${i + 1}: 1~7 사이의 값만 선택할 수 있습니다.`;
       }
     }
+
+    if (q.type === "dropdown") {
+      if (a.type !== "dropdown") continue;
+      const empty = !a.optionId?.trim();
+      if (empty && !q.allowSkip) return `문항 ${i + 1}: 항목을 선택하세요.`;
+      if (!empty && !q.options.some((o) => o.id === a.optionId)) {
+        return `문항 ${i + 1}: 잘못된 선택입니다.`;
+      }
+    }
+
+    if (q.type === "rank") {
+      if (a.type !== "rank") continue;
+      const ids = a.rankedOptionIds.filter(Boolean);
+      const rankCount = q.maxSelections ?? ids.length;
+      if (ids.length === 0 && !q.allowSkip) {
+        return `문항 ${i + 1}: ${rankCount}개 순위를 모두 선택하세요.`;
+      }
+      if (ids.length > 0 && ids.length !== rankCount) {
+        return `문항 ${i + 1}: ${rankCount}개 순위를 선택해야 합니다.`;
+      }
+      if (new Set(ids).size !== ids.length) {
+        return `문항 ${i + 1}: 같은 선택지를 중복 순위로 지정할 수 없습니다.`;
+      }
+      for (const id of ids) {
+        if (!q.options.some((o) => o.id === id)) {
+          return `문항 ${i + 1}: 잘못된 선택이 포함되어 있습니다.`;
+        }
+      }
+    }
+
+    if (q.type === "likert_multi") {
+      if (a.type !== "likert_multi") continue;
+      const values = a.values ?? {};
+      const answered = q.options.filter((o) => {
+        const v = values[o.id];
+        return v != null && !Number.isNaN(v);
+      });
+      if (answered.length === 0 && !q.allowSkip) {
+        return `문항 ${i + 1}: 모든 항목에 척도를 선택하세요.`;
+      }
+      if (!q.allowSkip && answered.length < q.options.length) {
+        return `문항 ${i + 1}: ${q.options.length}개 항목 모두 1~7 중 하나를 선택하세요.`;
+      }
+      for (const [optionId, value] of Object.entries(values)) {
+        if (value == null || Number.isNaN(value)) continue;
+        if (!q.options.some((o) => o.id === optionId)) {
+          return `문항 ${i + 1}: 잘못된 항목이 포함되어 있습니다.`;
+        }
+        if (!isLikert7Value(value)) {
+          return `문항 ${i + 1}: 1~7 사이의 값만 선택할 수 있습니다.`;
+        }
+      }
+    }
+
+    if (q.type === "star_rating") {
+      if (a.type !== "star_rating") continue;
+      const empty = a.value == null || Number.isNaN(a.value);
+      if (empty && !q.allowSkip) {
+        return `문항 ${i + 1}: 별점을 선택하세요.`;
+      }
+      if (!empty && !isStarRatingValue(a.value)) {
+        return `문항 ${i + 1}: 별점은 0~5점(0.5 단위)만 선택할 수 있습니다.`;
+      }
+    }
   }
 
   return null;
@@ -117,6 +181,27 @@ function toAnswerJson(
   }
   if (qType === "likert_7" && a.type === "likert_7") {
     if (a.value == null || !isLikert7Value(a.value)) return null;
+    return { value: a.value };
+  }
+  if (qType === "dropdown" && a.type === "dropdown") {
+    if (!a.optionId?.trim()) return null;
+    return { optionId: a.optionId };
+  }
+  if (qType === "rank" && a.type === "rank") {
+    const rankedOptionIds = a.rankedOptionIds.filter(Boolean);
+    if (rankedOptionIds.length === 0) return null;
+    return { rankedOptionIds };
+  }
+  if (qType === "likert_multi" && a.type === "likert_multi") {
+    const values: Record<string, number> = {};
+    for (const [k, v] of Object.entries(a.values ?? {})) {
+      if (v != null && isLikert7Value(v)) values[k] = v;
+    }
+    if (Object.keys(values).length === 0) return null;
+    return { values };
+  }
+  if (qType === "star_rating" && a.type === "star_rating") {
+    if (a.value == null || !isStarRatingValue(a.value)) return null;
     return { value: a.value };
   }
   return null;

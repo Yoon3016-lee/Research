@@ -59,9 +59,22 @@ export function SiteHeader({ homepage, adminLink, participant }: SiteHeaderProps
         <div className="site-container relative grid min-h-[4.25rem] grid-cols-[1fr_auto_1fr] items-center gap-3 sm:min-h-[4.5rem] sm:gap-4">
           <Link
             href="/"
-            className="relative z-[1] justify-self-start text-lg font-bold tracking-tight text-slate-900 sm:text-xl"
+            className="relative z-[1] flex min-w-0 max-w-[min(100%,14rem)] items-center justify-self-start sm:max-w-[16rem]"
           >
-            {homepage.siteName}
+            {homepage.logoUrl ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={homepage.logoUrl}
+                  alt={homepage.siteName}
+                  className="h-8 w-auto max-w-full object-contain object-left sm:h-9"
+                />
+              </>
+            ) : (
+              <span className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">
+                {homepage.siteName}
+              </span>
+            )}
           </Link>
 
           <nav

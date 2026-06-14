@@ -25,6 +25,7 @@ export type SiteNavGroup = {
 
 export type SiteHomepageConfig = {
   siteName: string;
+  logoUrl: string | null;
   groups: SiteNavGroup[];
 };
 
@@ -37,6 +38,7 @@ export type SitePage = {
 
 const DEFAULT_CONFIG: SiteHomepageConfig = {
   siteName: "[ OO리서치 ]",
+  logoUrl: null,
   groups: [
     { key: "intro", label: "회사 소개", sortOrder: 0, items: [] },
     { key: "survey", label: "설문 조사", sortOrder: 1, items: [] },
@@ -51,12 +53,32 @@ export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
 
   const admin = createSupabaseServiceRoleClient();
 
+  let settings: { site_name?: string; logo_url?: string } | null = null;
+  let settingsError: { message: string } | null = null;
+
+  const settingsWithLogo = await admin
+    .from("site_settings")
+    .select("site_name, logo_url")
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (settingsWithLogo.error?.message.includes("logo_url")) {
+    const fallback = await admin
+      .from("site_settings")
+      .select("site_name")
+      .eq("id", 1)
+      .maybeSingle();
+    settings = fallback.data;
+    settingsError = fallback.error;
+  } else {
+    settings = settingsWithLogo.data;
+    settingsError = settingsWithLogo.error;
+  }
+
   const [
-    { data: settings, error: settingsError },
     { data: groups, error: groupsError },
     { data: items, error: itemsError },
   ] = await Promise.all([
-    admin.from("site_settings").select("site_name").eq("id", 1).maybeSingle(),
     admin.from("site_nav_groups").select("key, label, sort_order").order("sort_order"),
     admin
       .from("site_nav_items")
@@ -76,6 +98,8 @@ export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
 
   const siteName =
     (settings?.site_name as string | undefined)?.trim() || DEFAULT_CONFIG.siteName;
+  const logoRaw = (settings?.logo_url as string | undefined)?.trim();
+  const logoUrl = logoRaw || null;
 
   const groupRows = (groups ?? []) as {
     key: string;
@@ -119,7 +143,7 @@ export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
         }))
       : DEFAULT_CONFIG.groups;
 
-  return { siteName, groups: builtGroups };
+  return { siteName, logoUrl, groups: builtGroups };
 }
 
 export async function getSitePagesByIds(ids: string[]): Promise<Record<string, SitePage>> {

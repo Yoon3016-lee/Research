@@ -5,8 +5,10 @@ import { Globe, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   createNavItemAction,
   deleteNavItemAction,
+  deleteSiteLogoAction,
   updateNavItemAction,
   updateNavItemPageAction,
+  updateSiteLogoAction,
   updateSiteNameAction,
   type SiteHomepageActionState,
 } from "@/app/actions/site-homepage";
@@ -27,7 +29,7 @@ export function HomepageSettingsManager({ config, pages }: Props) {
 
   return (
     <div className="space-y-10">
-      <SiteNameSection initialName={config.siteName} />
+      <SiteBrandingSection initialName={config.siteName} initialLogoUrl={config.logoUrl} />
 
       <p className="rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-3 text-sm text-indigo-950">
         상단 탭(회사 소개 · 설문 조사 등) 추가·삭제는{" "}
@@ -142,35 +144,109 @@ export function HomepageSettingsManager({ config, pages }: Props) {
   );
 }
 
-function SiteNameSection({ initialName }: { initialName: string }) {
-  const [state, formAction, pending] = useActionState(updateSiteNameAction, initial);
+function SiteBrandingSection({
+  initialName,
+  initialLogoUrl,
+}: {
+  initialName: string;
+  initialLogoUrl: string | null;
+}) {
+  const [nameState, nameFormAction, namePending] = useActionState(updateSiteNameAction, initial);
+  const [logoState, logoFormAction, logoPending] = useActionState(updateSiteLogoAction, initial);
+  const [deleteLogoState, deleteLogoFormAction, deleteLogoPending] = useActionState(
+    deleteSiteLogoAction,
+    initial,
+  );
 
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
       <h2 className="flex items-center gap-2 text-base font-semibold text-zinc-900">
         <Globe className="h-4 w-4 text-indigo-600" aria-hidden />
-        홈페이지 이름
+        홈페이지 이름 · 로고
       </h2>
       <p className="mt-1 text-sm text-zinc-500">
-        공개 사이트 왼쪽 상단에 표시됩니다. 예: [ OO리서치 ]
+        공개 사이트 왼쪽 상단에 표시됩니다. 로고를 등록하면 이름 대신 로고가 보입니다.
       </p>
-      <form action={formAction} className="mt-4 max-w-lg space-y-3">
-        <input
-          name="site_name"
-          type="text"
-          required
-          defaultValue={initialName}
-          className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none ring-indigo-500/30 focus:ring-2"
-        />
-        <ActionMessage state={state} />
+
+      <form action={nameFormAction} className="mt-4 max-w-lg space-y-3">
+        <label className="block text-sm">
+          <span className="font-medium text-zinc-700">홈페이지 이름</span>
+          <input
+            name="site_name"
+            type="text"
+            required
+            defaultValue={initialName}
+            className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none ring-indigo-500/30 focus:ring-2"
+            placeholder="예: [ OO리서치 ]"
+          />
+          <span className="mt-1 block text-xs text-zinc-500">
+            로고가 없을 때 표시되며, 로고 이미지의 대체 텍스트(alt)에도 사용됩니다.
+          </span>
+        </label>
+        <ActionMessage state={nameState} />
         <button
           type="submit"
-          disabled={pending}
+          disabled={namePending}
           className="rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60"
         >
-          {pending ? "저장 중…" : "이름 저장"}
+          {namePending ? "저장 중…" : "이름 저장"}
         </button>
       </form>
+
+      <div className="mt-6 border-t border-zinc-100 pt-6">
+        <p className="text-sm font-medium text-zinc-800">로고 이미지</p>
+        <p className="mt-1 text-xs text-zinc-500">
+          JPG, PNG, GIF, WEBP · 최대 10MB · 가로형 로고 권장
+        </p>
+
+        {initialLogoUrl ? (
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={initialLogoUrl}
+                alt={initialName}
+                className="h-10 max-w-[12rem] object-contain object-left sm:h-12"
+              />
+            </div>
+            <form action={deleteLogoFormAction}>
+              <ActionMessage state={deleteLogoState} />
+              <button
+                type="submit"
+                disabled={deleteLogoPending}
+                className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+              >
+                {deleteLogoPending ? "삭제 중…" : "로고 삭제"}
+              </button>
+            </form>
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-zinc-500">등록된 로고가 없습니다.</p>
+        )}
+
+        <form action={logoFormAction} className="mt-4 max-w-lg space-y-3">
+          <label className="block text-sm">
+            <span className="font-medium text-zinc-700">
+              {initialLogoUrl ? "로고 변경" : "로고 업로드"}
+            </span>
+            <input
+              name="file"
+              type="file"
+              required
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              className="mt-1 block w-full text-sm text-zinc-700 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-zinc-800 hover:file:bg-zinc-200"
+            />
+          </label>
+          <ActionMessage state={logoState} />
+          <button
+            type="submit"
+            disabled={logoPending}
+            className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+          >
+            {logoPending ? "업로드 중…" : initialLogoUrl ? "로고 변경" : "로고 업로드"}
+          </button>
+        </form>
+      </div>
     </section>
   );
 }

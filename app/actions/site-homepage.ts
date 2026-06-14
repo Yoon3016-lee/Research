@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSuperAdmin } from "@/lib/require-super-admin";
+import { deleteSiteMediaFile, uploadSiteMediaFile } from "@/lib/site-media-upload";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 
 export type SiteHomepageActionState = {
@@ -85,6 +86,106 @@ export async function updateSiteNameAction(
     }
     return { error: error.message };
   }
+
+  revalidateSite();
+  return { ok: true };
+}
+
+export async function updateSiteLogoAction(
+  _prev: SiteHomepageActionState,
+  formData: FormData,
+): Promise<SiteHomepageActionState> {
+  await requireSuperAdmin();
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "로고 이미지 파일을 선택하세요." };
+  }
+
+  const uploaded = await uploadSiteMediaFile(file, "site-logo");
+  if (!uploaded.ok) {
+    return { error: uploaded.error };
+  }
+  if (uploaded.data.mediaType !== "image") {
+    await deleteSiteMediaFile(uploaded.data.storagePath);
+    return { error: "로고는 JPG, PNG, GIF, WEBP 이미지만 사용할 수 있습니다." };
+  }
+
+  const admin = createSupabaseServiceRoleClient();
+  const { data: current, error: readError } = await admin
+    .from("site_settings")
+    .select("logo_storage_path")
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (readError) {
+    await deleteSiteMediaFile(uploaded.data.storagePath);
+    return { error: readError.message };
+  }
+
+  const { error } = await admin
+    .from("site_settings")
+    .update({
+      logo_url: uploaded.data.url,
+      logo_storage_path: uploaded.data.storagePath,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", 1);
+
+  if (error) {
+    await deleteSiteMediaFile(uploaded.data.storagePath);
+    if (error.message.includes("logo_url") || error.message.includes("site_settings")) {
+      return {
+        error:
+          "logo_url 컬럼이 없습니다. supabase/migrations/20260407290000_site_settings_logo.sql 을 실행하세요.",
+      };
+    }
+    return { error: error.message };
+  }
+
+  await deleteSiteMediaFile(current?.logo_storage_path as string | undefined);
+
+  revalidateSite();
+  return { ok: true };
+}
+
+export async function deleteSiteLogoAction(
+  _prev: SiteHomepageActionState,
+  _formData: FormData,
+): Promise<SiteHomepageActionState> {
+  await requireSuperAdmin();
+
+  const admin = createSupabaseServiceRoleClient();
+  const { data: current, error: readError } = await admin
+    .from("site_settings")
+    .select("logo_storage_path")
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (readError) {
+    return { error: readError.message };
+  }
+
+  const { error } = await admin
+    .from("site_settings")
+    .update({
+      logo_url: null,
+      logo_storage_path: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", 1);
+
+  if (error) {
+    if (error.message.includes("logo_url") || error.message.includes("site_settings")) {
+      return {
+        error:
+          "logo_url 컬럼이 없습니다. supabase/migrations/20260407290000_site_settings_logo.sql 을 실행하세요.",
+      };
+    }
+    return { error: error.message };
+  }
+
+  await deleteSiteMediaFile(current?.logo_storage_path as string | undefined);
 
   revalidateSite();
   return { ok: true };

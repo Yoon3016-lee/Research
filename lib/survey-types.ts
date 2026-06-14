@@ -5,6 +5,10 @@ export const QUESTION_TYPES = [
   "text_single",
   "text_multi",
   "likert_7",
+  "dropdown",
+  "rank",
+  "likert_multi",
+  "star_rating",
 ] as const;
 
 /** 리커트 7점 척도 값 */
@@ -15,6 +19,13 @@ export function isLikert7Value(value: number): value is Likert7Value {
   return Number.isInteger(value) && value >= 1 && value <= 7;
 }
 
+/** 별점 0~5 (0.5 단위) */
+export const STAR_RATING_VALUES = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5] as const;
+
+export function isStarRatingValue(value: number): boolean {
+  return value >= 0 && value <= 5 && Math.abs(value * 2 - Math.round(value * 2)) < 0.001;
+}
+
 export type QuestionType = (typeof QUESTION_TYPES)[number];
 
 export const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
@@ -23,6 +34,10 @@ export const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
   text_single: "주관식 (단일 응답)",
   text_multi: "주관식 (다중 응답)",
   likert_7: "리커트 척도 (1~7)",
+  dropdown: "드롭다운",
+  rank: "순위 선택",
+  likert_multi: "척도 (다중)",
+  star_rating: "별점 평가",
 };
 
 /** 패널·툴팁용 한 줄 설명 */
@@ -32,6 +47,10 @@ export const QUESTION_TYPE_DESCRIPTIONS: Record<QuestionType, string> = {
   text_single: "짧은 서술·한 줄 답변을 받습니다.",
   text_multi: "같은 질문에 여러 입력 칸을 둡니다.",
   likert_7: "1(낮음)부터 7(높음)까지 하나를 고릅니다.",
+  dropdown: "설정한 선택지를 드롭다운에서 고릅니다.",
+  rank: "선택지를 누른 순서대로 1순위, 2순위…를 매깁니다.",
+  likert_multi: "한 문항 안에서 여러 항목 각각 1~7 척도로 평가합니다.",
+  star_rating: "별 5개 중 0.5점 단위로 평가합니다.",
 };
 
 export type DraftQuestion = {
@@ -39,9 +58,9 @@ export type DraftQuestion = {
   type: QuestionType;
   prompt: string;
   allowSkip: boolean;
-  /** 객관식 선택지 */
+  /** 객관식·드롭다운·순위·척도(다중) 선택지/항목 */
   options: string[];
-  /** 객관식 다중: 최대 선택 개수 (옵션 수 이하) */
+  /** mc_multi: 최대 선택 · rank: 순위 개수 */
   maxSelections: number;
   /** 주관식 다중: 답변 줄(입력 칸) 개수, 최소 2 */
   textLineCount: number;
@@ -63,9 +82,15 @@ export function createDraftQuestion(type: QuestionType): DraftQuestion {
     textLineCount: 2,
   };
 
-  if (type === "mc_single" || type === "mc_multi") {
+  if (
+    type === "mc_single" ||
+    type === "mc_multi" ||
+    type === "dropdown" ||
+    type === "rank" ||
+    type === "likert_multi"
+  ) {
     base.options = ["", ""];
-    base.maxSelections = 2;
+    base.maxSelections = type === "rank" ? 3 : 2;
   }
   if (type === "text_single") {
     base.textLineCount = 1;

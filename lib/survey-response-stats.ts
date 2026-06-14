@@ -2,7 +2,7 @@ import "server-only";
 
 import { normalizeSurveyRef, isUuid } from "@/lib/survey-slug";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
-import { LIKERT_7_VALUES, isLikert7Value, type QuestionType } from "@/lib/survey-types";
+import { LIKERT_7_VALUES, isLikert7Value, isStarRatingValue, type QuestionType } from "@/lib/survey-types";
 
 export const NO_ANSWER_LABEL = "무응답";
 
@@ -211,6 +211,38 @@ function parseTextMulti(answer: unknown): string | null {
   return filled.join(" · ");
 }
 
+function parseRank(answer: unknown, optionLabels: Map<string, string>): string | null {
+  if (!answer || typeof answer !== "object") return null;
+  const ids = (answer as { rankedOptionIds?: string[] }).rankedOptionIds;
+  if (!Array.isArray(ids) || ids.length === 0) return null;
+  const parts = ids.map((id, i) => {
+    const label = optionLabels.get(id) ?? id.slice(0, 8);
+    return `${i + 1}위: ${label}`;
+  });
+  return parts.join(" · ");
+}
+
+function parseLikertMulti(answer: unknown, optionLabels: Map<string, string>): string | null {
+  if (!answer || typeof answer !== "object") return null;
+  const values = (answer as { values?: Record<string, number> }).values;
+  if (!values || typeof values !== "object") return null;
+  const parts: string[] = [];
+  for (const [optionId, value] of Object.entries(values)) {
+    if (!isLikert7Value(value)) continue;
+    const label = optionLabels.get(optionId) ?? optionId.slice(0, 8);
+    parts.push(`${label}: ${value}점`);
+  }
+  if (parts.length === 0) return null;
+  return parts.join(" · ");
+}
+
+function parseStarRating(answer: unknown): number | null {
+  if (!answer || typeof answer !== "object") return null;
+  const value = (answer as { value?: number }).value;
+  if (value == null || !isStarRatingValue(value)) return null;
+  return value;
+}
+
 export async function getSurveyResponseStats(ref: string): Promise<SurveyResponseStats> {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return { ok: false, reason: "not_configured" };
@@ -412,6 +444,82 @@ export async function getSurveyResponseStats(ref: string): Promise<SurveyRespons
         counts.set(value, c);
       }
       const entries = LIKERT_7_VALUES.map((v) => ({
+        key: String(v),
+        label: `${v}점`,
+        counts: counts.get(v) ?? emptyCounts(),
+      }));
+      return { ...base, buckets: buildLikertBuckets(totalSubmissions, noAnswer, entries) };
+    }
+
+    if (type === "dropdown") {
+      const counts = new Map<string, BucketCounts>();
+      for (const [, label] of optionLabels) {
+        counts.set(label, emptyCounts());
+      }
+      for (const a of answers) {
+        const optionId = parseMcSingle(a.answer);
+        if (!optionId) continue;
+        const label = optionLabels.get(optionId) ?? `(삭제된 보기: ${optionId.slice(0, 8)}…)`;
+        const c = counts.get(label) ?? emptyCounts();
+        bump(c, a.kind);
+        counts.set(label, c);
+      }
+      const entries = [...counts.entries()].map(([label, counts]) => ({
+        key: label,
+        label,
+        counts,
+      }));
+      return { ...base, buckets: buildBuckets(totalSubmissions, noAnswer, entries) };
+    }
+
+    if (type === "rank") {
+      const counts = new Map<string, BucketCounts>();
+      for (const a of answers) {
+        const label = parseRank(a.answer, optionLabels);
+        if (!label) continue;
+        const c = counts.get(label) ?? emptyCounts();
+        bump(c, a.kind);
+        counts.set(label, c);
+      }
+      const entries = [...counts.entries()].map(([label, counts]) => ({
+        key: label,
+        label,
+        counts,
+      }));
+      return { ...base, buckets: buildBuckets(totalSubmissions, noAnswer, entries) };
+    }
+
+    if (type === "likert_multi") {
+      const counts = new Map<string, BucketCounts>();
+      for (const a of answers) {
+        const label = parseLikertMulti(a.answer, optionLabels);
+        if (!label) continue;
+        const c = counts.get(label) ?? emptyCounts();
+        bump(c, a.kind);
+        counts.set(label, c);
+      }
+      const entries = [...counts.entries()].map(([label, counts]) => ({
+        key: label,
+        label,
+        counts,
+      }));
+      return { ...base, buckets: buildBuckets(totalSubmissions, noAnswer, entries) };
+    }
+
+    if (type === "star_rating") {
+      const starValues = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
+      const counts = new Map<number, BucketCounts>();
+      for (const v of starValues) {
+        counts.set(v, emptyCounts());
+      }
+      for (const a of answers) {
+        const value = parseStarRating(a.answer);
+        if (value == null) continue;
+        const c = counts.get(value) ?? emptyCounts();
+        bump(c, a.kind);
+        counts.set(value, c);
+      }
+      const entries = starValues.map((v) => ({
         key: String(v),
         label: `${v}점`,
         counts: counts.get(v) ?? emptyCounts(),

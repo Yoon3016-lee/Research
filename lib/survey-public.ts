@@ -37,7 +37,11 @@ export type SurveyAnswerInput =
   | { questionId: string; type: "mc_multi"; optionIds: string[] }
   | { questionId: string; type: "text_single"; text: string }
   | { questionId: string; type: "text_multi"; lines: string[] }
-  | { questionId: string; type: "likert_7"; value: number };
+  | { questionId: string; type: "likert_7"; value: number }
+  | { questionId: string; type: "dropdown"; optionId: string }
+  | { questionId: string; type: "rank"; rankedOptionIds: string[] }
+  | { questionId: string; type: "likert_multi"; values: Record<string, number> }
+  | { questionId: string; type: "star_rating"; value: number };
 
 export type SurveyParticipationLoad =
   | { ok: true; survey: PublicSurveyDetail }

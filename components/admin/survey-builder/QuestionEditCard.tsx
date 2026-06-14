@@ -19,9 +19,13 @@ type Props = {
 const TYPE_BADGE: Record<QuestionType, string> = {
   mc_single: "bg-violet-100 text-violet-900 ring-violet-200",
   mc_multi: "bg-violet-100 text-violet-900 ring-violet-200",
+  dropdown: "bg-violet-100 text-violet-900 ring-violet-200",
+  rank: "bg-amber-100 text-amber-900 ring-amber-200",
   text_single: "bg-sky-100 text-sky-900 ring-sky-200",
   text_multi: "bg-sky-100 text-sky-900 ring-sky-200",
   likert_7: "bg-emerald-100 text-emerald-900 ring-emerald-200",
+  likert_multi: "bg-emerald-100 text-emerald-900 ring-emerald-200",
+  star_rating: "bg-amber-100 text-amber-900 ring-amber-200",
 };
 
 export function QuestionEditCard({
@@ -115,11 +119,13 @@ export function QuestionEditCard({
           </span>
         </label>
 
-        {(q.type === "mc_single" || q.type === "mc_multi") && (
+        {(q.type === "mc_single" || q.type === "mc_multi" || q.type === "dropdown") && (
           <div className="rounded-xl border border-zinc-100 bg-white p-3">
             <span className="text-sm font-medium text-zinc-800">선택지</span>
             <p className="mt-0.5 text-xs text-zinc-500">
-              응답자에게 보일 보기 문구입니다. 최소 2개 이상 채워 주세요.
+              {q.type === "dropdown"
+                ? "드롭다운에 표시할 보기입니다. 최소 2개 이상 채워 주세요."
+                : "응답자에게 보일 보기 문구입니다. 최소 2개 이상 채워 주세요."}
             </p>
             <div className="mt-3 space-y-2">
               {q.options.map((opt, oi) => (
@@ -168,6 +174,97 @@ export function QuestionEditCard({
                 </span>
               </label>
             )}
+          </div>
+        )}
+
+        {q.type === "rank" && (
+          <div className="rounded-xl border border-amber-100 bg-amber-50/40 p-3">
+            <span className="text-sm font-medium text-zinc-800">순위 선택 설정</span>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              응답자가 고를 선택지와, 몇 순위까지 매길지 설정합니다.
+            </p>
+            <div className="mt-3 space-y-2">
+              {q.options.map((opt, oi) => (
+                <input
+                  key={oi}
+                  value={opt}
+                  onChange={(e) => {
+                    const opts = [...q.options];
+                    opts[oi] = e.target.value;
+                    onChange({ options: opts });
+                  }}
+                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/15"
+                  placeholder={`선택지 ${oi + 1}`}
+                />
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => onChange({ options: [...q.options, ""] })}
+              className="mt-2 text-xs font-medium text-indigo-700 hover:text-indigo-900"
+            >
+              + 선택지 추가
+            </button>
+            <label className="mt-4 block border-t border-amber-100 pt-3">
+              <span className="text-sm font-medium text-zinc-800">순위 개수</span>
+              <p className="text-xs text-zinc-500">
+                예: 5개 선택지 중 3순위까지 → 3
+              </p>
+              <input
+                type="number"
+                min={1}
+                max={Math.max(1, q.options.filter((x) => x.trim()).length)}
+                value={q.maxSelections}
+                onChange={(e) =>
+                  onChange({
+                    maxSelections: Math.max(1, Number(e.target.value) || 1),
+                  })
+                }
+                className="mt-2 w-28 rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+              />
+            </label>
+          </div>
+        )}
+
+        {q.type === "likert_multi" && (
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3">
+            <p className="text-sm font-medium text-zinc-800">척도 평가 항목</p>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              한 문항 안에서 각각 1~7 척도로 평가할 항목입니다. (예: 교육 만족도,
+              교육 친절도)
+            </p>
+            <div className="mt-3 space-y-2">
+              {q.options.map((opt, oi) => (
+                <input
+                  key={oi}
+                  value={opt}
+                  onChange={(e) => {
+                    const opts = [...q.options];
+                    opts[oi] = e.target.value;
+                    onChange({ options: opts });
+                  }}
+                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/15"
+                  placeholder={`항목 ${oi + 1}`}
+                />
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => onChange({ options: [...q.options, ""] })}
+              className="mt-2 text-xs font-medium text-indigo-700 hover:text-indigo-900"
+            >
+              + 항목 추가
+            </button>
+          </div>
+        )}
+
+        {q.type === "star_rating" && (
+          <div className="rounded-xl border border-amber-100 bg-amber-50/40 p-3">
+            <p className="text-sm font-medium text-zinc-800">별점 평가 (1~5점)</p>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              별 5개 · 0.5점 단위. 같은 별을 반복 클릭하면 0.5점씩 올라가고, 최대
+              점수에서 다시 누르면 한 단계 내려갑니다.
+            </p>
           </div>
         )}
 

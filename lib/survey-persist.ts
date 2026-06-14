@@ -3,20 +3,44 @@ import "server-only";
 import type { DraftQuestion, QuestionType } from "@/lib/survey-types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+const OPTION_TYPES: QuestionType[] = [
+  "mc_single",
+  "mc_multi",
+  "dropdown",
+  "rank",
+  "likert_multi",
+];
+
 export function validateQuestion(q: DraftQuestion, index: number): string | null {
   if (!q.prompt.trim()) {
     return `문항 ${index + 1}: 질문 내용을 입력하세요.`;
   }
-    if (q.type === "mc_single" || q.type === "mc_multi") {
-      const opts = q.options.map((o) => o.trim()).filter(Boolean);
-      if (opts.length < 2) {
-        return `문항 ${index + 1}: 객관식은 선택지를 2개 이상 입력하세요.`;
-      }
+  if (q.type === "mc_single" || q.type === "mc_multi" || q.type === "dropdown") {
+    const opts = q.options.map((o) => o.trim()).filter(Boolean);
+    if (opts.length < 2) {
+      return `문항 ${index + 1}: 선택지를 2개 이상 입력하세요.`;
+    }
     if (q.type === "mc_multi") {
       const max = q.maxSelections;
       if (max < 1 || max > opts.length) {
         return `문항 ${index + 1}: 최대 선택 개수는 1~선택지 개수(${opts.length}) 사이여야 합니다.`;
       }
+    }
+  }
+  if (q.type === "rank") {
+    const opts = q.options.map((o) => o.trim()).filter(Boolean);
+    if (opts.length < 2) {
+      return `문항 ${index + 1}: 순위 선택은 선택지를 2개 이상 입력하세요.`;
+    }
+    const rankCount = q.maxSelections;
+    if (rankCount < 1 || rankCount > opts.length) {
+      return `문항 ${index + 1}: 순위 개수는 1~선택지 개수(${opts.length}) 사이여야 합니다.`;
+    }
+  }
+  if (q.type === "likert_multi") {
+    const rows = q.options.map((o) => o.trim()).filter(Boolean);
+    if (rows.length < 2) {
+      return `문항 ${index + 1}: 척도(다중)는 평가 항목을 2개 이상 입력하세요.`;
     }
   }
   if (q.type === "text_multi") {
@@ -55,6 +79,9 @@ export async function persistSurveyQuestions(
     if (q.type === "mc_multi") {
       row.max_selections = q.maxSelections;
     }
+    if (q.type === "rank") {
+      row.max_selections = q.maxSelections;
+    }
     if (q.type === "text_multi") {
       row.text_line_count = q.textLineCount;
     }
@@ -71,7 +98,7 @@ export async function persistSurveyQuestions(
 
     const questionId = qRow.id as string;
 
-    if (q.type === "mc_single" || q.type === "mc_multi") {
+    if (OPTION_TYPES.includes(q.type)) {
       const labels = q.options.map((o) => o.trim()).filter(Boolean);
       const opts = labels.map((label, order_index) => ({
         question_id: questionId,

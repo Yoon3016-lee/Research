@@ -9,6 +9,12 @@ import {
 import type { PublicSurveyDetail, SurveyAnswerInput } from "@/lib/survey-public";
 import { QUESTION_TYPE_LABELS } from "@/lib/survey-types";
 import { Likert7Input } from "@/components/site/Likert7Input";
+import {
+  LikertMultiInput,
+  likertMultiValuesFromRecord,
+} from "@/components/site/LikertMultiInput";
+import { RankSelectInput } from "@/components/site/RankSelectInput";
+import { StarRatingInput } from "@/components/site/StarRatingInput";
 
 type Props = {
   survey: PublicSurveyDetail;
@@ -29,6 +35,12 @@ export function SurveyResponseForm({ survey }: Props) {
   const [textSingle, setTextSingle] = useState<Record<string, string>>({});
   const [textMulti, setTextMulti] = useState<Record<string, string[]>>({});
   const [likert7, setLikert7] = useState<Record<string, number | null>>({});
+  const [dropdown, setDropdown] = useState<Record<string, string>>({});
+  const [rank, setRank] = useState<Record<string, string[]>>({});
+  const [likertMulti, setLikertMulti] = useState<Record<string, Record<string, number | null>>>(
+    {},
+  );
+  const [starRating, setStarRating] = useState<Record<string, number | null>>({});
 
   const toggleMulti = (questionId: string, optionId: string, max: number) => {
     setMcMulti((prev) => {
@@ -75,6 +87,27 @@ export function SurveyResponseForm({ survey }: Props) {
           type: "likert_7",
           value: value ?? Number.NaN,
         });
+      } else if (q.type === "dropdown") {
+        out.push({ questionId: q.id, type: "dropdown", optionId: dropdown[q.id] ?? "" });
+      } else if (q.type === "rank") {
+        out.push({
+          questionId: q.id,
+          type: "rank",
+          rankedOptionIds: rank[q.id] ?? [],
+        });
+      } else if (q.type === "likert_multi") {
+        out.push({
+          questionId: q.id,
+          type: "likert_multi",
+          values: likertMultiValuesFromRecord(likertMulti[q.id] ?? {}),
+        });
+      } else if (q.type === "star_rating") {
+        const value = starRating[q.id];
+        out.push({
+          questionId: q.id,
+          type: "star_rating",
+          value: value ?? Number.NaN,
+        });
       }
     }
     return out;
@@ -86,6 +119,10 @@ export function SurveyResponseForm({ survey }: Props) {
     setTextSingle({});
     setTextMulti({});
     setLikert7({});
+    setDropdown({});
+    setRank({});
+    setLikertMulti({});
+    setStarRating({});
   };
 
   const submit = (after: SubmitSurveyAfter) => {
@@ -210,6 +247,60 @@ export function SurveyResponseForm({ survey }: Props) {
                 disabled={pending}
                 onChange={(value) =>
                   setLikert7((prev) => ({ ...prev, [q.id]: value }))
+                }
+              />
+            )}
+
+            {q.type === "dropdown" && (
+              <select
+                value={dropdown[q.id] ?? ""}
+                disabled={pending}
+                onChange={(e) =>
+                  setDropdown((prev) => ({ ...prev, [q.id]: e.target.value }))
+                }
+                className="mt-4 w-full max-w-md rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm outline-none ring-indigo-500/30 focus:ring-2 disabled:opacity-60"
+              >
+                <option value="">선택하세요</option>
+                {q.options.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {q.type === "rank" && (
+              <RankSelectInput
+                options={q.options}
+                rankCount={q.maxSelections ?? q.options.length}
+                rankedOptionIds={rank[q.id] ?? []}
+                disabled={pending}
+                onChange={(rankedOptionIds) =>
+                  setRank((prev) => ({ ...prev, [q.id]: rankedOptionIds }))
+                }
+              />
+            )}
+
+            {q.type === "likert_multi" && (
+              <LikertMultiInput
+                options={q.options}
+                values={likertMulti[q.id] ?? {}}
+                disabled={pending}
+                onChange={(optionId, value) =>
+                  setLikertMulti((prev) => ({
+                    ...prev,
+                    [q.id]: { ...(prev[q.id] ?? {}), [optionId]: value },
+                  }))
+                }
+              />
+            )}
+
+            {q.type === "star_rating" && (
+              <StarRatingInput
+                value={starRating[q.id] ?? null}
+                disabled={pending}
+                onChange={(value) =>
+                  setStarRating((prev) => ({ ...prev, [q.id]: value }))
                 }
               />
             )}

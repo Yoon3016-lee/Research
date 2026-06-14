@@ -9,7 +9,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:migrate-response-script": "node scripts/apply-response-script-migration.mjs"
+    "db:migrate-response-script": "node scripts/apply-response-script-migration.mjs",
+    "db:migrate-site-logo": "node scripts/apply-site-logo-migration.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.0",

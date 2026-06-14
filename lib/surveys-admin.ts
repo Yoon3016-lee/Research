@@ -153,10 +153,17 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
           ? [opts[0] ?? "", opts[1] ?? ""]
           : opts.length > 0
             ? opts
-            : type === "mc_single" || type === "mc_multi"
+            : type === "mc_single" ||
+                type === "mc_multi" ||
+                type === "dropdown" ||
+                type === "rank" ||
+                type === "likert_multi"
               ? ["", ""]
               : [],
-      maxSelections: q.max_selections ?? Math.min(2, opts.length || 2),
+      maxSelections:
+        type === "rank"
+          ? (q.max_selections ?? Math.min(3, opts.length || 3))
+          : (q.max_selections ?? Math.min(2, opts.length || 2)),
       textLineCount: q.text_line_count ?? (type === "text_multi" ? 2 : 1),
     };
   });
