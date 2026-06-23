@@ -10,6 +10,7 @@ import type { PublicSurveyDetail, SurveyAnswerInput } from "@/lib/survey-public"
 import { QUESTION_TYPE_LABELS } from "@/lib/survey-types";
 import {
   branchingSnapshotFromFormState,
+  buildParticipantDisplayNumbers,
   isPublicQuestionVisible,
 } from "@/lib/survey-visibility";
 import { Likert7Input } from "@/components/site/Likert7Input";
@@ -61,6 +62,11 @@ export function SurveyResponseForm({ survey, isStaff }: Props) {
           )
           .map((q) => q.id),
       ),
+    [survey.questions, branchingSnapshot, isStaff],
+  );
+
+  const displayNumberByQuestionId = useMemo(
+    () => buildParticipantDisplayNumbers(survey.questions, branchingSnapshot, isStaff),
     [survey.questions, branchingSnapshot, isStaff],
   );
 
@@ -211,8 +217,9 @@ export function SurveyResponseForm({ survey, isStaff }: Props) {
   return (
     <div className="space-y-6">
       <ol className="space-y-6">
-        {survey.questions.map((q, index) => {
+        {survey.questions.map((q) => {
           if (!visibleQuestionIds.has(q.id)) return null;
+          const displayNumber = displayNumberByQuestionId.get(q.id) ?? 0;
           return (
           <li
             key={q.id}
@@ -220,7 +227,7 @@ export function SurveyResponseForm({ survey, isStaff }: Props) {
           >
             <div className="flex flex-wrap items-start justify-between gap-2">
               <p className="text-xs font-medium text-indigo-700">
-                문항 {index + 1} · {QUESTION_TYPE_LABELS[q.type]}
+                문항 {displayNumber} · {QUESTION_TYPE_LABELS[q.type]}
               </p>
               <div className="flex flex-wrap gap-1.5">
               {q.staffOnly ? (

@@ -7,6 +7,7 @@ import { isLikert7Value, isStarRatingValue, type QuestionType } from "@/lib/surv
 import { getSurveyParticipant, resolveRespondentForInsert } from "@/lib/participant";
 import {
   branchingSnapshotFromAnswers,
+  buildParticipantDisplayNumbers,
   isPublicQuestionVisible,
 } from "@/lib/survey-visibility";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
@@ -24,6 +25,13 @@ function validateAnswers(
 ): string | null {
   const byId = new Map(answers.map((a) => [a.questionId, a]));
   const branchingSnapshot = branchingSnapshotFromAnswers(answers);
+  const displayNumbers = buildParticipantDisplayNumbers(
+    survey.questions,
+    branchingSnapshot,
+    isStaff,
+  );
+  const qLabel = (q: PublicSurveyDetail["questions"][number], fallback: number) =>
+    displayNumbers.get(q.id) ?? fallback;
 
   for (let i = 0; i < survey.questions.length; i++) {
     const q = survey.questions[i];
@@ -31,21 +39,22 @@ function validateAnswers(
       continue;
     }
     const a = byId.get(q.id);
+    const n = qLabel(q, i + 1);
 
     if (!a) {
       if (q.allowSkip) continue;
-      return `문항 ${i + 1}: 답변을 입력하세요.`;
+      return `문항 ${n}: 답변을 입력하세요.`;
     }
     if (a.type !== q.type) {
-      return `문항 ${i + 1}: 답변 형식이 올바르지 않습니다.`;
+      return `문항 ${n}: 답변 형식이 올바르지 않습니다.`;
     }
 
     if (q.type === "mc_single") {
       if (a.type !== "mc_single") continue;
       const empty = !a.optionId?.trim();
-      if (empty && !q.allowSkip) return `문항 ${i + 1}: 보기를 선택하세요.`;
+      if (empty && !q.allowSkip) return `문항 ${n}: 보기를 선택하세요.`;
       if (!empty && !q.options.some((o) => o.id === a.optionId)) {
-        return `문항 ${i + 1}: 잘못된 선택입니다.`;
+        return `문항 ${n}: 잘못된 선택입니다.`;
       }
       if (empty && q.allowSkip) continue;
     }
@@ -54,15 +63,15 @@ function validateAnswers(
       if (a.type !== "mc_multi") continue;
       const ids = [...new Set(a.optionIds.filter(Boolean))];
       if (ids.length === 0 && !q.allowSkip) {
-        return `문항 ${i + 1}: 보기를 하나 이상 선택하세요.`;
+        return `문항 ${n}: 보기를 하나 이상 선택하세요.`;
       }
       const max = q.maxSelections ?? ids.length;
       if (ids.length > max) {
-        return `문항 ${i + 1}: 최대 ${max}개까지 선택할 수 있습니다.`;
+        return `문항 ${n}: 최대 ${max}개까지 선택할 수 있습니다.`;
       }
       for (const id of ids) {
         if (!q.options.some((o) => o.id === id)) {
-          return `문항 ${i + 1}: 잘못된 선택이 포함되어 있습니다.`;
+          return `문항 ${n}: 잘못된 선택이 포함되어 있습니다.`;
         }
       }
     }
@@ -70,7 +79,7 @@ function validateAnswers(
     if (q.type === "text_single") {
       if (a.type !== "text_single") continue;
       const text = a.text?.trim() ?? "";
-      if (!text && !q.allowSkip) return `문항 ${i + 1}: 답변을 입력하세요.`;
+      if (!text && !q.allowSkip) return `문항 ${n}: 답변을 입력하세요.`;
     }
 
     if (q.type === "text_multi") {
@@ -79,10 +88,10 @@ function validateAnswers(
       const filled = lines.filter(Boolean).length;
       const required = q.textLineCount ?? 2;
       if (filled === 0 && !q.allowSkip) {
-        return `문항 ${i + 1}: 답변을 하나 이상 입력하세요.`;
+        return `문항 ${n}: 답변을 하나 이상 입력하세요.`;
       }
       if (!q.allowSkip && filled < required) {
-        return `문항 ${i + 1}: ${required}개의 답변 칸을 채워 주세요.`;
+        return `문항 ${n}: ${required}개의 답변 칸을 채워 주세요.`;
       }
     }
 
@@ -90,19 +99,19 @@ function validateAnswers(
       if (a.type !== "likert_7") continue;
       const empty = a.value == null || Number.isNaN(a.value);
       if (empty && !q.allowSkip) {
-        return `문항 ${i + 1}: 1~7 중 하나를 선택하세요.`;
+        return `문항 ${n}: 1~7 중 하나를 선택하세요.`;
       }
       if (!empty && !isLikert7Value(a.value)) {
-        return `문항 ${i + 1}: 1~7 사이의 값만 선택할 수 있습니다.`;
+        return `문항 ${n}: 1~7 사이의 값만 선택할 수 있습니다.`;
       }
     }
 
     if (q.type === "dropdown") {
       if (a.type !== "dropdown") continue;
       const empty = !a.optionId?.trim();
-      if (empty && !q.allowSkip) return `문항 ${i + 1}: 항목을 선택하세요.`;
+      if (empty && !q.allowSkip) return `문항 ${n}: 항목을 선택하세요.`;
       if (!empty && !q.options.some((o) => o.id === a.optionId)) {
-        return `문항 ${i + 1}: 잘못된 선택입니다.`;
+        return `문항 ${n}: 잘못된 선택입니다.`;
       }
     }
 
@@ -111,17 +120,17 @@ function validateAnswers(
       const ids = a.rankedOptionIds.filter(Boolean);
       const rankCount = q.maxSelections ?? ids.length;
       if (ids.length === 0 && !q.allowSkip) {
-        return `문항 ${i + 1}: ${rankCount}개 순위를 모두 선택하세요.`;
+        return `문항 ${n}: ${rankCount}개 순위를 모두 선택하세요.`;
       }
       if (ids.length > 0 && ids.length !== rankCount) {
-        return `문항 ${i + 1}: ${rankCount}개 순위를 선택해야 합니다.`;
+        return `문항 ${n}: ${rankCount}개 순위를 선택해야 합니다.`;
       }
       if (new Set(ids).size !== ids.length) {
-        return `문항 ${i + 1}: 같은 선택지를 중복 순위로 지정할 수 없습니다.`;
+        return `문항 ${n}: 같은 선택지를 중복 순위로 지정할 수 없습니다.`;
       }
       for (const id of ids) {
         if (!q.options.some((o) => o.id === id)) {
-          return `문항 ${i + 1}: 잘못된 선택이 포함되어 있습니다.`;
+          return `문항 ${n}: 잘못된 선택이 포함되어 있습니다.`;
         }
       }
     }
@@ -134,18 +143,18 @@ function validateAnswers(
         return v != null && !Number.isNaN(v);
       });
       if (answered.length === 0 && !q.allowSkip) {
-        return `문항 ${i + 1}: 모든 항목에 척도를 선택하세요.`;
+        return `문항 ${n}: 모든 항목에 척도를 선택하세요.`;
       }
       if (!q.allowSkip && answered.length < q.options.length) {
-        return `문항 ${i + 1}: ${q.options.length}개 항목 모두 1~7 중 하나를 선택하세요.`;
+        return `문항 ${n}: ${q.options.length}개 항목 모두 1~7 중 하나를 선택하세요.`;
       }
       for (const [optionId, value] of Object.entries(values)) {
         if (value == null || Number.isNaN(value)) continue;
         if (!q.options.some((o) => o.id === optionId)) {
-          return `문항 ${i + 1}: 잘못된 항목이 포함되어 있습니다.`;
+          return `문항 ${n}: 잘못된 항목이 포함되어 있습니다.`;
         }
         if (!isLikert7Value(value)) {
-          return `문항 ${i + 1}: 1~7 사이의 값만 선택할 수 있습니다.`;
+          return `문항 ${n}: 1~7 사이의 값만 선택할 수 있습니다.`;
         }
       }
     }
@@ -154,10 +163,10 @@ function validateAnswers(
       if (a.type !== "star_rating") continue;
       const empty = a.value == null || Number.isNaN(a.value);
       if (empty && !q.allowSkip) {
-        return `문항 ${i + 1}: 별점을 선택하세요.`;
+        return `문항 ${n}: 별점을 선택하세요.`;
       }
       if (!empty && !isStarRatingValue(a.value)) {
-        return `문항 ${i + 1}: 별점은 0~5점(0.5 단위)만 선택할 수 있습니다.`;
+        return `문항 ${n}: 별점은 0~5점(0.5 단위)만 선택할 수 있습니다.`;
       }
     }
   }

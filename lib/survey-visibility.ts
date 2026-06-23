@@ -141,6 +141,29 @@ export function filterVisiblePublicQuestions(
   );
 }
 
+/** 참여 화면·제출 검증 메시지용 — 현재 보이는 문항만 1부터 연속 번호 */
+export function buildParticipantDisplayNumbers(
+  questions: PublicSurveyQuestion[],
+  snapshot: BranchingAnswerSnapshot,
+  isStaff: boolean,
+): Map<string, number> {
+  const map = new Map<string, number>();
+  let n = 0;
+  for (const q of questions) {
+    if (!isPublicQuestionVisible(q, questions, snapshot, isStaff)) continue;
+    n += 1;
+    map.set(q.id, n);
+  }
+  return map;
+}
+
+/** 관리·집계용 설문지 상 문항 번호 (DB order_index + 1) */
+export function getSurveySheetQuestionNumber(
+  question: Pick<PublicSurveyQuestion, "orderIndex">,
+): number {
+  return question.orderIndex + 1;
+}
+
 export function remapRulesAfterSwap(
   questions: DraftQuestion[],
   indexA: number,
