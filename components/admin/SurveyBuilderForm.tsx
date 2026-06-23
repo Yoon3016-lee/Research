@@ -23,6 +23,7 @@ import { SurveyTemplateImportButton } from "@/components/admin/SurveyTemplateImp
 import type { SurveyTemplatePickerSurvey } from "@/components/admin/SurveyTemplatePicker";
 import { QuestionAddPanel } from "@/components/admin/survey-builder/QuestionAddPanel";
 import { QuestionEditCard } from "@/components/admin/survey-builder/QuestionEditCard";
+import { remapRulesAfterRemove, remapRulesAfterSwap } from "@/lib/survey-visibility";
 
 export type SurveyTemplateFrom = {
   sourceTitle: string;
@@ -116,14 +117,12 @@ export function SurveyBuilderForm({
     setQuestions((prev) => {
       const j = index + dir;
       if (j < 0 || j >= prev.length) return prev;
-      const copy = [...prev];
-      [copy[index], copy[j]] = [copy[j], copy[index]];
-      return copy;
+      return remapRulesAfterSwap(prev, index, j);
     });
   };
 
   const removeQuestion = (index: number) => {
-    setQuestions((prev) => prev.filter((_, i) => i !== index));
+    setQuestions((prev) => remapRulesAfterRemove(prev, index));
   };
 
   const addQuestionOfType = (type: QuestionType) => {
@@ -356,6 +355,7 @@ export function SurveyBuilderForm({
                 q={q}
                 index={index}
                 total={questions.length}
+                allQuestions={questions}
                 onChange={(patch) => updateQuestion(index, patch)}
                 onMove={(dir) => moveQuestion(index, dir)}
                 onRemove={() => removeQuestion(index)}

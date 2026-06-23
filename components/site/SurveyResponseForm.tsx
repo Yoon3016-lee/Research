@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   submitSurveyResponseAction,
@@ -8,6 +8,10 @@ import {
 } from "@/app/actions/submit-survey-response";
 import type { PublicSurveyDetail, SurveyAnswerInput } from "@/lib/survey-public";
 import { QUESTION_TYPE_LABELS } from "@/lib/survey-types";
+import {
+  branchingSnapshotFromFormState,
+  isPublicQuestionVisible,
+} from "@/lib/survey-visibility";
 import { Likert7Input } from "@/components/site/Likert7Input";
 import {
   LikertMultiInput,
@@ -18,13 +22,14 @@ import { StarRatingInput } from "@/components/site/StarRatingInput";
 
 type Props = {
   survey: PublicSurveyDetail;
+  isStaff: boolean;
 };
 
 function emptyTextMulti(lineCount: number): string[] {
   return Array.from({ length: lineCount }, () => "");
 }
 
-export function SurveyResponseForm({ survey }: Props) {
+export function SurveyResponseForm({ survey, isStaff }: Props) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -41,6 +46,63 @@ export function SurveyResponseForm({ survey }: Props) {
     {},
   );
   const [starRating, setStarRating] = useState<Record<string, number | null>>({});
+
+  const branchingSnapshot = useMemo(
+    () => branchingSnapshotFromFormState(mcSingle, dropdown),
+    [mcSingle, dropdown],
+  );
+
+  const visibleQuestionIds = useMemo(
+    () =>
+      new Set(
+        survey.questions
+          .filter((q) =>
+            isPublicQuestionVisible(q, survey.questions, branchingSnapshot, isStaff),
+          )
+          .map((q) => q.id),
+      ),
+    [survey.questions, branchingSnapshot, isStaff],
+  );
+
+  useEffect(() => {
+    const keep = (id: string) => visibleQuestionIds.has(id);
+    setMcSingle((prev) => {
+      const next = Object.fromEntries(Object.entries(prev).filter(([id]) => keep(id)));
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next;
+    });
+    setMcMulti((prev) => {
+      const next = Object.fromEntries(Object.entries(prev).filter(([id]) => keep(id)));
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next;
+    });
+    setTextSingle((prev) => {
+      const next = Object.fromEntries(Object.entries(prev).filter(([id]) => keep(id)));
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next;
+    });
+    setTextMulti((prev) => {
+      const next = Object.fromEntries(Object.entries(prev).filter(([id]) => keep(id)));
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next;
+    });
+    setLikert7((prev) => {
+      const next = Object.fromEntries(Object.entries(prev).filter(([id]) => keep(id)));
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next;
+    });
+    setDropdown((prev) => {
+      const next = Object.fromEntries(Object.entries(prev).filter(([id]) => keep(id)));
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next;
+    });
+    setRank((prev) => {
+      const next = Object.fromEntries(Object.entries(prev).filter(([id]) => keep(id)));
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next;
+    });
+    setLikertMulti((prev) => {
+      const next = Object.fromEntries(Object.entries(prev).filter(([id]) => keep(id)));
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next;
+    });
+    setStarRating((prev) => {
+      const next = Object.fromEntries(Object.entries(prev).filter(([id]) => keep(id)));
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next;
+    });
+  }, [visibleQuestionIds]);
 
   const toggleMulti = (questionId: string, optionId: string, max: number) => {
     setMcMulti((prev) => {
@@ -70,6 +132,7 @@ export function SurveyResponseForm({ survey }: Props) {
   const buildAnswers = (): SurveyAnswerInput[] => {
     const out: SurveyAnswerInput[] = [];
     for (const q of survey.questions) {
+      if (!visibleQuestionIds.has(q.id)) continue;
       if (q.type === "mc_single") {
         out.push({ questionId: q.id, type: "mc_single", optionId: mcSingle[q.id] ?? "" });
       } else if (q.type === "mc_multi") {
@@ -148,7 +211,9 @@ export function SurveyResponseForm({ survey }: Props) {
   return (
     <div className="space-y-6">
       <ol className="space-y-6">
-        {survey.questions.map((q, index) => (
+        {survey.questions.map((q, index) => {
+          if (!visibleQuestionIds.has(q.id)) return null;
+          return (
           <li
             key={q.id}
             className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
@@ -157,11 +222,18 @@ export function SurveyResponseForm({ survey }: Props) {
               <p className="text-xs font-medium text-indigo-700">
                 문항 {index + 1} · {QUESTION_TYPE_LABELS[q.type]}
               </p>
+              <div className="flex flex-wrap gap-1.5">
+              {q.staffOnly ? (
+                <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-800">
+                  직원 전용
+                </span>
+              ) : null}
               {q.allowSkip ? (
                 <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">
                   무응답 허용
                 </span>
               ) : null}
+              </div>
             </div>
             <p className="mt-2 text-base font-medium text-zinc-900">{q.prompt}</p>
 
@@ -305,7 +377,8 @@ export function SurveyResponseForm({ survey }: Props) {
               />
             )}
           </li>
-        ))}
+          );
+        })}
       </ol>
 
       {error ? (

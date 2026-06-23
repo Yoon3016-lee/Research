@@ -1,16 +1,21 @@
 "use client";
 
-import { Plus, Trash2, ChevronUp, ChevronDown, GripVertical } from "lucide-react";
+import { Plus, Trash2, ChevronUp, ChevronDown, ChevronRight, GripVertical } from "lucide-react";
 import {
   QUESTION_TYPE_LABELS,
   type DraftQuestion,
   type QuestionType,
 } from "@/lib/survey-types";
+import {
+  isBranchingSourceType,
+  type QuestionVisibilityCondition,
+} from "@/lib/survey-visibility";
 
 type Props = {
   q: DraftQuestion;
   index: number;
   total: number;
+  allQuestions: DraftQuestion[];
   onChange: (patch: Partial<DraftQuestion>) => void;
   onMove: (dir: -1 | 1) => void;
   onRemove: () => void;
@@ -32,10 +37,66 @@ export function QuestionEditCard({
   q,
   index,
   total,
+  allQuestions,
   onChange,
   onMove,
   onRemove,
 }: Props) {
+  const priorBranching = allQuestions
+    .map((pq, pi) => ({ pq, pi }))
+    .filter(({ pi, pq }) => pi < index && isBranchingSourceType(pq.type));
+
+  const conditional = q.visibilityRules.length > 0;
+
+  const conditionSummary =
+    [
+      q.allowSkip ? "무응답 허용" : null,
+      q.staffOnly ? "직원 전용" : null,
+      conditional ? "조건부 표시" : null,
+    ]
+      .filter(Boolean)
+      .join(" · ") || "기본";
+
+  const sourceOptionLabels = (sourceOrderIndex: number): string[] => {
+    const source = allQuestions[sourceOrderIndex];
+    if (!source) return [];
+    return source.options.map((o) => o.trim()).filter(Boolean);
+  };
+
+  const setConditionalMode = (enabled: boolean) => {
+    if (!enabled) {
+      onChange({ visibilityRules: [] });
+      return;
+    }
+    if (q.visibilityRules.length > 0) return;
+    const first = priorBranching[0];
+    if (!first) return;
+    onChange({
+      visibilityRules: [{ sourceOrderIndex: first.pi, optionIndex: 0 }],
+    });
+  };
+
+  const updateRule = (
+    ruleIndex: number,
+    patch: Partial<QuestionVisibilityCondition>,
+  ) => {
+    const next = q.visibilityRules.map((r, i) =>
+      i === ruleIndex ? { ...r, ...patch } : r,
+    );
+    onChange({ visibilityRules: next });
+  };
+
+  const addRule = () => {
+    const first = priorBranching[0];
+    if (!first) return;
+    onChange({
+      visibilityRules: [
+        ...q.visibilityRules,
+        { sourceOrderIndex: first.pi, optionIndex: 0 },
+      ],
+    });
+  };
+
   return (
     <div className="rounded-2xl border border-zinc-200/90 bg-white shadow-sm ring-1 ring-zinc-100">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-zinc-100 px-4 py-3">
@@ -54,6 +115,21 @@ export function QuestionEditCard({
               >
                 {QUESTION_TYPE_LABELS[q.type]}
               </span>
+              {q.allowSkip ? (
+                <span className="inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700 ring-1 ring-zinc-200">
+                  무응답 허용
+                </span>
+              ) : null}
+              {q.staffOnly ? (
+                <span className="inline-flex rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-medium text-indigo-900 ring-1 ring-indigo-200">
+                  직원 전용
+                </span>
+              ) : null}
+              {conditional ? (
+                <span className="inline-flex rounded-full bg-fuchsia-100 px-2 py-0.5 text-[11px] font-medium text-fuchsia-900 ring-1 ring-fuchsia-200">
+                  조건부 표시
+                </span>
+              ) : null}
             </div>
             <p className="mt-1 text-[11px] text-zinc-500">
               유형을 바꾸려면 이 문항을 삭제한 뒤, 문항 추가 패널에서 다시
@@ -104,20 +180,148 @@ export function QuestionEditCard({
           />
         </label>
 
-        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-100 bg-zinc-50/50 px-3 py-2.5 transition hover:bg-zinc-50">
-          <input
-            type="checkbox"
-            checked={q.allowSkip}
-            onChange={(e) => onChange({ allowSkip: e.target.checked })}
-            className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
-          />
-          <span>
-            <span className="text-sm font-medium text-zinc-800">무응답 허용</span>
-            <span className="mt-0.5 block text-xs leading-relaxed text-zinc-500">
-              체크하면 이 문항을 비우고 다음으로 넘어갈 수 있습니다.
+        <details className="group rounded-xl border border-zinc-200 bg-zinc-50/30">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-sm font-medium text-zinc-800 select-none [&::-webkit-details-marker]:hidden">
+            <span className="flex min-w-0 items-center gap-2">
+              <ChevronRight
+                className="h-4 w-4 shrink-0 text-zinc-400 transition-transform group-open:rotate-90"
+                aria-hidden
+              />
+              조건 설정
             </span>
-          </span>
-        </label>
+            <span className="truncate text-xs font-normal text-zinc-500">{conditionSummary}</span>
+          </summary>
+          <div className="space-y-3 border-t border-zinc-100 px-3 pb-3 pt-3">
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-100 bg-white px-3 py-2.5 transition hover:bg-zinc-50/80">
+              <input
+                type="checkbox"
+                checked={q.allowSkip}
+                onChange={(e) => onChange({ allowSkip: e.target.checked })}
+                className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span>
+                <span className="text-sm font-medium text-zinc-800">무응답 허용</span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-zinc-500">
+                  체크하면 이 문항을 비우고 다음으로 넘어갈 수 있습니다.
+                </span>
+              </span>
+            </label>
+
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-indigo-100 bg-indigo-50/40 px-3 py-2.5 transition hover:bg-indigo-50/70">
+              <input
+                type="checkbox"
+                checked={q.staffOnly}
+                onChange={(e) => onChange({ staffOnly: e.target.checked })}
+                className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span>
+                <span className="text-sm font-medium text-zinc-800">직원에게만 표시</span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-zinc-500">
+                  로그인한 직원(employee 이상)에게만 이 문항이 보입니다. 게스트·비로그인
+                  참여자에게는 숨겨집니다.
+                </span>
+              </span>
+            </label>
+
+            <div className="rounded-xl border border-fuchsia-100 bg-fuchsia-50/30 p-3">
+              <span className="text-sm font-medium text-zinc-800">표시 조건</span>
+              <p className="mt-0.5 text-xs leading-relaxed text-zinc-500">
+                이전 객관식(단일)·드롭다운 문항의 선택에 따라 이 문항을 보이거나 숨깁니다.
+                조건이 여러 개이면 모두 만족할 때 표시됩니다.
+              </p>
+              {priorBranching.length === 0 ? (
+                <p className="mt-2 text-xs text-zinc-500">
+                  앞쪽에 객관식(단일) 또는 드롭다운 문항이 있어야 조건을 설정할 수 있습니다.
+                </p>
+              ) : (
+                <>
+                  <label className="mt-3 block text-sm">
+                    <span className="font-medium text-zinc-700">모드</span>
+                    <select
+                      value={conditional ? "conditional" : "always"}
+                      onChange={(e) => setConditionalMode(e.target.value === "conditional")}
+                      className="mt-1.5 w-full max-w-xs rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
+                    >
+                      <option value="always">항상 표시</option>
+                      <option value="conditional">이전 답변에 따라 표시</option>
+                    </select>
+                  </label>
+                  {conditional ? (
+                    <div className="mt-3 space-y-3">
+                      {q.visibilityRules.map((rule, ri) => {
+                        const labels = sourceOptionLabels(rule.sourceOrderIndex);
+                        return (
+                          <div
+                            key={ri}
+                            className="flex flex-wrap items-end gap-2 rounded-lg border border-fuchsia-100 bg-white p-3"
+                          >
+                            <label className="min-w-[10rem] flex-1 text-xs">
+                              <span className="font-medium text-zinc-700">기준 문항</span>
+                              <select
+                                value={rule.sourceOrderIndex}
+                                onChange={(e) => {
+                                  const sourceOrderIndex = Number(e.target.value);
+                                  updateRule(ri, { sourceOrderIndex, optionIndex: 0 });
+                                }}
+                                className="mt-1 w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
+                              >
+                                {priorBranching.map(({ pq, pi }) => (
+                                  <option key={pi} value={pi}>
+                                    문항 {pi + 1}
+                                    {pq.prompt.trim()
+                                      ? ` — ${pq.prompt.trim().slice(0, 40)}`
+                                      : ""}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="min-w-[10rem] flex-1 text-xs">
+                              <span className="font-medium text-zinc-700">선택한 보기</span>
+                              <select
+                                value={rule.optionIndex}
+                                onChange={(e) =>
+                                  updateRule(ri, { optionIndex: Number(e.target.value) })
+                                }
+                                className="mt-1 w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
+                              >
+                                {labels.map((label, oi) => (
+                                  <option key={oi} value={oi}>
+                                    보기 {oi + 1}
+                                    {label ? ` — ${label.slice(0, 40)}` : ""}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            {q.visibilityRules.length > 1 ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  onChange({
+                                    visibilityRules: q.visibilityRules.filter((_, i) => i !== ri),
+                                  })
+                                }
+                                className="rounded-lg px-2 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                              >
+                                조건 삭제
+                              </button>
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        onClick={addRule}
+                        className="text-xs font-medium text-fuchsia-800 hover:text-fuchsia-950"
+                      >
+                        + 조건 추가 (AND)
+                      </button>
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </div>
+          </div>
+        </details>
 
         {(q.type === "mc_single" || q.type === "mc_multi" || q.type === "dropdown") && (
           <div className="rounded-xl border border-zinc-100 bg-white p-3">

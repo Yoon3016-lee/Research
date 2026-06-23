@@ -41,7 +41,7 @@ export async function createSurveyAction(
   }
 
   for (let i = 0; i < payload.questions.length; i++) {
-    const err = validateQuestion(payload.questions[i], i);
+    const err = validateQuestion(payload.questions[i], i, payload.questions);
     if (err) return { error: err };
   }
 

@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { DraftQuestion, QuestionType } from "@/lib/survey-types";
+import { validateVisibilityRules } from "@/lib/survey-visibility";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const OPTION_TYPES: QuestionType[] = [
@@ -11,10 +12,16 @@ const OPTION_TYPES: QuestionType[] = [
   "likert_multi",
 ];
 
-export function validateQuestion(q: DraftQuestion, index: number): string | null {
+export function validateQuestion(
+  q: DraftQuestion,
+  index: number,
+  allQuestions: DraftQuestion[],
+): string | null {
   if (!q.prompt.trim()) {
     return `문항 ${index + 1}: 질문 내용을 입력하세요.`;
   }
+  const visibilityErr = validateVisibilityRules(q, index, allQuestions);
+  if (visibilityErr) return visibilityErr;
   if (q.type === "mc_single" || q.type === "mc_multi" || q.type === "dropdown") {
     const opts = q.options.map((o) => o.trim()).filter(Boolean);
     if (opts.length < 2) {
@@ -58,12 +65,22 @@ export async function persistSurveyQuestions(
 ): Promise<string | null> {
   for (let i = 0; i < questions.length; i++) {
     const q = questions[i];
+    const visibilityRules =
+      q.visibilityRules.length > 0
+        ? q.visibilityRules.map((r) => ({
+            sourceOrderIndex: r.sourceOrderIndex,
+            optionIndex: r.optionIndex,
+          }))
+        : null;
+
     const row: {
       survey_id: string;
       order_index: number;
       prompt: string;
       question_type: QuestionType;
       allow_skip: boolean;
+      staff_only: boolean;
+      visibility_rules: { sourceOrderIndex: number; optionIndex: number }[] | null;
       max_selections: number | null;
       text_line_count: number | null;
     } = {
@@ -72,6 +89,8 @@ export async function persistSurveyQuestions(
       prompt: q.prompt.trim(),
       question_type: q.type,
       allow_skip: q.allowSkip,
+      staff_only: q.staffOnly,
+      visibility_rules: visibilityRules,
       max_selections: null,
       text_line_count: null,
     };

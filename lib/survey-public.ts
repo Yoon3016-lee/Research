@@ -2,6 +2,11 @@ import "server-only";
 
 import type { QuestionType } from "@/lib/survey-types";
 import { resolveSurveyStatus, normalizeStoredDate } from "@/lib/survey-period";
+import {
+  parseStoredVisibilityRules,
+  resolveVisibilityRulesForPublic,
+  type ResolvedVisibilityRule,
+} from "@/lib/survey-visibility";
 import { syncSurveyPeriodStatuses } from "@/lib/sync-survey-statuses";
 import { normalizeSurveyRef } from "@/lib/survey-slug";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
@@ -18,6 +23,8 @@ export type PublicSurveyQuestion = {
   type: QuestionType;
   prompt: string;
   allowSkip: boolean;
+  staffOnly: boolean;
+  visibilityRules: ResolvedVisibilityRule[];
   maxSelections: number | null;
   textLineCount: number | null;
   options: PublicSurveyOption[];
@@ -79,6 +86,8 @@ type QuestionRow = {
   prompt: string;
   question_type: string;
   allow_skip: boolean;
+  staff_only?: boolean;
+  visibility_rules?: unknown;
   max_selections: number | null;
   text_line_count: number | null;
 };
@@ -101,16 +110,27 @@ function mapQuestions(
     optionsByQuestion.set(o.question_id, list);
   }
 
-  return qRows.map((q) => ({
-    id: q.id,
-    orderIndex: q.order_index,
-    type: q.question_type as QuestionType,
-    prompt: q.prompt,
-    allowSkip: q.allow_skip,
-    maxSelections: q.max_selections,
-    textLineCount: q.text_line_count,
-    options: optionsByQuestion.get(q.id) ?? [],
-  }));
+  const questionsByOrder = new Map(qRows.map((q) => [q.order_index, { id: q.id }]));
+
+  return qRows.map((q) => {
+    const storedRules = parseStoredVisibilityRules(q.visibility_rules);
+    return {
+      id: q.id,
+      orderIndex: q.order_index,
+      type: q.question_type as QuestionType,
+      prompt: q.prompt,
+      allowSkip: q.allow_skip,
+      staffOnly: q.staff_only ?? false,
+      visibilityRules: resolveVisibilityRulesForPublic(
+        q.order_index,
+        storedRules,
+        questionsByOrder,
+      ),
+      maxSelections: q.max_selections,
+      textLineCount: q.text_line_count,
+      options: optionsByQuestion.get(q.id) ?? [],
+    };
+  });
 }
 
 async function loadQuestionsForSurvey(
@@ -124,7 +144,7 @@ async function loadQuestionsForSurvey(
   const { data: questions, error: qError } = await client
     .from("survey_questions")
     .select(
-      "id, order_index, prompt, question_type, allow_skip, max_selections, text_line_count",
+      "id, order_index, prompt, question_type, allow_skip, staff_only, visibility_rules, max_selections, text_line_count",
     )
     .eq("survey_id", surveyId)
     .order("order_index", { ascending: true });

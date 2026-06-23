@@ -1,5 +1,6 @@
 import "server-only";
 
+import { parseStoredVisibilityRules } from "@/lib/survey-visibility";
 import type { CreateSurveyPayload, DraftQuestion, QuestionType } from "@/lib/survey-types";
 import { normalizeStoredDate } from "@/lib/survey-period";
 import { isUuid, normalizeSurveyRef } from "@/lib/survey-slug";
@@ -35,6 +36,8 @@ type QuestionRow = {
   prompt: string;
   question_type: string;
   allow_skip: boolean;
+  staff_only?: boolean;
+  visibility_rules?: unknown;
   max_selections: number | null;
   text_line_count: number | null;
 };
@@ -106,7 +109,7 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
   const { data: qRows, error: qError } = await admin
     .from("survey_questions")
     .select(
-      "id, order_index, prompt, question_type, allow_skip, max_selections, text_line_count",
+      "id, order_index, prompt, question_type, allow_skip, staff_only, visibility_rules, max_selections, text_line_count",
     )
     .eq("survey_id", surveyRow.id)
     .order("order_index", { ascending: true });
@@ -148,6 +151,8 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
       type,
       prompt: q.prompt,
       allowSkip: q.allow_skip,
+      staffOnly: q.staff_only ?? false,
+      visibilityRules: parseStoredVisibilityRules(q.visibility_rules),
       options:
         type === "likert_7"
           ? [opts[0] ?? "", opts[1] ?? ""]

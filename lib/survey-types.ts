@@ -1,3 +1,5 @@
+import type { QuestionVisibilityCondition } from "@/lib/survey-visibility";
+
 /** DB `survey_questions.question_type` 과 동일 */
 export const QUESTION_TYPES = [
   "mc_single",
@@ -58,6 +60,10 @@ export type DraftQuestion = {
   type: QuestionType;
   prompt: string;
   allowSkip: boolean;
+  /** 로그인한 직원(employee 이상)에게만 표시 */
+  staffOnly: boolean;
+  /** 비어 있으면 항상 표시(직원 전용 설정 제외). 모두 만족(AND) 시 표시 */
+  visibilityRules: QuestionVisibilityCondition[];
   /** 객관식·드롭다운·순위·척도(다중) 선택지/항목 */
   options: string[];
   /** mc_multi: 최대 선택 · rank: 순위 개수 */
@@ -77,6 +83,8 @@ export function createDraftQuestion(type: QuestionType): DraftQuestion {
     type,
     prompt: "",
     allowSkip: false,
+    staffOnly: false,
+    visibilityRules: [],
     options: [],
     maxSelections: 2,
     textLineCount: 2,

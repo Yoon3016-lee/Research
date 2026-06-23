@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import type { PublicSurveyDetail, SurveyAnswerInput } from "@/lib/survey-public";
 import { getPublicSurveyBySlug } from "@/lib/survey-public";
 import { isLikert7Value, isStarRatingValue, type QuestionType } from "@/lib/survey-types";
-import { resolveRespondentForInsert } from "@/lib/participant";
+import { getSurveyParticipant, resolveRespondentForInsert } from "@/lib/participant";
+import {
+  branchingSnapshotFromAnswers,
+  isPublicQuestionVisible,
+} from "@/lib/survey-visibility";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 
 export type SubmitSurveyAfter = "stay" | "list";
@@ -16,11 +20,16 @@ export type SubmitSurveyState =
 function validateAnswers(
   survey: PublicSurveyDetail,
   answers: SurveyAnswerInput[],
+  isStaff: boolean,
 ): string | null {
   const byId = new Map(answers.map((a) => [a.questionId, a]));
+  const branchingSnapshot = branchingSnapshotFromAnswers(answers);
 
   for (let i = 0; i < survey.questions.length; i++) {
     const q = survey.questions[i];
+    if (!isPublicQuestionVisible(q, survey.questions, branchingSnapshot, isStaff)) {
+      continue;
+    }
     const a = byId.get(q.id);
 
     if (!a) {
@@ -240,11 +249,15 @@ export async function submitSurveyResponseAction(
     return { error: "이 설문에는 응답할 문항이 없습니다." };
   }
 
-  const validationError = validateAnswers(survey, answers);
+  const participant = await getSurveyParticipant();
+  const isStaff = participant.mode === "staff";
+
+  const validationError = validateAnswers(survey, answers, isStaff);
   if (validationError) return { error: validationError };
 
   const admin = createSupabaseServiceRoleClient();
   const respondent = await resolveRespondentForInsert();
+  const branchingSnapshot = branchingSnapshotFromAnswers(answers);
 
   const { data: response, error: resError } = await admin
     .from("survey_responses")
@@ -265,6 +278,9 @@ export async function submitSurveyResponseAction(
     [];
 
   for (const q of survey.questions) {
+    if (!isPublicQuestionVisible(q, survey.questions, branchingSnapshot, isStaff)) {
+      continue;
+    }
     const a = answers.find((x) => x.questionId === q.id);
     if (!a) continue;
     const json = toAnswerJson(q.type, a);

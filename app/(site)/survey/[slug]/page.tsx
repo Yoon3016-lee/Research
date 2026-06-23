@@ -109,7 +109,10 @@ export default async function SurveyParticipatePage({ params }: Props) {
             slug={survey.slug}
             participant={participant}
           />
-          <SurveyResponseForm survey={survey} />
+          <SurveyResponseForm
+            survey={survey}
+            isStaff={participant.mode === "staff"}
+          />
         </div>
       )}
     </SiteContainer>
