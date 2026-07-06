@@ -1,0 +1,27 @@
+---
+description: 설문 분기 기준 문항 유형 규칙 (객관식 단일·드롭다운만)
+globs: lib/survey-visibility.ts,lib/survey-ai/**,components/admin/survey-builder/**,components/admin/SurveyLogic*.tsx,lib/survey-persist.ts
+alwaysApply: false
+---
+
+# 설문 분기 기준 문항 규칙
+
+**분기점을 만드는 문항(표시 조건 `visibilityRules`의 `sourceOrderIndex`)은 반드시 객관식(단일 선택, `mc_single`) 또는 드롭다운(`dropdown`)이어야 한다.**
+
+## 허용·비허용
+
+| 분기 기준으로 사용 | 문항 유형 |
+|------------------|-----------|
+| ✅ | `mc_single`, `dropdown` |
+| ❌ | `mc_multi`, `likert_7`, `likert_multi`, `text_*`, `rank`, `star_rating` |
+
+## 구현 위치
+
+- 상수·검증: `lib/survey-visibility.ts` — `BRANCHING_SOURCE_TYPES`, `SURVEY_BRANCHING_SOURCE_RULE`, `validateVisibilityRules`, `sanitizeVisibilityRules`
+- AI 프롬프트: `lib/survey-ai/prompts.ts`, `question-schema.ts`
+- 편집기 UI: `components/admin/survey-builder/QuestionEditCard.tsx`
+
+## 코드 변경 시
+
+- 분기 기준 유형을 늘리려면 응답 스냅샷·제출 검증(`branchingSnapshotFromAnswers`, `rulesMatch`)까지 함께 수정할 것.
+- 객관식(다중 선택)을 분기 기준으로 넣지 말 것 — 보기 하나가 선택되는 구조가 아님.

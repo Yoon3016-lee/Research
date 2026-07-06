@@ -1,10 +1,13 @@
 "use server";
 
 import { requireAdminPanelAccess } from "@/lib/require-admin";
-import { searchKsic, lookupKsic, type KsicEntry } from "@/lib/survey-ai/ksic";
+import { validateKsicExternalDb } from "@/lib/ksic-external/validate";
+import type { KsicExternalValidation } from "@/lib/ksic-external/types";
+import { searchKsic, lookupKsic, listKsicChildren, getKsicDetail, type KsicEntry, type KsicDetailPreview } from "@/lib/survey-ai/ksic";
 import {
   generateSurveyWithAi,
-  getSurveyAiProposalCount,
+  getSurveyAiRuntimeConfig,
+  type SurveyAiRuntimeConfig,
 } from "@/lib/survey-ai/generate";
 import type { SurveyAiBrief, SurveyAiGenerateResult } from "@/lib/survey-ai/types";
 
@@ -16,6 +19,27 @@ export async function searchKsicAction(query: string): Promise<KsicEntry[]> {
 export async function lookupKsicAction(code: string): Promise<KsicEntry | null> {
   await requireAdminPanelAccess();
   return lookupKsic(code);
+}
+
+export async function listKsicChildrenAction(
+  parentCode: string | null,
+): Promise<KsicEntry[]> {
+  await requireAdminPanelAccess();
+  return listKsicChildren(parentCode);
+}
+
+export async function getKsicDetailAction(
+  code: string,
+): Promise<KsicDetailPreview | null> {
+  await requireAdminPanelAccess();
+  return getKsicDetail(code);
+}
+
+export async function validateKsicExternalAction(
+  code: string,
+): Promise<KsicExternalValidation> {
+  await requireAdminPanelAccess();
+  return validateKsicExternalDb(code);
 }
 
 export async function generateSurveyAiAction(
@@ -33,7 +57,9 @@ export async function generateSurveyAiAction(
   });
 }
 
-export async function getSurveyAiConfigAction(): Promise<{ proposalCount: number }> {
+export async function getSurveyAiConfigAction(): Promise<
+  SurveyAiRuntimeConfig | { error: string }
+> {
   await requireAdminPanelAccess();
-  return { proposalCount: getSurveyAiProposalCount() };
+  return getSurveyAiRuntimeConfig();
 }

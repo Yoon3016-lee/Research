@@ -7,8 +7,12 @@ import {
   getSurveyAiConfigAction,
   lookupKsicAction,
   searchKsicAction,
+  validateKsicExternalAction,
 } from "@/app/actions/generate-survey-ai";
-import type { KsicEntry } from "@/lib/survey-ai/ksic";
+import { KsicHierarchyDialog } from "@/components/admin/KsicHierarchyDialog";
+import { KsicSelectSection } from "@/components/admin/KsicSelectSection";
+import type { KsicExternalValidation } from "@/lib/ksic-external/types";
+import type { KsicEntry } from "@/lib/ksic-types";
 import {
   SURVEY_AI_DRAFT_STORAGE_KEY,
   type SurveyAiBrief,
@@ -25,8 +29,9 @@ import {
   Bot,
   CheckCircle2,
   ChevronRight,
+  Lightbulb,
+  ListPlus,
   Loader2,
-  Search,
   Sparkles,
 } from "lucide-react";
 
@@ -48,16 +53,30 @@ export function SurveyAiGenerator() {
   const [brief, setBrief] = useState<SurveyAiBrief>(emptyBrief);
   const [clarifications, setClarifications] = useState<SurveyAiClarification[]>([]);
   const [proposals, setProposals] = useState<SurveyAiProposal[]>([]);
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [proposalCount, setProposalCount] = useState(2);
+  const [proposalCount, setProposalCount] = useState(3);
+  const [aiProviderLabel, setAiProviderLabel] = useState<string | null>(null);
   const [ksicQuery, setKsicQuery] = useState("");
   const [ksicResults, setKsicResults] = useState<KsicEntry[]>([]);
+  const [ksicPickerOpen, setKsicPickerOpen] = useState(false);
+  const [ksicPickerKey, setKsicPickerKey] = useState(0);
+  const [ksicExternalValidation, setKsicExternalValidation] =
+    useState<KsicExternalValidation | null>(null);
+  const [ksicValidationLoading, setKsicValidationLoading] = useState(false);
   const [ksicSearching, startKsicSearch] = useTransition();
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
-    void getSurveyAiConfigAction().then((c) => setProposalCount(c.proposalCount));
+    void getSurveyAiConfigAction().then((c) => {
+      if ("error" in c) {
+        setError(c.error);
+        return;
+      }
+      setProposalCount(c.proposalCount);
+      setAiProviderLabel(c.providerLabel);
+    });
   }, []);
 
   const updateBrief = (patch: Partial<SurveyAiBrief>) => {
@@ -71,23 +90,51 @@ export function SurveyAiGenerator() {
     });
   };
 
+  const runKsicExternalValidation = async (code: string) => {
+    const trimmed = code.trim();
+    if (!trimmed) {
+      setKsicExternalValidation(null);
+      return;
+    }
+    setKsicValidationLoading(true);
+    try {
+      const result = await validateKsicExternalAction(trimmed);
+      setKsicExternalValidation(result);
+    } catch {
+      setKsicExternalValidation(null);
+    } finally {
+      setKsicValidationLoading(false);
+    }
+  };
+
   const selectKsic = (entry: KsicEntry) => {
     updateBrief({ ksicCode: entry.code, ksicName: entry.name });
     setKsicQuery(`${entry.code} ${entry.name}`);
     setKsicResults([]);
+    void runKsicExternalValidation(entry.code);
+  };
+
+  const openKsicPicker = () => {
+    setKsicPickerKey((k) => k + 1);
+    setKsicPickerOpen(true);
   };
 
   const handleKsicCodeBlur = async () => {
     const code = brief.ksicCode.trim();
-    if (!code) return;
+    if (!code) {
+      setKsicExternalValidation(null);
+      return;
+    }
     const found = await lookupKsicAction(code);
     if (found && !brief.ksicName.trim()) {
       updateBrief({ ksicName: found.name });
     }
+    await runKsicExternalValidation(code);
   };
 
   const runGenerate = (nextBrief: SurveyAiBrief) => {
     setError(null);
+    setWarnings([]);
     startTransition(async () => {
       const result = await generateSurveyAiAction(nextBrief);
       if (result.status === "error") {
@@ -100,6 +147,7 @@ export function SurveyAiGenerator() {
         return;
       }
       setProposals(result.proposals);
+      setWarnings(result.warnings ?? []);
       setSelectedId(result.proposals[0]?.id ?? null);
       setStep("proposals");
     });
@@ -142,6 +190,8 @@ export function SurveyAiGenerator() {
         proposalId: proposal.id,
         rationale: proposal.rationale,
         ksicRelevance: proposal.ksicRelevance,
+        improvements: proposal.improvements,
+        additionalQuestions: proposal.additionalQuestions,
       },
     };
 
@@ -159,6 +209,11 @@ export function SurveyAiGenerator() {
             <p className="mt-1 text-indigo-800/90">
               산업 분류·조사 목적을 입력하면 AI가 설문안 {proposalCount}개와 CATI 조사원
               스크립트·추천 근거를 제안합니다. 정보가 부족하면 보완 질문을 드립니다.
+              {aiProviderLabel ? (
+                <span className="mt-1 block text-xs text-indigo-700/80">
+                  사용 중인 AI: {aiProviderLabel}
+                </span>
+              ) : null}
             </p>
           </div>
         </div>
@@ -166,83 +221,20 @@ export function SurveyAiGenerator() {
 
       {step === "input" ? (
         <form onSubmit={handleInitialSubmit} className="space-y-6">
-          <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-            <h2 className="text-base font-semibold text-zinc-900">KSIC (한국표준산업분류)</h2>
-            <p className="mt-1 text-sm text-zinc-500">
-              코드 또는 산업명으로 검색해 선택하세요. 5자리 세분류 코드를 직접 입력해도 됩니다.
-            </p>
-
-            <div className="mt-4 flex gap-2">
-              <input
-                value={ksicQuery}
-                onChange={(e) => setKsicQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleKsicSearch();
-                  }
-                }}
-                className="flex-1 rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
-                placeholder="예: 56121, 커피, 정보통신"
-              />
-              <button
-                type="button"
-                onClick={handleKsicSearch}
-                disabled={ksicSearching}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm font-medium text-zinc-800 hover:bg-zinc-100 disabled:opacity-60"
-              >
-                {ksicSearching ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                ) : (
-                  <Search className="h-4 w-4" aria-hidden />
-                )}
-                검색
-              </button>
-            </div>
-
-            {ksicResults.length > 0 ? (
-              <ul className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-zinc-200 bg-zinc-50/50">
-                {ksicResults.map((entry) => (
-                  <li key={entry.code}>
-                    <button
-                      type="button"
-                      onClick={() => selectKsic(entry)}
-                      className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm hover:bg-white"
-                    >
-                      <span>
-                        <strong className="font-mono text-indigo-800">{entry.code}</strong>{" "}
-                        {entry.name}
-                      </span>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <label className="block">
-                <span className="text-sm font-medium text-zinc-800">KSIC 코드 *</span>
-                <input
-                  required
-                  value={brief.ksicCode}
-                  onChange={(e) => updateBrief({ ksicCode: e.target.value })}
-                  onBlur={() => void handleKsicCodeBlur()}
-                  className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm font-mono outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  placeholder="예: 56121"
-                />
-              </label>
-              <label className="block">
-                <span className="text-sm font-medium text-zinc-800">산업 명칭</span>
-                <input
-                  value={brief.ksicName}
-                  onChange={(e) => updateBrief({ ksicName: e.target.value })}
-                  className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  placeholder="검색 선택 시 자동 입력"
-                />
-              </label>
-            </div>
-          </section>
+          <KsicSelectSection
+            brief={brief}
+            ksicQuery={ksicQuery}
+            ksicResults={ksicResults}
+            ksicSearching={ksicSearching}
+            onBriefChange={updateBrief}
+            onKsicQueryChange={setKsicQuery}
+            onOpenPicker={openKsicPicker}
+            onSearch={handleKsicSearch}
+            onSelectSearchResult={selectKsic}
+            onCodeBlur={() => void handleKsicCodeBlur()}
+            externalValidation={ksicExternalValidation}
+            externalValidationLoading={ksicValidationLoading}
+          />
 
           <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
             <h2 className="text-base font-semibold text-zinc-900">조사 개요</h2>
@@ -307,6 +299,22 @@ export function SurveyAiGenerator() {
 
       {step === "clarify" ? (
         <form onSubmit={handleClarifySubmit} className="space-y-6">
+          <KsicSelectSection
+            brief={brief}
+            ksicQuery={ksicQuery}
+            ksicResults={ksicResults}
+            ksicSearching={ksicSearching}
+            onBriefChange={updateBrief}
+            onKsicQueryChange={setKsicQuery}
+            onOpenPicker={openKsicPicker}
+            onSearch={handleKsicSearch}
+            onSelectSearchResult={selectKsic}
+            onCodeBlur={() => void handleKsicCodeBlur()}
+            externalValidation={ksicExternalValidation}
+            externalValidationLoading={ksicValidationLoading}
+            compact
+          />
+
           <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-6">
             <h2 className="text-base font-semibold text-amber-950">보완 정보가 필요합니다</h2>
             <p className="mt-1 text-sm text-amber-900/90">
@@ -382,6 +390,16 @@ export function SurveyAiGenerator() {
 
       {step === "proposals" ? (
         <div className="space-y-6">
+          {warnings.length > 0 ? (
+            <div
+              className="whitespace-pre-wrap rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+              role="status"
+            >
+              <p className="font-medium">일부 설문안은 형식 오류로 제외되었습니다.</p>
+              <p className="mt-2">{warnings.join("\n\n")}</p>
+            </div>
+          ) : null}
+
           <p className="text-sm text-zinc-600">
             생성된 설문안 {proposals.length}개 중 하나를 선택한 뒤 편집기에 적용하세요.
           </p>
@@ -425,6 +443,7 @@ export function SurveyAiGenerator() {
               onClick={() => {
                 setStep("input");
                 setProposals([]);
+                setWarnings([]);
               }}
               className="rounded-xl border border-zinc-200 bg-white px-5 py-2.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
             >
@@ -441,13 +460,32 @@ export function SurveyAiGenerator() {
         </div>
       ) : null}
 
+      <KsicHierarchyDialog
+        open={ksicPickerOpen}
+        onClose={() => setKsicPickerOpen(false)}
+        resetKey={ksicPickerKey}
+        selectedCode={brief.ksicCode.trim() || undefined}
+        onSelect={selectKsic}
+      />
+
       {error ? (
-        <p
-          className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+        <div
+          className="whitespace-pre-wrap rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
           role="alert"
         >
-          {error}
-        </p>
+          <p>{error}</p>
+          {step === "input" ? (
+            <button
+              type="button"
+              onClick={() => runGenerate(brief)}
+              disabled={pending}
+              className="mt-3 inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-900 hover:bg-red-50 disabled:opacity-60"
+            >
+              {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : null}
+              다시 생성
+            </button>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
@@ -468,6 +506,69 @@ function ProposalDetail({ proposal }: { proposal: SurveyAiProposal }) {
           {proposal.ksicRelevance}
         </p>
       </div>
+
+      {proposal.improvements.length > 0 ? (
+        <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-4">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-amber-950">
+            <Lightbulb className="h-4 w-4 shrink-0" aria-hidden />
+            보완·개선 제안
+          </h3>
+          <p className="mt-1 text-xs text-amber-900/80">
+            편집기에 적용한 뒤 아래 항목을 참고해 설문을 다듬어 보세요.
+          </p>
+          <ul className="mt-3 space-y-3">
+            {proposal.improvements.map((note, i) => (
+              <li
+                key={i}
+                className="rounded-lg border border-amber-100 bg-white px-3 py-2.5 text-sm"
+              >
+                <span className="font-medium text-amber-950">{note.area}</span>
+                <p className="mt-1 leading-relaxed text-zinc-700">{note.detail}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {proposal.additionalQuestions.length > 0 ? (
+        <div className="rounded-xl border border-teal-100 bg-teal-50/40 p-4">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-teal-950">
+            <ListPlus className="h-4 w-4 shrink-0" aria-hidden />
+            추가 문항 생성 방향
+          </h3>
+          <p className="mt-1 text-xs text-teal-900/80">
+            조사 목적을 더 충실히 반영하려면 아래 주제로 문항을 추가하는 것을 권장합니다.
+          </p>
+          <ul className="mt-3 space-y-3">
+            {proposal.additionalQuestions.map((idea, i) => (
+              <li
+                key={i}
+                className="rounded-lg border border-teal-100 bg-white px-3 py-2.5 text-sm"
+              >
+                <p className="font-medium text-teal-950">{idea.direction}</p>
+                {idea.reason ? (
+                  <p className="mt-1 text-xs leading-relaxed text-zinc-600">{idea.reason}</p>
+                ) : null}
+                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                  {idea.suggestedType ? (
+                    <span className="rounded-full bg-teal-100 px-2 py-0.5 font-medium text-teal-900">
+                      권장 유형:{" "}
+                      {QUESTION_TYPE_LABELS[idea.suggestedType as keyof typeof QUESTION_TYPE_LABELS] ??
+                        idea.suggestedType}
+                    </span>
+                  ) : null}
+                </div>
+                {idea.examplePrompt ? (
+                  <p className="mt-2 rounded-md bg-zinc-50 px-2.5 py-2 text-xs leading-relaxed text-zinc-700">
+                    예시 질문: {idea.examplePrompt}
+                  </p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <div>
         <h3 className="text-sm font-semibold text-zinc-900">문항 미리보기</h3>
         <ol className="mt-3 space-y-2">

@@ -4,6 +4,7 @@ import {
   QUESTION_TYPE_LABELS,
   type QuestionType,
 } from "@/lib/survey-types";
+import { SURVEY_BRANCHING_SOURCE_RULE } from "@/lib/survey-visibility";
 
 /** AI 프롬프트에 삽입 — 문항 유형이 추가·변경되면 자동 반영 */
 export function buildQuestionTypeSpecForAi(): string {
@@ -22,7 +23,7 @@ export function buildQuestionTypeSpecForAi(): string {
     "- prompt (string, 필수): 질문 문구",
     "- allowSkip (boolean, 기본 false): 무응답 허용",
     "- staffOnly (boolean, 기본 false): 직원 전용 문항",
-    "- visibilityRules (선택): [{ sourceOrderIndex: number, optionIndex: number }] — 0부터 시작하는 문항 순서·보기 인덱스. 분기는 단순할 때만 사용.",
+    `- visibilityRules (선택): [{ sourceOrderIndex: number, optionIndex: number }] — ${SURVEY_BRANCHING_SOURCE_RULE}`,
   ].join("\n");
 }
 

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { validateQuestion } from "@/lib/survey-persist";
+import { sanitizeVisibilityRules } from "@/lib/survey-visibility";
 import {
   createDraftQuestion,
   QUESTION_TYPES,
@@ -8,6 +9,8 @@ import {
   type QuestionType,
 } from "@/lib/survey-types";
 import type {
+  SurveyAiAdditionalQuestionIdea,
+  SurveyAiImprovementNote,
   SurveyAiProposal,
   SurveyAiQuestionScript,
   SurveyAiRawProposal,
@@ -59,6 +62,10 @@ function normalizeRawQuestion(raw: SurveyAiRawQuestion, index: number): DraftQue
   return q;
 }
 
+function sanitizeAllQuestions(questions: DraftQuestion[]): DraftQuestion[] {
+  return questions.map((q, i) => sanitizeVisibilityRules(q, i, questions));
+}
+
 export function formatCatiResponseScript(
   questions: DraftQuestion[],
   questionScripts: SurveyAiQuestionScript[],
@@ -97,6 +104,42 @@ export function formatCatiResponseScript(
   return parts.join("\n").trim();
 }
 
+function normalizeImprovements(raw: SurveyAiRawProposal): SurveyAiImprovementNote[] {
+  if (!Array.isArray(raw.improvements)) return [];
+  const out: SurveyAiImprovementNote[] = [];
+  for (const item of raw.improvements) {
+    if (!item || typeof item !== "object") continue;
+    const area = typeof item.area === "string" ? item.area.trim() : "";
+    const detail = typeof item.detail === "string" ? item.detail.trim() : "";
+    if (!area && !detail) continue;
+    out.push({ area: area || "보완 사항", detail: detail || area });
+  }
+  return out;
+}
+
+function normalizeAdditionalQuestions(
+  raw: SurveyAiRawProposal,
+): SurveyAiAdditionalQuestionIdea[] {
+  if (!Array.isArray(raw.additionalQuestions)) return [];
+  const out: SurveyAiAdditionalQuestionIdea[] = [];
+  for (const item of raw.additionalQuestions) {
+    if (!item || typeof item !== "object") continue;
+    const direction = typeof item.direction === "string" ? item.direction.trim() : "";
+    const reason = typeof item.reason === "string" ? item.reason.trim() : "";
+    if (!direction) continue;
+    const suggestedType =
+      typeof item.suggestedType === "string" && item.suggestedType.trim()
+        ? item.suggestedType.trim()
+        : null;
+    const examplePrompt =
+      typeof item.examplePrompt === "string" && item.examplePrompt.trim()
+        ? item.examplePrompt.trim()
+        : null;
+    out.push({ direction, reason, suggestedType, examplePrompt });
+  }
+  return out;
+}
+
 export function normalizeAiProposal(raw: SurveyAiRawProposal): SurveyAiProposal | string {
   if (!raw.title?.trim()) return "제안 설문에 제목이 없습니다.";
   if (!Array.isArray(raw.questions) || raw.questions.length === 0) {
@@ -110,8 +153,10 @@ export function normalizeAiProposal(raw: SurveyAiRawProposal): SurveyAiProposal 
     questions.push(normalized);
   }
 
-  for (let i = 0; i < questions.length; i++) {
-    const err = validateQuestion(questions[i], i, questions);
+  const sanitized = sanitizeAllQuestions(questions);
+
+  for (let i = 0; i < sanitized.length; i++) {
+    const err = validateQuestion(sanitized[i], i, sanitized);
     if (err) return `제안 "${raw.title}": ${err}`;
   }
 
@@ -123,7 +168,7 @@ export function normalizeAiProposal(raw: SurveyAiRawProposal): SurveyAiProposal 
             typeof s.orderIndex === "number" &&
             Number.isInteger(s.orderIndex) &&
             s.orderIndex >= 0 &&
-            s.orderIndex < questions.length,
+            s.orderIndex < sanitized.length,
         )
         .map((s) => ({
           orderIndex: s.orderIndex,
@@ -137,21 +182,23 @@ export function normalizeAiProposal(raw: SurveyAiRawProposal): SurveyAiProposal 
 
   const responseScript =
     formatCatiResponseScript(
-      questions,
+      sanitized,
       questionScripts,
       raw.openingScript,
       raw.closingScript,
     ) || "(스크립트 없음)";
 
   return {
-    id: raw.id?.trim() || `proposal-${questions.length}`,
+    id: raw.id?.trim() || `proposal-${sanitized.length}`,
     title: raw.title.trim(),
     summary: typeof raw.summary === "string" ? raw.summary.trim() : "",
     rationale: typeof raw.rationale === "string" ? raw.rationale.trim() : "",
     ksicRelevance: typeof raw.ksicRelevance === "string" ? raw.ksicRelevance.trim() : "",
-    questions,
+    questions: sanitized,
     responseScript,
     questionScripts,
+    improvements: normalizeImprovements(raw),
+    additionalQuestions: normalizeAdditionalQuestions(raw),
   };
 }
 

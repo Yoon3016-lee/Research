@@ -10,9 +10,15 @@
     "start": "next start",
     "lint": "eslint",
     "db:migrate-response-script": "node scripts/apply-response-script-migration.mjs",
-    "db:migrate-site-logo": "node scripts/apply-site-logo-migration.mjs"
+    "db:migrate-site-logo": "node scripts/apply-site-logo-migration.mjs",
+    "db:migrate-ksic": "node scripts/apply-ksic-migration.mjs",
+    "db:import-ksic": "node scripts/import-ksic-csv.mjs",
+    "db:migrate-ksic-external": "node scripts/apply-ksic-external-migration.mjs",
+    "db:sync-ksic-external": "node scripts/sync-ksic-external.mjs",
+    "db:check-ksic-sync": "node scripts/check-ksic-sync.mjs"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.101.1",
     "lucide-react": "^1.7.0",

@@ -8,6 +8,8 @@ import {
 } from "@/lib/survey-types";
 import {
   isBranchingSourceType,
+  SURVEY_BRANCHING_SOURCE_RULE,
+  SURVEY_BRANCHING_SOURCE_RULE_DETAIL,
   type QuestionVisibilityCondition,
 } from "@/lib/survey-visibility";
 
@@ -130,6 +132,11 @@ export function QuestionEditCard({
                   조건부 표시
                 </span>
               ) : null}
+              {isBranchingSourceType(q.type) ? (
+                <span className="inline-flex rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-800 ring-1 ring-violet-200">
+                  분기 기준 가능
+                </span>
+              ) : null}
             </div>
             <p className="mt-1 text-[11px] text-zinc-500">
               유형을 바꾸려면 이 문항을 삭제한 뒤, 문항 추가 패널에서 다시
@@ -226,12 +233,12 @@ export function QuestionEditCard({
             <div className="rounded-xl border border-fuchsia-100 bg-fuchsia-50/30 p-3">
               <span className="text-sm font-medium text-zinc-800">표시 조건</span>
               <p className="mt-0.5 text-xs leading-relaxed text-zinc-500">
-                이전 객관식(단일)·드롭다운 문항의 선택에 따라 이 문항을 보이거나 숨깁니다.
+                {SURVEY_BRANCHING_SOURCE_RULE} {SURVEY_BRANCHING_SOURCE_RULE_DETAIL}
                 조건이 여러 개이면 모두 만족할 때 표시됩니다.
               </p>
               {priorBranching.length === 0 ? (
                 <p className="mt-2 text-xs text-zinc-500">
-                  앞쪽에 객관식(단일) 또는 드롭다운 문항이 있어야 조건을 설정할 수 있습니다.
+                  앞쪽에 객관식(단일 선택) 또는 드롭다운 문항이 있어야 조건을 설정할 수 있습니다.
                 </p>
               ) : (
                 <>

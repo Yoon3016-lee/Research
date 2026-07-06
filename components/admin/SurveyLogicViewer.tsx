@@ -1,5 +1,6 @@
 import type { SurveyLogicModel } from "@/lib/survey-logic-view";
 import { SurveyLogicFlowchart } from "@/components/admin/SurveyLogicFlowchart";
+import { SURVEY_BRANCHING_SOURCE_RULE } from "@/lib/survey-visibility";
 
 type Props = {
   model: SurveyLogicModel;
@@ -63,8 +64,7 @@ export function SurveyLogicViewer({ model }: Props) {
         </p>
       ) : (
         <p className="text-sm text-zinc-600">
-          위에서 아래로 설문이 진행됩니다. 객관식·드롭다운 문항 아래에서 보기별로 갈라지는
-          분기를 확인할 수 있습니다.
+          위에서 아래로 설문이 진행됩니다. {SURVEY_BRANCHING_SOURCE_RULE}
         </p>
       )}
 

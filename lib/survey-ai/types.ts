@@ -25,6 +25,20 @@ export type SurveyAiQuestionScript = {
   cautions: string[];
 };
 
+/** 생성된 설문안의 보완·개선 제안 */
+export type SurveyAiImprovementNote = {
+  area: string;
+  detail: string;
+};
+
+/** 추가로 만들면 좋은 문항 방향 */
+export type SurveyAiAdditionalQuestionIdea = {
+  direction: string;
+  reason: string;
+  suggestedType: string | null;
+  examplePrompt: string | null;
+};
+
 /** AI 원시 문항 (clientId 없음) */
 export type SurveyAiRawQuestion = {
   type: string;
@@ -47,6 +61,13 @@ export type SurveyAiRawProposal = {
   questionScripts: SurveyAiQuestionScript[];
   openingScript?: string;
   closingScript?: string;
+  improvements?: { area?: string; detail?: string }[];
+  additionalQuestions?: {
+    direction?: string;
+    reason?: string;
+    suggestedType?: string;
+    examplePrompt?: string;
+  }[];
 };
 
 export type SurveyAiProposal = {
@@ -58,11 +79,13 @@ export type SurveyAiProposal = {
   questions: DraftQuestion[];
   responseScript: string;
   questionScripts: SurveyAiQuestionScript[];
+  improvements: SurveyAiImprovementNote[];
+  additionalQuestions: SurveyAiAdditionalQuestionIdea[];
 };
 
 export type SurveyAiGenerateResult =
   | { status: "needs_clarification"; clarifications: SurveyAiClarification[] }
-  | { status: "proposals"; proposals: SurveyAiProposal[] }
+  | { status: "proposals"; proposals: SurveyAiProposal[]; warnings?: string[] }
   | { status: "error"; error: string };
 
 /** 설문 빌더로 넘길 때 sessionStorage에 저장 */
@@ -71,6 +94,8 @@ export type SurveyAiDraftPayload = CreateSurveyPayload & {
     proposalId: string;
     rationale: string;
     ksicRelevance: string;
+    improvements: SurveyAiImprovementNote[];
+    additionalQuestions: SurveyAiAdditionalQuestionIdea[];
   };
 };
 

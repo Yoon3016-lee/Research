@@ -13,7 +13,15 @@ export type ResolvedVisibilityRule = {
   optionIndex: number;
 };
 
+/** 분기점(표시 조건 기준 문항)으로 허용되는 유형 — 보기 하나만 고르는 객관식·드롭다운만 */
 export const BRANCHING_SOURCE_TYPES: QuestionType[] = ["mc_single", "dropdown"];
+
+/** 설문·AI·관리자 UI에 공통으로 쓰는 분기 규칙 문구 */
+export const SURVEY_BRANCHING_SOURCE_RULE =
+  "분기점을 만드는 문항(표시 조건의 기준 문항)은 반드시 객관식(단일 선택) 또는 드롭다운 유형이어야 합니다.";
+
+export const SURVEY_BRANCHING_SOURCE_RULE_DETAIL =
+  "객관식(다중 선택)·척도·주관식·순위·별점 등은 분기 기준으로 사용할 수 없습니다.";
 
 export function isBranchingSourceType(type: QuestionType): boolean {
   return (BRANCHING_SOURCE_TYPES as readonly string[]).includes(type);
@@ -196,20 +204,46 @@ export function validateVisibilityRules(
   allQuestions: DraftQuestion[],
 ): string | null {
   for (const rule of q.visibilityRules) {
-    if (rule.sourceOrderIndex >= questionIndex) {
-      return `문항 ${questionIndex + 1}: 표시 조건의 기준 문항은 이 문항보다 앞에 있어야 합니다.`;
-    }
-    const source = allQuestions[rule.sourceOrderIndex];
-    if (!source) {
-      return `문항 ${questionIndex + 1}: 표시 조건의 기준 문항을 찾을 수 없습니다.`;
-    }
-    if (!isBranchingSourceType(source.type)) {
-      return `문항 ${questionIndex + 1}: 분기 기준은 객관식(단일)·드롭다운만 사용할 수 있습니다.`;
-    }
-    const optCount = source.options.map((o) => o.trim()).filter(Boolean).length;
-    if (rule.optionIndex < 0 || rule.optionIndex >= optCount) {
+    if (!isVisibilityRuleValid(rule, questionIndex, allQuestions)) {
+      if (rule.sourceOrderIndex >= questionIndex) {
+        return `문항 ${questionIndex + 1}: 표시 조건의 기준 문항은 이 문항보다 앞에 있어야 합니다.`;
+      }
+      const source = allQuestions[rule.sourceOrderIndex];
+      if (!source) {
+        return `문항 ${questionIndex + 1}: 표시 조건의 기준 문항을 찾을 수 없습니다.`;
+      }
+      if (!isBranchingSourceType(source.type)) {
+        return `문항 ${questionIndex + 1}: ${SURVEY_BRANCHING_SOURCE_RULE}`;
+      }
       return `문항 ${questionIndex + 1}: 표시 조건의 보기 번호가 올바르지 않습니다.`;
     }
   }
   return null;
+}
+
+function isVisibilityRuleValid(
+  rule: QuestionVisibilityCondition,
+  questionIndex: number,
+  allQuestions: DraftQuestion[],
+): boolean {
+  if (rule.sourceOrderIndex >= questionIndex) return false;
+  const source = allQuestions[rule.sourceOrderIndex];
+  if (!source || !isBranchingSourceType(source.type)) return false;
+  const optCount = source.options.map((o) => o.trim()).filter(Boolean).length;
+  return rule.optionIndex >= 0 && rule.optionIndex < optCount;
+}
+
+/** AI 생성 등에서 잘못된 분기 조건을 제거할 때 사용 */
+export function sanitizeVisibilityRules(
+  q: DraftQuestion,
+  questionIndex: number,
+  allQuestions: DraftQuestion[],
+): DraftQuestion {
+  if (q.visibilityRules.length === 0) return q;
+  return {
+    ...q,
+    visibilityRules: q.visibilityRules.filter((rule) =>
+      isVisibilityRuleValid(rule, questionIndex, allQuestions),
+    ),
+  };
 }

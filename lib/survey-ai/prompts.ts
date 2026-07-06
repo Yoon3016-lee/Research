@@ -1,6 +1,9 @@
 import { buildQuestionTypeSpecForAi } from "@/lib/survey-ai/question-schema";
 import type { SurveyAiBrief } from "@/lib/survey-ai/types";
-import { formatKsicContext } from "@/lib/survey-ai/ksic";
+import {
+  SURVEY_BRANCHING_SOURCE_RULE,
+  SURVEY_BRANCHING_SOURCE_RULE_DETAIL,
+} from "@/lib/survey-visibility";
 
 export function buildSurveyAiSystemPrompt(proposalCount: number): string {
   const questionSpec = buildQuestionTypeSpecForAi();
@@ -52,6 +55,20 @@ ${questionSpec}
           "interviewerScript": "이 문항을 읽을 때 조사원이 사용할 멘트·추가 설명",
           "cautions": ["응답 시 주의할 점", "유도 질문 금지 등"]
         }
+      ],
+      "improvements": [
+        {
+          "area": "보완 영역 (예: 표본·대상, 문항 순서, CATI 멘트)",
+          "detail": "구체적으로 무엇을 보완·검토해야 하는지"
+        }
+      ],
+      "additionalQuestions": [
+        {
+          "direction": "추가하면 좋은 문항 주제",
+          "reason": "왜 필요한지 (조사 목적·KSIC와의 연관)",
+          "suggestedType": "mc_single",
+          "examplePrompt": "예시 질문 문구 (선택)"
+        }
       ]
     }
   ]
@@ -60,15 +77,16 @@ ${questionSpec}
 ## 생성 규칙
 - proposals는 서로 다른 접근(예: 핵심 지표 중심 / 심층 탐색 / 간결 스크리닝)으로 ${proposalCount}개 생성
 - 각 proposal마다 rationale·ksicRelevance는 관리자가 선택 근거로 쓸 수 있게 충실히 작성
+- 각 proposal마다 improvements 2~4개: 현재 설문안의 한계·누락·CATI 현장에서 보완할 점을 area·detail로 제시
+- 각 proposal마다 additionalQuestions 2~5개: 조사 목적 달성을 위해 추가로 넣으면 좋은 문항 방향. suggestedType은 문항 스키마의 type 값만 사용
 - questionScripts는 questions의 모든 문항에 orderIndex 0부터 순서대로 포함
 - 한국어로 작성, 존댓말·전화 조사에 적합한 톤
-- visibilityRules는 꼭 필요할 때만 사용 (복잡한 분기 지양)
+- ${SURVEY_BRANCHING_SOURCE_RULE} ${SURVEY_BRANCHING_SOURCE_RULE_DETAIL}
+- visibilityRules는 꼭 필요할 때만 사용 (복잡한 분기 지양). 사용 시 sourceOrderIndex는 반드시 앞쪽 문항 중 type이 mc_single 또는 dropdown인 문항만 지정. 애매하면 visibilityRules 없이 평면 구조로 작성.
 - 선택지는 중립적·상호배타적으로`;
 }
 
-export function buildSurveyAiUserPrompt(brief: SurveyAiBrief): string {
-  const ksicBlock = formatKsicContext(brief.ksicCode, brief.ksicName);
-
+export function buildSurveyAiUserPrompt(brief: SurveyAiBrief, ksicBlock: string): string {
   const clarificationBlock =
     Object.keys(brief.clarificationAnswers).length > 0
       ? [
