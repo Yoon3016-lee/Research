@@ -15,18 +15,18 @@ npm run dev
 | 구분 | 경로 | 설명 |
 |------|------|------|
 | 메인 | `/` | 랜딩·안내 |
-| 진행중 설문 | `/surveys` | Supabase `surveys` 또는 목업 |
+| 진행중 설문 | `/surveys` | Supabase `surveys` (공개·진행중·예정) |
 | 서비스 | `/services` | 안내·데모 챗봇 |
 | 관리자 로그인 | `/admin/login` | 이메일·비밀번호 |
 | 관리자 회원가입 | `/admin/signup` | 가입키 + 이메일·비밀번호 |
 | 관리자 홈 | `/admin` | 대시보드·요약 (로그인 필요) |
 | 가입키 설정 | `/admin/settings` | 총관리자만 |
-| 설문 관리 | `/admin/surveys` | 목록은 Supabase(서비스 롤) 또는 목업 |
+| 설문 관리 | `/admin/surveys` | Supabase 설문 목록·편집 |
 | 새 설문 | `/admin/surveys/new` | 문항·유형·무응답 허용 등 작성 후 저장 |
-| 이메일 | `/admin/emails` | 발송·캠페인(데모) |
-| 진행·업무 | `/admin/progress` | 설문 진행도·직원 업무(목업) |
+| 이메일 | `/admin/emails` | 발송·캠페인(데모, 미연동) |
+| 진행·업무 | `/admin/progress` | 설문 진행도·작업량·응답 분석 |
 
-설문 데이터는 **Supabase `surveys` 테이블**과 연동됩니다(환경 변수 미설정·오류 시 `lib/mock-data.ts` 목업). 이메일·직원 업무는 아직 목업입니다.
+설문·직원 업무·응답 통계는 **Supabase**와 연동됩니다. 환경 변수가 없거나 Service Role 키가 없으면 설문 목록은 **빈 배열**로 표시됩니다. **이메일 발송**만 아직 UI 데모입니다.
 
 ## Supabase 연결 (최소: `surveys` 테이블)
 
@@ -60,8 +60,8 @@ npm run dev
 
 ### 4) 동작 확인
 
-- **`/surveys`**: anon 정책에 맞는 진행중 설문만 표시  
-- **`/admin`**, **`/admin/surveys`**, **`/admin/progress`**: Service Role 키가 있으면 전체 설문, 없으면 목업
+- **`/surveys`**: anon 정책에 맞는 진행중·예정 설문만 표시  
+- **`/admin`**, **`/admin/surveys`**, **`/admin/progress`**: Service Role 키가 있으면 Supabase 데이터, 없으면 빈 목록
 
 ### 5) Vercel 배포 시
 

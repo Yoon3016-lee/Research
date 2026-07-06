@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { SurveyTemplateImportButton } from "@/components/admin/SurveyTemplateImportButton";
 import { getAdminSurveys } from "@/lib/surveys-db";
-import { ExternalLink, Plus, Pencil } from "lucide-react";
+import { ExternalLink, Plus, Pencil, GitBranch, Sparkles } from "lucide-react";
 
 export const metadata = { title: "설문 관리" };
 
@@ -40,6 +40,13 @@ export default async function AdminSurveysPage({
           >
             <Plus className="h-4 w-4" aria-hidden />
             새 설문 만들기
+          </Link>
+          <Link
+            href="/admin/surveys/ai-generate"
+            className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-900 shadow-sm hover:bg-indigo-100"
+          >
+            <Sparkles className="h-4 w-4" aria-hidden />
+            AI 설문 생성
           </Link>
           <SurveyTemplateImportButton
             surveys={adminSurveys}
@@ -98,6 +105,16 @@ export default async function AdminSurveysPage({
                             참여 링크
                           </Link>
                         ) : null}
+                        <Link
+                          href={{
+                            pathname: "/admin/surveys/logic",
+                            query: { slug: s.id },
+                          }}
+                          className="inline-flex items-center gap-1 rounded-lg border border-fuchsia-200 bg-fuchsia-50 px-2.5 py-1.5 text-xs font-medium text-fuchsia-900 hover:bg-fuchsia-100"
+                        >
+                          <GitBranch className="h-3.5 w-3.5" aria-hidden />
+                          로직 확인
+                        </Link>
                         <Link
                           href={{
                             pathname: "/admin/surveys/edit",

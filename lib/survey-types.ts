@@ -22,8 +22,6 @@ export function isLikert7Value(value: number): value is Likert7Value {
 }
 
 /** 별점 0~5 (0.5 단위) */
-export const STAR_RATING_VALUES = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5] as const;
-
 export function isStarRatingValue(value: number): boolean {
   return value >= 0 && value <= 5 && Math.abs(value * 2 - Math.round(value * 2)) < 0.001;
 }

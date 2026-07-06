@@ -62,7 +62,7 @@ async function fetchSurveyRow(
 
   const bySlug = await admin.from("surveys").select(select).eq("slug", normalized).maybeSingle();
   if (bySlug.error) {
-    console.error("[getSurveyForEdit] slug lookup:", bySlug.error.message);
+    console.error("[loadSurveyForEdit] slug lookup:", bySlug.error.message);
     return { row: null, errorMessage: bySlug.error.message };
   }
   if (bySlug.data) {
@@ -72,7 +72,7 @@ async function fetchSurveyRow(
   if (isUuid(normalized)) {
     const byId = await admin.from("surveys").select(select).eq("id", normalized).maybeSingle();
     if (byId.error) {
-      console.error("[getSurveyForEdit] id lookup:", byId.error.message);
+      console.error("[loadSurveyForEdit] id lookup:", byId.error.message);
       return { row: null, errorMessage: byId.error.message };
     }
     if (byId.data) {
@@ -188,10 +188,4 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
       questions: draftQuestions,
     },
   };
-}
-
-/** @deprecated loadSurveyForEdit 사용 */
-export async function getSurveyForEdit(ref: string): Promise<SurveyEditBundle | null> {
-  const loaded = await loadSurveyForEdit(ref);
-  return loaded.ok ? loaded.bundle : null;
 }

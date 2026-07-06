@@ -103,6 +103,7 @@ export async function updateSurveyAction(
 
   revalidatePath("/admin/surveys");
   revalidatePath("/admin/surveys/edit");
+  revalidatePath("/admin/surveys/logic");
   revalidatePath("/surveys");
   revalidatePath(`/survey/${normalizedSlug}`);
   revalidatePath(`/survey-script/${normalizedSlug}`);

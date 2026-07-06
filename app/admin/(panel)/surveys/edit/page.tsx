@@ -66,9 +66,18 @@ export default async function EditSurveyByQueryPage({ searchParams }: Props) {
         description="기본 정보와 문항을 수정한 뒤 저장합니다. slug는 변경되지 않습니다."
       />
       <div className="p-4 sm:p-6">
-        <p className="mb-6 text-sm text-zinc-600">
+        <p className="mb-6 flex flex-wrap items-center gap-4 text-sm text-zinc-600">
           <Link href="/admin/surveys" className="font-medium text-indigo-700 hover:underline">
             ← 설문 목록
+          </Link>
+          <Link
+            href={{
+              pathname: "/admin/surveys/logic",
+              query: { slug: surveySlug },
+            }}
+            className="font-medium text-fuchsia-800 hover:underline"
+          >
+            로직 확인
           </Link>
         </p>
         <SurveyBuilderForm

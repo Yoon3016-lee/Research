@@ -2,9 +2,6 @@ import "server-only";
 
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 
-/** 기본 시드 데이터용 (DB에 그룹이 없을 때만 사용) */
-export const DEFAULT_NAV_GROUP_KEYS = ["intro", "survey", "service"] as const;
-
 export type SiteNavGroupKey = string;
 
 export type SiteNavItem = {

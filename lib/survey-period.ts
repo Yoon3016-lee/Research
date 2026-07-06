@@ -39,7 +39,7 @@ export function resolveSurveyStatus(
   return "진행중";
 }
 
-export function formatPeriodLabel(periodStart: string, periodEnd: string): string {
+function formatPeriodLabel(periodStart: string, periodEnd: string): string {
   const fmt = (iso: string) => iso.replace(/-/g, ".");
   return `${fmt(periodStart)} — ${fmt(periodEnd)}`;
 }

@@ -96,6 +96,7 @@ export async function createSurveyAction(
   }
 
   revalidatePath("/admin/surveys");
+  revalidatePath("/admin/surveys/logic");
   revalidatePath("/surveys");
   revalidatePath(`/survey-script/${slug}`);
   return { ok: true, slug };

@@ -1,7 +1,7 @@
 const SNOOZE_IDS_KEY = "research-popup-banner-snooze-ids";
 const DISMISSED_IDS_KEY = "research-popup-banner-dismissed-ids";
 
-export function getTodayLocalDateKey(): string {
+function getTodayLocalDateKey(): string {
   const d = new Date();
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -67,7 +67,7 @@ export function dismissPopupBannerIdForSession(bannerId: string): void {
   }
 }
 
-export function isPopupBannerVisible(bannerId: string): boolean {
+function isPopupBannerVisible(bannerId: string): boolean {
   if (getSnoozedIdsForToday().has(bannerId)) return false;
   if (getSessionDismissedIds().has(bannerId)) return false;
   return true;
