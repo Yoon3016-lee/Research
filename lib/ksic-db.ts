@@ -173,6 +173,109 @@ export async function listKsicChildrenDb(parentCode: string | null): Promise<Ksi
   return (data as CodeRow[]).map(mapRow);
 }
 
+function parseListField(raw: string): string[] {
+  if (!raw.trim()) return [];
+  return raw
+    .split("|")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function escapeIlike(q: string): string {
+  return q.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
+
+function findMatchedExample(examplesRaw: string | undefined, q: string): string | undefined {
+  if (!examplesRaw?.trim()) return undefined;
+  const lower = q.toLowerCase();
+  for (const item of parseListField(examplesRaw)) {
+    if (item.toLowerCase().includes(lower)) return item;
+  }
+  return undefined;
+}
+
+function scoreKsicSearchRow(
+  row: CodeRow,
+  q: string,
+  normalized: string,
+): { score: number; matchedExample?: string } {
+  const lower = q.toLowerCase();
+  let score = 0;
+  const matchedExample = findMatchedExample(row.examples, q);
+
+  if (row.code === normalized) score += 100;
+  else if (row.code.startsWith(normalized) || normalized.startsWith(row.code)) score += 60;
+
+  if (row.name_ko.toLowerCase().includes(lower)) score += 40;
+  if (row.name_ko.toLowerCase().startsWith(lower)) score += 20;
+
+  if (matchedExample) {
+    score += 38;
+    if (matchedExample.toLowerCase() === lower) score += 12;
+    else if (matchedExample.toLowerCase().startsWith(lower)) score += 8;
+  } else if (row.examples?.toLowerCase().includes(lower)) {
+    score += 30;
+  }
+
+  if (row.path_ko?.toLowerCase().includes(lower)) score += 12;
+
+  if (row.level_number === 5) score += 10;
+
+  return { score, matchedExample };
+}
+
+async function searchKsicByDetailExamples(
+  admin: ReturnType<typeof createSupabaseServiceRoleClient>,
+  escaped: string,
+  q: string,
+  normalized: string,
+  limit: number,
+): Promise<{ row: CodeRow; score: number; matchedExample?: string }[]> {
+  const { data: details, error } = await admin
+    .from("ksic_detail_ai")
+    .select("detail_code, detail_examples")
+    .eq("revision", KSIC_REVISION)
+    .ilike("detail_examples", `%${escaped}%`)
+    .limit(Math.max(limit * 4, 40));
+
+  if (error || !details?.length) return [];
+
+  const codes = details.map((d) => d.detail_code as string);
+  const { data: rows } = await admin
+    .from("ksic_codes")
+    .select(
+      "code, name_ko, level_name, path_ko, level_number, child_count, major_code_range, examples",
+    )
+    .eq("revision", KSIC_REVISION)
+    .in("code", codes);
+
+  if (!rows?.length) return [];
+
+  const examplesByCode = new Map(
+    details.map((d) => [d.detail_code as string, d.detail_examples as string]),
+  );
+
+  return (rows as CodeRow[])
+    .map((row) => {
+      const examplesRaw = row.examples?.trim()
+        ? row.examples
+        : examplesByCode.get(row.code);
+      const scored = scoreKsicSearchRow({ ...row, examples: examplesRaw }, q, normalized);
+      if (scored.score <= 0 && examplesRaw) {
+        const matchedExample = findMatchedExample(examplesRaw, q);
+        if (matchedExample || examplesRaw.toLowerCase().includes(q.toLowerCase())) {
+          return {
+            row,
+            score: 32,
+            matchedExample,
+          };
+        }
+      }
+      return { row, ...scored };
+    })
+    .filter((x) => x.score > 0);
+}
+
 export async function searchKsicDb(query: string, limit = 15): Promise<KsicEntry[]> {
   if (!(await isKsicDbReady())) {
     return searchKsicSeed(query, limit);
@@ -184,60 +287,66 @@ export async function searchKsicDb(query: string, limit = 15): Promise<KsicEntry
   const admin = createSupabaseServiceRoleClient();
   const normalized = normalizeCode(q);
   const isCodeLike = /^[A-Sa-s0-9]+$/.test(normalized);
+  const escaped = escapeIlike(q);
 
   let builder = admin
     .from("ksic_codes")
-    .select("code, name_ko, level_name, path_ko, level_number")
+    .select(
+      "code, name_ko, level_name, path_ko, level_number, child_count, major_code_range, examples",
+    )
     .eq("revision", KSIC_REVISION);
 
   if (isCodeLike && normalized.length > 0) {
     builder = builder.or(`code.eq.${normalized},code.ilike.${normalized}%`);
   } else {
-    const escaped = q.replace(/%/g, "\\%").replace(/_/g, "\\_");
-    builder = builder.ilike("name_ko", `%${escaped}%`);
+    builder = builder.or(`name_ko.ilike.%${escaped}%,examples.ilike.%${escaped}%`);
   }
 
-  const { data, error } = await builder
-    .order("level_number", { ascending: false })
-    .order("code")
-    .limit(Math.max(limit * 4, 40));
+  const [{ data, error }, detailScored] = await Promise.all([
+    builder
+      .order("level_number", { ascending: false })
+      .order("code")
+      .limit(Math.max(limit * 6, 60)),
+    isCodeLike ? Promise.resolve([]) : searchKsicByDetailExamples(admin, escaped, q, normalized, limit),
+  ]);
 
-  if (error || !data?.length) {
+  if (error && detailScored.length === 0) {
     return searchKsicSeed(query, limit);
   }
 
-  const lower = q.toLowerCase();
-  const scored = (data as CodeRow[])
-    .map((row) => {
-      let score = 0;
-      if (row.code === normalized) score += 100;
-      else if (row.code.startsWith(normalized) || normalized.startsWith(row.code)) score += 60;
-      if (row.name_ko.toLowerCase().includes(lower)) score += 40;
-      if (row.name_ko.toLowerCase().startsWith(lower)) score += 20;
-      if (row.level_number === 5) score += 10;
-      return { row, score };
-    })
-    .filter((x) => x.score > 0);
+  const merged = new Map<string, { row: CodeRow; score: number; matchedExample?: string }>();
+  for (const item of [
+    ...((data ?? []) as CodeRow[]).map((row) => {
+      const { score, matchedExample } = scoreKsicSearchRow(row, q, normalized);
+      return { row, score, matchedExample };
+    }),
+    ...detailScored,
+  ]) {
+    if (item.score <= 0) continue;
+    const prev = merged.get(item.row.code);
+    if (!prev || item.score > prev.score) merged.set(item.row.code, item);
+  }
+
+  const scored = [...merged.values()];
+
+  if (scored.length === 0) {
+    return searchKsicSeed(query, limit);
+  }
 
   scored.sort((a, b) => b.score - a.score || a.row.code.localeCompare(b.row.code));
 
   const seen = new Set<string>();
   const results: KsicEntry[] = [];
-  for (const { row } of scored) {
+  for (const { row, matchedExample } of scored) {
     if (seen.has(row.code)) continue;
     seen.add(row.code);
-    results.push(mapRow(row));
+    results.push({
+      ...mapRow(row),
+      matchedExample,
+    });
     if (results.length >= limit) break;
   }
   return results;
-}
-
-function parseListField(raw: string): string[] {
-  if (!raw.trim()) return [];
-  return raw
-    .split("|")
-    .map((s) => s.trim())
-    .filter(Boolean);
 }
 
 export async function getKsicDetailDb(code: string): Promise<KsicDetailPreview | null> {
