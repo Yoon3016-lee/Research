@@ -90,6 +90,7 @@ export function SharedScriptsManager({ scripts, embedded = false }: Props) {
           key="create"
           heading="새 공용 스크립트"
           action={createSharedScriptAction}
+          embedded={embedded}
           onCancel={() => setShowCreate(false)}
           onSuccess={() => setShowCreate(false)}
         />
@@ -100,6 +101,7 @@ export function SharedScriptsManager({ scripts, embedded = false }: Props) {
           key={editing.id}
           heading="공용 스크립트 편집"
           action={updateSharedScriptAction}
+          embedded={embedded}
           scriptId={editing.id}
           initialTitle={editing.title}
           initialBody={editing.body}
@@ -114,6 +116,7 @@ export function SharedScriptsManager({ scripts, embedded = false }: Props) {
 function ScriptForm({
   heading,
   action,
+  embedded = false,
   scriptId,
   initialTitle = "",
   initialBody = "",
@@ -122,6 +125,7 @@ function ScriptForm({
 }: {
   heading: string;
   action: (formData: FormData) => Promise<SharedScriptActionState>;
+  embedded?: boolean;
   scriptId?: string;
   initialTitle?: string;
   initialBody?: string;

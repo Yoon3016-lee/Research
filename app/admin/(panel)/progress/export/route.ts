@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     return new Response("설문을 찾을 수 없습니다.", { status: 404 });
   }
 
-  return new Response(result.buffer, {
+  return new Response(new Uint8Array(result.buffer), {
     status: 200,
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
