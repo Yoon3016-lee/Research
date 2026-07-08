@@ -28,7 +28,6 @@ import {
 import {
   Bot,
   CheckCircle2,
-  ChevronRight,
   Lightbulb,
   ListPlus,
   Loader2,

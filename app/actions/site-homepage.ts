@@ -162,8 +162,9 @@ export async function updateSiteLogoAction(
 
 export async function deleteSiteLogoAction(
   _prev: SiteHomepageActionState,
-  _formData: FormData,
+  formData: FormData,
 ): Promise<SiteHomepageActionState> {
+  void formData;
   await requireSuperAdmin();
 
   const admin = createSupabaseServiceRoleClient();
