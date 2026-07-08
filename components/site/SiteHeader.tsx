@@ -10,7 +10,7 @@ import { SiteAuthNav } from "@/components/site/SiteAuthNav";
 import { SiteNavMegaMenu } from "@/components/site/SiteNavMegaMenu";
 
 const adminLinkClass =
-  "inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[0.9375rem] font-medium text-slate-800 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/60 hover:text-indigo-900";
+  "inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-brand-900/10 bg-white/90 px-3 py-2 text-[0.9375rem] font-medium text-brand-800 shadow-sm backdrop-blur-sm transition hover:border-accent-500/40 hover:bg-white hover:text-brand-900";
 
 type SiteHeaderProps = {
   homepage: SiteHomepageConfig;
@@ -53,7 +53,7 @@ function AdminEntryLink({ adminLink }: { adminLink: PublicAdminLinkConfig }) {
 
 export function SiteHeader({ homepage, adminLink, participant }: SiteHeaderProps) {
   return (
-    <header className="site-header relative sticky top-0 z-[60] overflow-visible backdrop-blur-sm">
+    <header className="site-header relative sticky top-0 z-[60] overflow-visible backdrop-blur-md">
       <div className="site-content-band relative">
         <div className="site-header-content-band" aria-hidden />
         <div className="site-container relative grid min-h-[4.25rem] grid-cols-[1fr_auto_1fr] items-center gap-3 sm:min-h-[4.5rem] sm:gap-4">
@@ -71,7 +71,7 @@ export function SiteHeader({ homepage, adminLink, participant }: SiteHeaderProps
                 />
               </>
             ) : (
-              <span className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">
+              <span className="font-[family-name:var(--font-site-display)] text-lg font-semibold tracking-tight text-brand-900 sm:text-xl">
                 {homepage.siteName}
               </span>
             )}

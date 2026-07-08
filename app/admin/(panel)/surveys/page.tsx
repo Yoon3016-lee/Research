@@ -36,14 +36,14 @@ export default async function AdminSurveysPage({
         <div className="flex flex-wrap gap-3">
           <Link
             href="/admin/surveys/new"
-            className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800"
+            className="admin-btn-primary inline-flex items-center gap-2 px-4 py-2.5"
           >
             <Plus className="h-4 w-4" aria-hidden />
             새 설문 만들기
           </Link>
           <Link
             href="/admin/surveys/ai-generate"
-            className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-900 shadow-sm hover:bg-indigo-100"
+            className="inline-flex items-center gap-2 rounded-xl border border-accent-500/35 bg-accent-500/10 px-4 py-2.5 text-sm font-semibold text-brand-900 shadow-sm transition hover:bg-accent-500/18"
           >
             <Sparkles className="h-4 w-4" aria-hidden />
             AI 설문 생성
@@ -54,44 +54,44 @@ export default async function AdminSurveysPage({
           />
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+        <div className="admin-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-left text-sm">
-              <thead className="border-b border-zinc-100 bg-zinc-50/80">
+              <thead className="border-b border-brand-900/8 bg-surface/80">
                 <tr>
-                  <th className="px-4 py-3 font-semibold text-zinc-700">설문</th>
-                  <th className="px-4 py-3 font-semibold text-zinc-700">상태</th>
-                  <th className="px-4 py-3 font-semibold text-zinc-700">응답</th>
-                  <th className="px-4 py-3 font-semibold text-zinc-700">최근 수정</th>
-                  <th className="px-4 py-3 font-semibold text-zinc-700">작업</th>
+                  <th className="px-4 py-3 font-semibold text-brand-800">설문</th>
+                  <th className="px-4 py-3 font-semibold text-brand-800">상태</th>
+                  <th className="px-4 py-3 font-semibold text-brand-800">응답</th>
+                  <th className="px-4 py-3 font-semibold text-brand-800">최근 수정</th>
+                  <th className="px-4 py-3 font-semibold text-brand-800">작업</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100">
+              <tbody className="divide-y divide-brand-900/6">
                 {adminSurveys.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-12 text-center text-sm text-zinc-600">
+                    <td colSpan={5} className="px-4 py-12 text-center text-sm text-brand-700">
                       등록된 설문이 없습니다.{" "}
-                      <Link href="/admin/surveys/new" className="font-medium text-indigo-700">
+                      <Link href="/admin/surveys/new" className="admin-link">
                         새 설문 만들기
                       </Link>
                     </td>
                   </tr>
                 ) : null}
                 {adminSurveys.map((s) => (
-                  <tr key={s.id} className="hover:bg-zinc-50/80">
+                  <tr key={s.id} className="transition hover:bg-surface/60">
                     <td className="px-4 py-3">
-                      <p className="font-medium text-zinc-900">{s.title}</p>
-                      <p className="text-xs text-zinc-500">ID · {s.id}</p>
+                      <p className="font-medium text-brand-900">{s.title}</p>
+                      <p className="text-xs text-brand-700/80">ID · {s.id}</p>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-800">
+                      <span className="rounded-full bg-brand-900/6 px-2 py-0.5 text-xs font-medium text-brand-800">
                         {s.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 tabular-nums text-zinc-700">
+                    <td className="px-4 py-3 tabular-nums text-brand-800">
                       {s.responses.toLocaleString()}
                     </td>
-                    <td className="px-4 py-3 text-zinc-600">{s.updatedAt}</td>
+                    <td className="px-4 py-3 text-brand-700">{s.updatedAt}</td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-2">
                         {s.status === "진행중" ? (
@@ -99,7 +99,7 @@ export default async function AdminSurveysPage({
                             href={`/survey/${s.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-800 hover:bg-indigo-100"
+                            className="inline-flex items-center gap-1 rounded-lg border border-accent-500/30 bg-accent-500/10 px-2.5 py-1.5 text-xs font-medium text-brand-900 hover:bg-accent-500/18"
                           >
                             <ExternalLink className="h-3.5 w-3.5" aria-hidden />
                             참여 링크
@@ -120,7 +120,7 @@ export default async function AdminSurveysPage({
                             pathname: "/admin/surveys/edit",
                             query: { slug: s.id },
                           }}
-                          className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50"
+                          className="admin-btn-secondary inline-flex items-center gap-1 px-2.5 py-1.5 text-xs"
                         >
                           <Pencil className="h-3.5 w-3.5" aria-hidden />
                           편집

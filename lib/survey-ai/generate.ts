@@ -145,10 +145,6 @@ export async function generateSurveyWithAi(brief: SurveyAiBrief): Promise<Survey
   }
 }
 
-export function getSurveyAiProposalCount(): number {
-  return getProposalCount();
-}
-
 export type SurveyAiRuntimeConfig = {
   proposalCount: number;
   provider: string;

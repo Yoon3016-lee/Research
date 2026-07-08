@@ -124,7 +124,7 @@ export function SiteNavMegaMenu({ groups }: Props) {
         id="site-nav-mega-panel"
         role="navigation"
         aria-label="전체 하위 메뉴"
-        className="fixed z-[200] overflow-hidden border-b border-zinc-200 bg-white shadow-lg"
+        className="fixed z-[200] overflow-hidden border-b border-brand-900/10 bg-white/98 shadow-[0_24px_48px_-12px_rgba(15,23,42,0.18)] backdrop-blur-md"
         style={{
           top: panelLayout.top,
           left: panelLayout.left,
@@ -147,7 +147,7 @@ export function SiteNavMegaMenu({ groups }: Props) {
                 key={group.key}
                 className={`absolute top-3 box-border rounded-xl py-1 pl-2 pr-1 transition-all duration-150 sm:pl-3 ${
                   columnHighlighted
-                    ? "bg-indigo-50/90 ring-1 ring-inset ring-indigo-200/80"
+                    ? "bg-accent-500/10 ring-1 ring-inset ring-accent-500/25"
                     : "opacity-40"
                 }`}
                 style={{
@@ -159,7 +159,7 @@ export function SiteNavMegaMenu({ groups }: Props) {
                 {group.items.length === 0 ? (
                   <p
                     className={`text-sm ${
-                      columnHighlighted ? "font-medium text-indigo-800" : "text-zinc-500"
+                      columnHighlighted ? "font-medium text-brand-800" : "text-brand-700/60"
                     }`}
                   >
                     등록된 메뉴가 없습니다.
@@ -179,10 +179,10 @@ export function SiteNavMegaMenu({ groups }: Props) {
                             }}
                             className={`block rounded-lg py-2 pr-2 text-left text-sm transition ${
                               itemActive
-                                ? "bg-indigo-100 font-semibold text-indigo-900"
+                                ? "bg-brand-900/8 font-semibold text-brand-900"
                                 : columnHighlighted
-                                  ? "font-medium text-indigo-900 hover:bg-indigo-100/80"
-                                  : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
+                                  ? "font-medium text-brand-800 hover:bg-brand-900/5"
+                                  : "text-brand-700/70 hover:bg-brand-900/5 hover:text-brand-900"
                             }`}
                           >
                             {item.label}
@@ -224,12 +224,12 @@ export function SiteNavMegaMenu({ groups }: Props) {
                 onFocus={openPanel}
                 className={`whitespace-nowrap rounded-lg px-3 py-2 text-left text-[1.0625rem] font-medium transition sm:px-4 ${
                   highlighted || (open && active)
-                    ? "bg-indigo-50 text-indigo-900 ring-1 ring-indigo-200/80"
+                    ? "bg-brand-900/6 text-brand-900 ring-1 ring-brand-900/10"
                     : open
-                      ? "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                      ? "text-brand-700 hover:bg-brand-900/5 hover:text-brand-900"
                       : active
-                        ? "bg-indigo-50/90 text-indigo-900"
-                        : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                        ? "bg-brand-900/6 text-brand-900"
+                        : "text-brand-700 hover:bg-brand-900/5 hover:text-brand-900"
                 }`}
                 aria-expanded={open}
                 aria-controls="site-nav-mega-panel"

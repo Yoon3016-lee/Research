@@ -201,16 +201,16 @@ export function SurveyAiGenerator() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 px-5 py-4">
+      <div className="rounded-2xl border border-accent-500/25 bg-gradient-to-br from-accent-500/12 to-transparent px-5 py-4">
         <div className="flex items-start gap-3">
-          <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-indigo-600" aria-hidden />
-          <div className="text-sm text-indigo-950">
+          <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-accent-600" aria-hidden />
+          <div className="text-sm text-brand-900">
             <p className="font-medium">KSIC 기반 AI 설문 생성</p>
-            <p className="mt-1 text-indigo-800/90">
+            <p className="mt-1 text-brand-700">
               산업 분류·조사 목적을 입력하면 AI가 설문안 {proposalCount}개와 CATI 조사원
               스크립트·추천 근거를 제안합니다. 정보가 부족하면 보완 질문을 드립니다.
               {aiProviderLabel ? (
-                <span className="mt-1 block text-xs text-indigo-700/80">
+                <span className="mt-1 block text-xs text-brand-700/80">
                   사용 중인 AI: {aiProviderLabel}
                 </span>
               ) : null}
@@ -236,46 +236,46 @@ export function SurveyAiGenerator() {
             externalValidationLoading={ksicValidationLoading}
           />
 
-          <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-            <h2 className="text-base font-semibold text-zinc-900">조사 개요</h2>
+          <section className="admin-card p-6">
+            <h2 className="text-base font-semibold text-brand-900">조사 개요</h2>
             <div className="mt-4 space-y-4">
               <label className="block">
-                <span className="text-sm font-medium text-zinc-800">조사 목적 *</span>
+                <span className="admin-label">조사 목적 *</span>
                 <textarea
                   required
                   value={brief.researchPurpose}
                   onChange={(e) => updateBrief({ researchPurpose: e.target.value })}
                   rows={3}
-                  className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  className="admin-input mt-1.5"
                   placeholder="예: 커피 전문점 고객 만족도 및 재방문 의향 파악"
                 />
               </label>
               <label className="block">
-                <span className="text-sm font-medium text-zinc-800">응답 대상 *</span>
+                <span className="admin-label">응답 대상 *</span>
                 <input
                   required
                   value={brief.targetRespondent}
                   onChange={(e) => updateBrief({ targetRespondent: e.target.value })}
-                  className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  className="admin-input mt-1.5"
                   placeholder="예: 최근 3개월 내 방문한 20대 이상 개인 고객"
                 />
               </label>
               <label className="block">
-                <span className="text-sm font-medium text-zinc-800">설문 주제·관심 영역</span>
+                <span className="admin-label">설문 주제·관심 영역</span>
                 <input
                   value={brief.surveyTopic}
                   onChange={(e) => updateBrief({ surveyTopic: e.target.value })}
-                  className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  className="admin-input mt-1.5"
                   placeholder="예: 메뉴·가격·매장 환경·배달 서비스"
                 />
               </label>
               <label className="block">
-                <span className="text-sm font-medium text-zinc-800">추가 메모</span>
+                <span className="admin-label">추가 메모</span>
                 <textarea
                   value={brief.additionalNotes}
                   onChange={(e) => updateBrief({ additionalNotes: e.target.value })}
                   rows={2}
-                  className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  className="admin-input mt-1.5"
                   placeholder="표본 규모, 조사 방식(CATI/온라인), 경쟁사 비교 등"
                 />
               </label>
@@ -285,7 +285,7 @@ export function SurveyAiGenerator() {
           <button
             type="submit"
             disabled={pending}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-900 px-6 py-3.5 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60 sm:w-auto"
+            className="admin-btn-primary inline-flex w-full items-center justify-center gap-2 px-6 py-3.5 sm:w-auto"
           >
             {pending ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -325,10 +325,10 @@ export function SurveyAiGenerator() {
           {clarifications.map((c) => (
             <section
               key={c.id}
-              className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
+              className="admin-card p-6"
             >
-              <p className="font-medium text-zinc-900">{c.question}</p>
-              <p className="mt-1 text-sm text-zinc-500">{c.reason}</p>
+              <p className="font-medium text-brand-900">{c.question}</p>
+              <p className="mt-1 text-sm text-brand-700/80">{c.reason}</p>
               {c.suggestions.length > 0 ? (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {c.suggestions.map((s) => (
@@ -343,7 +343,7 @@ export function SurveyAiGenerator() {
                           },
                         })
                       }
-                      className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-900 hover:bg-indigo-100"
+                      className="rounded-lg border border-accent-500/30 bg-accent-500/10 px-2.5 py-1 text-xs font-medium text-brand-900 hover:bg-accent-500/18"
                     >
                       {s}
                     </button>
@@ -362,7 +362,7 @@ export function SurveyAiGenerator() {
                   })
                 }
                 rows={2}
-                className="mt-3 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
+                className="admin-input mt-3"
                 placeholder="답변을 입력하세요"
               />
             </section>
@@ -372,14 +372,14 @@ export function SurveyAiGenerator() {
             <button
               type="button"
               onClick={() => setStep("input")}
-              className="rounded-xl border border-zinc-200 bg-white px-5 py-2.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
+              className="admin-btn-secondary px-5 py-2.5"
             >
               입력 수정
             </button>
             <button
               type="submit"
               disabled={pending}
-              className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-6 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60"
+              className="admin-btn-primary inline-flex items-center gap-2 px-6 py-2.5"
             >
               {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
               다시 생성
@@ -400,7 +400,7 @@ export function SurveyAiGenerator() {
             </div>
           ) : null}
 
-          <p className="text-sm text-zinc-600">
+          <p className="text-sm text-brand-700">
             생성된 설문안 {proposals.length}개 중 하나를 선택한 뒤 편집기에 적용하세요.
           </p>
 
@@ -414,18 +414,18 @@ export function SurveyAiGenerator() {
                   onClick={() => setSelectedId(p.id)}
                   className={`rounded-2xl border p-5 text-left shadow-sm transition ${
                     selected
-                      ? "border-indigo-400 bg-indigo-50/40 ring-2 ring-indigo-300"
-                      : "border-zinc-200 bg-white hover:border-zinc-300"
+                      ? "border-accent-500/50 bg-accent-500/10 ring-2 ring-accent-500/25"
+                      : "border-brand-900/10 bg-white hover:border-accent-500/25"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-semibold text-zinc-900">{p.title}</h3>
+                    <h3 className="font-semibold text-brand-900">{p.title}</h3>
                     {selected ? (
-                      <CheckCircle2 className="h-5 w-5 shrink-0 text-indigo-600" aria-hidden />
+                      <CheckCircle2 className="h-5 w-5 shrink-0 text-accent-600" aria-hidden />
                     ) : null}
                   </div>
-                  <p className="mt-2 text-sm text-zinc-600">{p.summary}</p>
-                  <p className="mt-3 text-xs text-zinc-500">
+                  <p className="mt-2 text-sm text-brand-700">{p.summary}</p>
+                  <p className="mt-3 text-xs text-brand-700/80">
                     문항 {p.questions.length}개 · CATI 스크립트 포함
                   </p>
                 </button>
@@ -437,7 +437,7 @@ export function SurveyAiGenerator() {
             <ProposalDetail proposal={proposals.find((p) => p.id === selectedId)!} />
           ) : null}
 
-          <div className="flex flex-wrap gap-3 border-t border-zinc-200 pt-6">
+          <div className="flex flex-wrap gap-3 border-t border-brand-900/8 pt-6">
             <button
               type="button"
               onClick={() => {
@@ -445,14 +445,14 @@ export function SurveyAiGenerator() {
                 setProposals([]);
                 setWarnings([]);
               }}
-              className="rounded-xl border border-zinc-200 bg-white px-5 py-2.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
+              className="admin-btn-secondary px-5 py-2.5"
             >
               처음부터 다시
             </button>
             <button
               type="button"
               onClick={applyProposal}
-              className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-6 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800"
+              className="admin-btn-primary inline-flex items-center gap-2 px-6 py-2.5 disabled:opacity-60"
             >
               선택한 설문안을 편집기에 적용
             </button>
@@ -493,16 +493,16 @@ export function SurveyAiGenerator() {
 
 function ProposalDetail({ proposal }: { proposal: SurveyAiProposal }) {
   return (
-    <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+    <div className="admin-card space-y-4 p-6">
       <div>
-        <h3 className="text-sm font-semibold text-zinc-900">추천 근거</h3>
-        <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">
+        <h3 className="text-sm font-semibold text-brand-900">추천 근거</h3>
+        <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-brand-800">
           {proposal.rationale}
         </p>
       </div>
       <div>
-        <h3 className="text-sm font-semibold text-zinc-900">KSIC 적합성</h3>
-        <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">
+        <h3 className="text-sm font-semibold text-brand-900">KSIC 적합성</h3>
+        <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-brand-800">
           {proposal.ksicRelevance}
         </p>
       </div>
@@ -523,7 +523,7 @@ function ProposalDetail({ proposal }: { proposal: SurveyAiProposal }) {
                 className="rounded-lg border border-amber-100 bg-white px-3 py-2.5 text-sm"
               >
                 <span className="font-medium text-amber-950">{note.area}</span>
-                <p className="mt-1 leading-relaxed text-zinc-700">{note.detail}</p>
+                <p className="mt-1 leading-relaxed text-brand-800">{note.detail}</p>
               </li>
             ))}
           </ul>
@@ -547,7 +547,7 @@ function ProposalDetail({ proposal }: { proposal: SurveyAiProposal }) {
               >
                 <p className="font-medium text-teal-950">{idea.direction}</p>
                 {idea.reason ? (
-                  <p className="mt-1 text-xs leading-relaxed text-zinc-600">{idea.reason}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-brand-700">{idea.reason}</p>
                 ) : null}
                 <div className="mt-2 flex flex-wrap gap-2 text-xs">
                   {idea.suggestedType ? (
@@ -559,7 +559,7 @@ function ProposalDetail({ proposal }: { proposal: SurveyAiProposal }) {
                   ) : null}
                 </div>
                 {idea.examplePrompt ? (
-                  <p className="mt-2 rounded-md bg-zinc-50 px-2.5 py-2 text-xs leading-relaxed text-zinc-700">
+                  <p className="mt-2 rounded-md bg-surface px-2.5 py-2 text-xs leading-relaxed text-brand-800">
                     예시 질문: {idea.examplePrompt}
                   </p>
                 ) : null}
@@ -570,24 +570,24 @@ function ProposalDetail({ proposal }: { proposal: SurveyAiProposal }) {
       ) : null}
 
       <div>
-        <h3 className="text-sm font-semibold text-zinc-900">문항 미리보기</h3>
+        <h3 className="text-sm font-semibold text-brand-900">문항 미리보기</h3>
         <ol className="mt-3 space-y-2">
           {proposal.questions.map((q, i) => (
             <li
               key={q.clientId}
-              className="rounded-lg border border-zinc-100 bg-zinc-50/80 px-3 py-2 text-sm"
+              className="rounded-lg border border-brand-900/6 bg-surface/80 px-3 py-2 text-sm"
             >
-              <span className="text-xs font-medium text-indigo-700">
+              <span className="text-xs font-medium text-accent-600">
                 {i + 1}. {QUESTION_TYPE_LABELS[q.type]}
               </span>
-              <p className="mt-0.5 text-zinc-800">{q.prompt}</p>
+              <p className="mt-0.5 text-brand-900">{q.prompt}</p>
             </li>
           ))}
         </ol>
       </div>
       <div>
-        <h3 className="text-sm font-semibold text-zinc-900">CATI 스크립트 (일부)</h3>
-        <pre className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-zinc-100 bg-zinc-50 p-3 text-xs leading-relaxed text-zinc-700 whitespace-pre-wrap">
+        <h3 className="text-sm font-semibold text-brand-900">CATI 스크립트 (일부)</h3>
+        <pre className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-brand-900/6 bg-surface p-3 text-xs leading-relaxed text-brand-800 whitespace-pre-wrap">
           {proposal.responseScript.slice(0, 1200)}
           {proposal.responseScript.length > 1200 ? "\n…" : ""}
         </pre>

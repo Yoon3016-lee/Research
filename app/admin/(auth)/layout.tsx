@@ -4,7 +4,7 @@ export default function AdminAuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-100 px-4 py-12">
+    <div className="admin-shell flex min-h-screen flex-col items-center justify-center px-4 py-12">
       {children}
     </div>
   );

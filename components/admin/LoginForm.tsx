@@ -17,7 +17,7 @@ export function LoginForm({ nextPath }: Props) {
     <form action={formAction} className="space-y-4">
       <input type="hidden" name="next" value={nextPath} />
       <div>
-        <label htmlFor="email" className="text-sm font-medium text-zinc-700">
+        <label htmlFor="email" className="admin-label">
           아이디 (이메일)
         </label>
         <input
@@ -26,12 +26,12 @@ export function LoginForm({ nextPath }: Props) {
           type="email"
           autoComplete="email"
           required
-          className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none ring-indigo-500/30 focus:ring-2"
+          className="admin-input mt-1"
           placeholder="name@company.com"
         />
       </div>
       <div>
-        <label htmlFor="password" className="text-sm font-medium text-zinc-700">
+        <label htmlFor="password" className="admin-label">
           비밀번호
         </label>
         <input
@@ -40,7 +40,7 @@ export function LoginForm({ nextPath }: Props) {
           type="password"
           autoComplete="current-password"
           required
-          className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none ring-indigo-500/30 focus:ring-2"
+          className="admin-input mt-1"
         />
       </div>
       {state.error ? (
@@ -51,13 +51,13 @@ export function LoginForm({ nextPath }: Props) {
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-xl bg-zinc-900 py-3 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60"
+        className="w-full admin-btn-primary py-3 disabled:opacity-60"
       >
         {pending ? "처리 중…" : "로그인"}
       </button>
-      <p className="text-center text-sm text-zinc-600">
+      <p className="text-center text-sm text-brand-700">
         계정이 없으신가요?{" "}
-        <Link href="/admin/signup" className="font-medium text-indigo-700 hover:text-indigo-900">
+        <Link href="/admin/signup" className="admin-link">
           관리자 회원가입
         </Link>
       </p>

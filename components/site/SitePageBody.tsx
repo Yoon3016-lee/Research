@@ -11,13 +11,13 @@ export function SitePageBody({
 }: Props) {
   const trimmed = body.trim();
   if (!trimmed) {
-    return <p className="text-slate-500">{emptyMessage}</p>;
+    return <p className="text-brand-700/80">{emptyMessage}</p>;
   }
 
   const segments = parseSitePageBody(trimmed);
 
   return (
-    <div className="space-y-6 text-[1.0625rem] leading-relaxed text-slate-700">
+    <div className="space-y-6 text-[1.0625rem] leading-relaxed text-brand-800">
       {segments.map((seg, i) => {
         if (seg.type === "text") {
           const text = seg.value.trim();
@@ -30,7 +30,7 @@ export function SitePageBody({
         }
         if (seg.type === "image") {
           return (
-            <figure key={i} className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+            <figure key={i} className="overflow-hidden rounded-xl border border-brand-900/10 bg-surface">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={seg.url}
@@ -38,7 +38,7 @@ export function SitePageBody({
                 className="mx-auto max-h-[min(70vh,640px)] w-full object-contain"
               />
               {seg.alt ? (
-                <figcaption className="border-t border-slate-200 px-3 py-2 text-center text-xs text-slate-500">
+                <figcaption className="border-t border-brand-900/10 px-3 py-2 text-center text-xs text-brand-700/80">
                   {seg.alt}
                 </figcaption>
               ) : null}

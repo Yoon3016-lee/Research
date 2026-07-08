@@ -1,22 +1,33 @@
 @import "tailwindcss";
 
+@theme {
+  --color-brand-950: #0a0f1a;
+  --color-brand-900: #0f172a;
+  --color-brand-800: #1e293b;
+  --color-brand-700: #334155;
+  --color-accent-600: #8b7355;
+  --color-accent-500: #a68b5b;
+  --color-accent-400: #c4a574;
+  --color-surface: #f7f6f3;
+  --color-surface-muted: #efede8;
+}
+
 @layer components {
   .site-container {
     padding-inline: var(--site-container-padding);
   }
 
-  /* 좌우 세로선(site-side-rail)과 동일한 폭 — 2 × --site-content-half */
   .site-content-band {
     width: min(var(--site-content-max), calc(2 * var(--site-content-half)));
     margin-inline: auto;
   }
 
   .site-header {
-    background: #ffffff;
-    border-bottom: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.82);
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
   }
 
-  /* 좌우 세로선(site-side-rail)과 동일한 콘텐츠 폭 — 상·하단 그라데이션 */
   .site-header-content-band {
     position: absolute;
     inset: 0;
@@ -24,14 +35,12 @@
     background:
       linear-gradient(
         180deg,
-        rgba(147, 197, 253, 0.32) 0%,
-        rgba(226, 232, 240, 0.45) 14%,
-        rgba(255, 255, 255, 0) 34%,
-        rgba(255, 255, 255, 0) 66%,
-        rgba(226, 232, 240, 0.45) 86%,
-        rgba(147, 197, 253, 0.32) 100%
+        rgba(196, 165, 116, 0.07) 0%,
+        rgba(255, 255, 255, 0) 28%,
+        rgba(255, 255, 255, 0) 72%,
+        rgba(15, 23, 42, 0.03) 100%
       ),
-      #ffffff;
+      rgba(255, 255, 255, 0.4);
   }
 
   .site-header-nav-band {
@@ -43,8 +52,9 @@
 
   .site-visual-frame {
     background:
-      radial-gradient(ellipse 120% 80% at 50% -20%, rgba(59, 130, 246, 0.08), transparent 55%),
-      linear-gradient(180deg, #eef2f7 0%, #f4f7fb 38%, #f8fafc 100%);
+      radial-gradient(ellipse 90% 60% at 50% -15%, rgba(166, 139, 91, 0.09), transparent 52%),
+      radial-gradient(ellipse 70% 50% at 100% 0%, rgba(15, 23, 42, 0.04), transparent 45%),
+      linear-gradient(180deg, #f3f2ee 0%, #f8f7f4 42%, #faf9f7 100%);
   }
 
   .site-side-rail {
@@ -56,9 +66,9 @@
     z-index: 2;
     background: linear-gradient(
       180deg,
-      rgba(30, 58, 138, 0.45) 0%,
-      rgba(15, 23, 42, 0.22) 45%,
-      rgba(59, 130, 246, 0.18) 100%
+      rgba(166, 139, 91, 0.45) 0%,
+      rgba(15, 23, 42, 0.12) 42%,
+      rgba(15, 23, 42, 0.06) 100%
     );
   }
 
@@ -68,6 +78,238 @@
 
   .site-side-rail-right {
     right: max(0px, calc(50% - var(--site-content-half)));
+  }
+
+  /* —— 공개 사이트 UI —— */
+  .site-eyebrow {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-accent-600);
+  }
+
+  .site-card {
+    border-radius: 1rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: rgba(255, 255, 255, 0.92);
+    padding: 1.5rem;
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.04),
+      0 12px 40px -16px rgba(15, 23, 42, 0.12);
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      transform 0.2s ease;
+  }
+
+  @media (min-width: 640px) {
+    .site-card {
+      border-radius: 1.25rem;
+      padding: 1.75rem;
+    }
+  }
+
+  .site-card:hover {
+    border-color: rgba(166, 139, 91, 0.28);
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.05),
+      0 20px 48px -20px rgba(15, 23, 42, 0.16);
+  }
+
+  .site-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.75rem;
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    padding: 0.875rem 1.35rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #fff;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.12) inset,
+      0 8px 24px -8px rgba(15, 23, 42, 0.45);
+    transition:
+      transform 0.15s ease,
+      box-shadow 0.15s ease,
+      background 0.15s ease;
+  }
+
+  .site-btn-primary:hover {
+    background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.14) inset,
+      0 12px 28px -10px rgba(15, 23, 42, 0.5);
+  }
+
+  .site-btn-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    background: rgba(255, 255, 255, 0.85);
+    padding: 0.875rem 1.35rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #1e293b;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease;
+  }
+
+  .site-btn-outline:hover {
+    border-color: rgba(166, 139, 91, 0.45);
+    background: #fff;
+  }
+
+  .site-icon-badge {
+    display: flex;
+    height: 2.75rem;
+    width: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(166, 139, 91, 0.22);
+    background: linear-gradient(145deg, rgba(196, 165, 116, 0.22), rgba(166, 139, 91, 0.1));
+    color: #5c4a32;
+  }
+
+  /* —— 관리자 UI —— */
+  .admin-shell {
+    min-height: 100vh;
+    background:
+      radial-gradient(ellipse 80% 50% at 0% 0%, rgba(166, 139, 91, 0.06), transparent 50%),
+      linear-gradient(180deg, #f3f2ef 0%, #eceae6 100%);
+    color: #0f172a;
+  }
+
+  .admin-card {
+    border-radius: 1rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.04),
+      0 10px 36px -18px rgba(15, 23, 42, 0.14);
+  }
+
+  .admin-stat-card {
+    border-radius: 1rem;
+    border: 1px solid rgba(15, 23, 42, 0.07);
+    background: linear-gradient(165deg, #ffffff 0%, #faf9f7 100%);
+    padding: 1.25rem;
+    box-shadow: 0 8px 30px -20px rgba(15, 23, 42, 0.18);
+  }
+
+  .admin-btn-primary {
+    border-radius: 0.75rem;
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #fff;
+    box-shadow: 0 6px 20px -8px rgba(15, 23, 42, 0.5);
+    transition: opacity 0.15s ease;
+  }
+
+  .admin-btn-primary:hover:not(:disabled) {
+    background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+  }
+
+  .admin-btn-primary:disabled {
+    opacity: 0.55;
+  }
+
+  .admin-input {
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    background: #fff;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+    color: #0f172a;
+    outline: none;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  .admin-input:focus {
+    border-color: rgba(166, 139, 91, 0.55);
+    box-shadow: 0 0 0 3px rgba(166, 139, 91, 0.18);
+  }
+
+  .admin-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #334155;
+  }
+
+  .admin-link {
+    font-weight: 500;
+    color: #8b7355;
+    transition: color 0.15s ease;
+  }
+
+  .admin-link:hover {
+    color: #a68b5b;
+  }
+
+  .admin-btn-secondary {
+    border-radius: 0.75rem;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    background: #fff;
+    padding: 0.5rem 0.875rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #1e293b;
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease;
+  }
+
+  .admin-btn-secondary:hover:not(:disabled) {
+    border-color: rgba(166, 139, 91, 0.4);
+    background: #faf9f7;
+  }
+
+  .site-input {
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    background: #fff;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.9375rem;
+    color: #0f172a;
+    outline: none;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  .site-input:focus {
+    border-color: rgba(166, 139, 91, 0.55);
+    box-shadow: 0 0 0 3px rgba(166, 139, 91, 0.18);
+  }
+
+  .admin-sidebar {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    border-right: 1px solid rgba(15, 23, 42, 0.08);
+    background: linear-gradient(180deg, #ffffff 0%, #faf9f7 100%);
+    color: #0f172a;
+    box-shadow: 1px 0 0 rgba(255, 255, 255, 0.8) inset;
+  }
+
+  @media (min-width: 1024px) {
+    .admin-sidebar {
+      width: 15rem;
+    }
   }
 }
 
@@ -81,21 +323,23 @@
     line-height: 1.7;
     letter-spacing: -0.011em;
     -webkit-font-smoothing: antialiased;
+    color: #0f172a;
   }
 
   .site-public :where(h1, h2, h3) {
     font-family: var(--font-site-display), "Source Serif 4", Georgia, serif;
-    letter-spacing: -0.02em;
-    line-height: 1.25;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+    color: #0f172a;
   }
 
   .site-public :where(h1) {
-    font-size: clamp(2rem, 4vw, 3.25rem);
+    font-size: clamp(2.125rem, 4.2vw, 3.5rem);
     font-weight: 600;
   }
 
   .site-public :where(h2) {
-    font-size: clamp(1.375rem, 2.5vw, 1.75rem);
+    font-size: clamp(1.5rem, 2.6vw, 2rem);
     font-weight: 600;
   }
 

@@ -49,7 +49,3 @@ function describeFieldsForType(type: QuestionType): string {
       return "";
   }
 }
-
-export function getAllowedQuestionTypes(): readonly string[] {
-  return QUESTION_TYPES;
-}

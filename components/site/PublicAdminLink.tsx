@@ -5,7 +5,7 @@ import {
   isPublicAdminLinkVisible,
 } from "@/lib/public-admin-link";
 
-const footerClassName = "text-zinc-600 hover:text-zinc-900";
+const footerClassName = "text-slate-400 transition hover:text-accent-400";
 
 /** 서버 컴포넌트 — 푸터의 관리자 링크 */
 export function PublicAdminFooterLink() {

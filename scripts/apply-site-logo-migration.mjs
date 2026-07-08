@@ -4,61 +4,16 @@
  * 방법 A — Supabase SQL Editor에 migration SQL 붙여넣기 (권장)
  * 방법 B — .env.local 에 DB 비밀번호 설정 후:
  *   SUPABASE_DB_PASSWORD=대시보드 Database 비밀번호
- *   node scripts/apply-site-logo-migration.mjs
+ *   npm run db:migrate-site-logo
  */
 import fs from "fs";
 import path from "path";
 import pg from "pg";
+import { loadProjectEnv, resolveDatabaseUrl } from "./lib/load-env.mjs";
+
+loadProjectEnv();
 
 const root = process.cwd();
-const envPath = path.join(root, ".env.local");
-
-function loadEnvFile(filePath) {
-  if (!fs.existsSync(filePath)) return;
-  const text = fs.readFileSync(filePath, "utf8");
-  for (const line of text.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eq = trimmed.indexOf("=");
-    if (eq === -1) continue;
-    const key = trimmed.slice(0, eq).trim();
-    let val = trimmed.slice(eq + 1).trim();
-    if (
-      (val.startsWith('"') && val.endsWith('"')) ||
-      (val.startsWith("'") && val.endsWith("'"))
-    ) {
-      val = val.slice(1, -1);
-    }
-    if (!(key in process.env)) process.env[key] = val;
-  }
-}
-
-function projectRefFromUrl(url) {
-  try {
-    return new URL(url).hostname.split(".")[0] || null;
-  } catch {
-    return null;
-  }
-}
-
-function resolveDatabaseUrl() {
-  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
-
-  const password = process.env.SUPABASE_DB_PASSWORD;
-  const ref =
-    process.env.SUPABASE_PROJECT_REF ??
-    projectRefFromUrl(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "");
-
-  if (password && ref) {
-    const enc = encodeURIComponent(password);
-    return `postgresql://postgres:${enc}@db.${ref}.supabase.co:5432/postgres`;
-  }
-
-  return null;
-}
-
-loadEnvFile(envPath);
-
 const databaseUrl = resolveDatabaseUrl();
 if (!databaseUrl) {
   console.error(

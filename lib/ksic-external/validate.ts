@@ -8,7 +8,7 @@ import {
   type KsicExternalValidation,
 } from "@/lib/ksic-external/types";
 
-export async function getLatestExternalSyncRun(): Promise<KsicExternalSyncRun | null> {
+async function getLatestExternalSyncRun(): Promise<KsicExternalSyncRun | null> {
   const admin = createSupabaseServiceRoleClient();
   const { data, error } = await admin
     .from("ksic_external_sync_runs")
@@ -34,7 +34,7 @@ export async function getLatestExternalSyncRun(): Promise<KsicExternalSyncRun | 
   };
 }
 
-export async function lookupExternalCodeDb(
+async function lookupExternalCodeDb(
   code: string,
 ): Promise<{ code: string; nameKo: string; industryLevel: number | null; syncedAt: string } | null> {
   const trimmed = code.trim().toUpperCase();

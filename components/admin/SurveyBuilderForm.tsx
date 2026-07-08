@@ -173,19 +173,19 @@ export function SurveyBuilderForm({
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto max-w-6xl space-y-8 pb-20">
-      <div className="rounded-2xl border border-zinc-200/90 bg-white p-6 shadow-sm ring-1 ring-zinc-100">
-        <h2 className="text-base font-semibold tracking-tight text-zinc-900">
+      <div className="admin-card p-6">
+        <h2 className="text-base font-semibold tracking-tight text-brand-900">
           설문 기본 정보
         </h2>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-brand-700/80">
           {isEdit
             ? "기본 정보와 문항을 수정한 뒤 저장합니다."
             : "제목과 배포 설정을 먼저 정한 뒤, 아래「문항 추가」패널에서 유형별로 문항을 넣습니다."}
         </p>
         {isEdit && slug ? (
-          <p className="mt-3 text-xs text-zinc-500">
+          <p className="mt-3 text-xs text-brand-700/80">
             참여 URL slug:{" "}
-            <code className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-zinc-800">
+            <code className="rounded bg-brand-900/6 px-1.5 py-0.5 font-mono text-brand-900">
               {slug}
             </code>
           </p>
@@ -197,56 +197,56 @@ export function SurveyBuilderForm({
           </p>
         ) : null}
         {templateSource ? (
-          <p className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/60 px-3 py-2 text-xs text-indigo-950">
+          <p className="mt-3 rounded-lg border border-accent-500/25 bg-accent-500/10 px-3 py-2 text-xs text-brand-900">
             템플릿: 「{templateSource.title}」({templateSource.slug})에서 문항{" "}
             {questions.length}개를 불러왔습니다. 제목·기간 등은 새로 입력·저장됩니다.
           </p>
         ) : null}
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <label className="block sm:col-span-2">
-            <span className="text-sm font-medium text-zinc-800">제목 *</span>
+            <span className="admin-label">제목 *</span>
             <input
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-zinc-200 bg-zinc-50/30 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-300 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+              className="admin-input mt-1.5"
               placeholder="예: 2026년 1분기 고객 만족도 조사"
             />
           </label>
           <label className="block sm:col-span-2">
-            <span className="text-sm font-medium text-zinc-800">설명</span>
+            <span className="admin-label">설명</span>
             <textarea
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
               rows={3}
-              className="mt-1.5 w-full rounded-xl border border-zinc-200 bg-zinc-50/30 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-300 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+              className="admin-input mt-1.5"
               placeholder="설문 목적·대상 등을 간단히 적어 주세요."
             />
           </label>
           <label className="block">
-            <span className="text-sm font-medium text-zinc-800">시작일 *</span>
+            <span className="admin-label">시작일 *</span>
             <input
               type="date"
               required
               value={periodStart}
               onChange={(e) => setPeriodStart(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="admin-input mt-1.5"
             />
           </label>
           <label className="block">
-            <span className="text-sm font-medium text-zinc-800">종료일 *</span>
+            <span className="admin-label">종료일 *</span>
             <input
               type="date"
               required
               value={periodEnd}
               min={periodStart || undefined}
               onChange={(e) => setPeriodEnd(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="admin-input mt-1.5"
             />
           </label>
           <div className="block sm:col-span-2">
-            <span className="text-sm font-medium text-zinc-800">설문 상태</span>
-            <p className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-zinc-600">
+            <span className="admin-label">설문 상태</span>
+            <p className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-brand-700">
               {autoStatus ? (
                 <span
                   className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
@@ -254,27 +254,27 @@ export function SurveyBuilderForm({
                       ? "bg-emerald-100 text-emerald-900"
                       : autoStatus === "예정"
                         ? "bg-amber-100 text-amber-900"
-                        : "bg-zinc-200 text-zinc-800"
+                        : "bg-brand-900/10 text-brand-800"
                   }`}
                 >
                   {autoStatus}
                 </span>
               ) : (
-                <span className="text-zinc-500">날짜를 선택하면 자동으로 표시됩니다.</span>
+                <span className="text-brand-700/80">날짜를 선택하면 자동으로 표시됩니다.</span>
               )}
-              <span className="text-xs text-zinc-500">
+              <span className="text-xs text-brand-700/80">
                 오늘 날짜와 시작·종료일을 비교해 예정 / 진행중 / 종료로 설정됩니다.
               </span>
             </p>
           </div>
           <label className="block">
-            <span className="text-sm font-medium text-zinc-800">목표 응답 수</span>
+            <span className="admin-label">목표 응답 수</span>
             <input
               type="number"
               min={0}
               value={targetCount}
               onChange={(e) => setTargetCount(Number(e.target.value))}
-              className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="admin-input mt-1.5"
             />
           </label>
           <label className="flex items-center gap-2 sm:col-span-2">
@@ -282,9 +282,9 @@ export function SurveyBuilderForm({
               type="checkbox"
               checked={listedPublic}
               onChange={(e) => setListedPublic(e.target.checked)}
-              className="h-4 w-4 rounded border-zinc-300 text-indigo-600"
+              className="h-4 w-4 rounded border-brand-900/20 text-accent-600"
             />
-            <span className="text-sm text-zinc-700">
+            <span className="text-sm text-brand-800">
               공개 사이트 목록에 표시 (진행중·예정). 참여는 진행중일 때만 가능
             </span>
           </label>
@@ -292,20 +292,20 @@ export function SurveyBuilderForm({
       </div>
 
 
-      <div className="rounded-2xl border border-zinc-200/90 bg-white p-6 shadow-sm ring-1 ring-zinc-100">
-        <h2 className="text-base font-semibold tracking-tight text-zinc-900">
+      <div className="admin-card p-6">
+        <h2 className="text-base font-semibold tracking-tight text-brand-900">
           응답 스크립트 (직원용)
         </h2>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-brand-700/80">
           직원이 설문 입력·전화 조사 시 「스크립트 확인」 팝업에서 볼 내용입니다.
         </p>
         <label className="mt-5 block">
-          <span className="text-sm font-medium text-zinc-800">스크립트 본문</span>
+          <span className="admin-label">스크립트 본문</span>
           <textarea
             value={responseScript}
             onChange={(e) => setResponseScript(e.target.value)}
             rows={14}
-            className="mt-1.5 w-full rounded-xl border border-zinc-200 bg-zinc-50/30 px-3 py-2.5 font-mono text-sm leading-relaxed outline-none transition focus:border-indigo-300 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+            className="admin-input mt-1.5 font-mono leading-relaxed"
             placeholder="전화 조사 시 직원이 읽을 스크립트를 입력하세요."
           />
         </label>
@@ -313,10 +313,10 @@ export function SurveyBuilderForm({
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_17.5rem]">
         <div className="order-2 min-w-0 space-y-4 lg:order-1">
-          <div className="flex flex-wrap items-end justify-between gap-2 border-b border-zinc-200 pb-2">
+          <div className="flex flex-wrap items-end justify-between gap-2 border-b border-brand-900/8 pb-2">
             <div>
-              <h2 className="text-base font-semibold text-zinc-900">문항 목록</h2>
-              <p className="mt-0.5 text-xs text-zinc-500">
+              <h2 className="text-base font-semibold text-brand-900">문항 목록</h2>
+              <p className="mt-0.5 text-xs text-brand-700/80">
                 총 {questions.length}문항
               </p>
             </div>
@@ -326,25 +326,25 @@ export function SurveyBuilderForm({
                 excludeSlug={isEdit ? slug : undefined}
                 mode="apply"
                 onApply={applyTemplate}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-900 hover:bg-indigo-100"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-accent-500/30 bg-accent-500/10 px-3 py-1.5 text-xs font-semibold text-brand-900 hover:bg-accent-500/18"
                 label="다른 설문에서 문항 가져오기"
               />
             ) : null}
           </div>
 
           {questions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50/50 px-6 py-16 text-center">
+            <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-brand-900/12 bg-surface/60 px-6 py-16 text-center">
               <ClipboardList
-                className="h-10 w-10 text-zinc-300"
+                className="h-10 w-10 text-brand-700/30"
                 aria-hidden
               />
-              <p className="mt-4 text-sm font-medium text-zinc-700">
+              <p className="mt-4 text-sm font-medium text-brand-800">
                 아직 문항이 없습니다
               </p>
-              <p className="mt-2 max-w-sm text-sm leading-relaxed text-zinc-500">
-                <strong className="font-medium text-zinc-700">문항 추가</strong> 패널에서
+              <p className="mt-2 max-w-sm text-sm leading-relaxed text-brand-700/80">
+                <strong className="font-medium text-brand-900">문항 추가</strong> 패널에서
                 유형을 선택하거나,{" "}
-                <strong className="font-medium text-zinc-700">다른 설문에서 문항 가져오기</strong>
+                <strong className="font-medium text-brand-900">다른 설문에서 문항 가져오기</strong>
                 로 기존 설문 문항을 복사할 수 있습니다.
               </p>
             </div>
@@ -378,17 +378,17 @@ export function SurveyBuilderForm({
         </p>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-3 border-t border-zinc-200 pt-8">
+      <div className="flex flex-wrap items-center gap-3 border-t border-brand-900/8 pt-8">
         <button
           type="submit"
           disabled={pending}
-          className="rounded-xl bg-zinc-900 px-8 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800 disabled:opacity-60"
+          className="admin-btn-primary px-8 py-3"
         >
           {pending ? "저장 중…" : isEdit ? "변경 저장" : "설문 저장"}
         </button>
         <Link
           href="/admin/surveys"
-          className="rounded-xl border border-zinc-200 bg-white px-8 py-3 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-50"
+          className="admin-btn-secondary px-8 py-3"
         >
           취소
         </Link>

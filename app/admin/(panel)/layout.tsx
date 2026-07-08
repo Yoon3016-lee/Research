@@ -9,7 +9,7 @@ export default async function AdminPanelLayout({
   await requireAdminPanelAccess();
 
   return (
-    <div className="min-h-screen bg-zinc-100 text-zinc-900">
+    <div className="admin-shell">
       <div className="mx-auto flex min-h-screen max-w-[1600px]">
         <div className="hidden lg:block lg:shrink-0">
           <div className="sticky top-0 h-screen">
@@ -17,7 +17,7 @@ export default async function AdminPanelLayout({
           </div>
         </div>
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="border-b border-zinc-200 bg-white lg:hidden">
+          <div className="border-b border-brand-900/8 bg-white/90 backdrop-blur-md lg:hidden">
             <AdminSidebarWrapper />
           </div>
           <div className="flex-1">{children}</div>

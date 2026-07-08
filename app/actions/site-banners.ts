@@ -203,3 +203,81 @@ export async function moveSiteBannerOrderAction(
   revalidateBanners();
   return { ok: true };
 }
+
+export async function updateSiteBannerAction(
+  _prev: SiteBannerActionState,
+  formData: FormData,
+): Promise<SiteBannerActionState> {
+  await requireSuperAdmin();
+
+  const id = String(formData.get("id") ?? "").trim();
+  const title = String(formData.get("title") ?? "").trim();
+  const linkUrlRaw = String(formData.get("link_url") ?? "").trim();
+  const file = formData.get("file");
+
+  if (!id) return { error: "배너 ID가 없습니다." };
+
+  const admin = createSupabaseServiceRoleClient();
+  const { data: existing, error: fetchError } = await admin
+    .from("site_banners")
+    .select("storage_path, placement")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (fetchError) return { error: fetchError.message };
+  if (!existing) return { error: "배너를 찾을 수 없습니다." };
+
+  const updates: {
+    title: string;
+    link_url: string | null;
+    updated_at: string;
+    media_type?: "image" | "pdf";
+    file_url?: string;
+    storage_path?: string;
+  } = {
+    title,
+    link_url: null,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (linkUrlRaw) {
+    const normalized = normalizeLinkUrl(linkUrlRaw);
+    if (!normalized) {
+      return {
+        error: "링크는 / 로 시작하는 경로 또는 http(s):// URL 이어야 합니다.",
+      };
+    }
+    updates.link_url = normalized;
+  }
+
+  let oldStoragePath: string | undefined;
+
+  if (file instanceof File && file.size > 0) {
+    const placement = parsePlacement(String(existing.placement ?? ""));
+    if (!placement) return { error: "배너 종류가 올바르지 않습니다." };
+
+    const uploaded = await uploadSiteMediaFile(file, `banners/${placement}`);
+    if (!uploaded.ok) return { error: uploaded.error };
+
+    updates.media_type = uploaded.data.mediaType;
+    updates.file_url = uploaded.data.url;
+    updates.storage_path = uploaded.data.storagePath;
+    oldStoragePath = existing.storage_path as string | undefined;
+  }
+
+  const { error } = await admin.from("site_banners").update(updates).eq("id", id);
+
+  if (error) {
+    if (updates.storage_path) {
+      await deleteSiteMediaFile(updates.storage_path);
+    }
+    return { error: error.message };
+  }
+
+  if (oldStoragePath && oldStoragePath !== updates.storage_path) {
+    await deleteSiteMediaFile(oldStoragePath);
+  }
+
+  revalidateBanners();
+  return { ok: true };
+}

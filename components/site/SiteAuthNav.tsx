@@ -22,10 +22,10 @@ const btnPrimaryDark =
   "inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-blue-500 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-400";
 
 const btnOutlineLight =
-  "inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-800 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/60 hover:text-indigo-900";
+  "inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-brand-900/12 bg-white/90 px-3 py-2 text-sm font-medium text-brand-800 shadow-sm transition hover:border-accent-500/40 hover:bg-white";
 
 const btnPrimaryLight =
-  "inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700";
+  "inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-gradient-to-b from-brand-800 to-brand-900 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:from-brand-700 hover:to-brand-800";
 
 function getAuthError(result: SiteAuthResult): string | null {
   return result.error ?? null;
@@ -139,10 +139,10 @@ export function SiteAuthNav({ participant, headerTheme = "light" }: Props) {
           className="hidden max-w-[10rem] truncate text-right leading-tight sm:block"
           title={participant.email}
         >
-          <p className={`truncate text-xs font-medium ${dark ? "text-slate-100" : "text-zinc-900"}`}>
+          <p className={`truncate text-xs font-medium ${dark ? "text-slate-100" : "text-brand-900"}`}>
             {participant.email}
           </p>
-          <p className={`truncate text-[11px] ${dark ? "text-slate-300" : "text-zinc-500"}`}>
+          <p className={`truncate text-[11px] ${dark ? "text-slate-300" : "text-brand-700/80"}`}>
             {subtitle}
           </p>
         </div>
@@ -195,7 +195,7 @@ export function SiteAuthNav({ participant, headerTheme = "light" }: Props) {
         <AuthPopover title="로그인" onClose={() => setPanel(null)}>
           <form onSubmit={handleLogin} className="space-y-3">
             <input type="hidden" name="next" value={returnPath} />
-            <p className="text-xs text-zinc-600">
+            <p className="text-xs text-brand-700">
               직원·게스트 계정 모두 동일하게 로그인합니다.
             </p>
             <AuthFields idPrefix="site-login" />
@@ -207,15 +207,15 @@ export function SiteAuthNav({ participant, headerTheme = "light" }: Props) {
             <button
               type="submit"
               disabled={loginPending}
-              className="w-full rounded-xl bg-zinc-900 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60"
+              className="w-full admin-btn-primary py-2.5 disabled:opacity-60"
             >
               {loginPending ? "처리 중…" : "로그인"}
             </button>
-            <p className="text-center text-xs text-zinc-500">
+            <p className="text-center text-xs text-brand-700/80">
               직원 계정이 없으면{" "}
               <Link
                 href={`/admin/signup?next=${encodeURIComponent(returnPath)}`}
-                className="font-medium text-indigo-700 hover:underline"
+                className="admin-link hover:underline"
                 onClick={() => setPanel(null)}
               >
                 직원 회원가입
@@ -229,7 +229,7 @@ export function SiteAuthNav({ participant, headerTheme = "light" }: Props) {
         <AuthPopover title="게스트 회원가입" onClose={() => setPanel(null)}>
           <form onSubmit={handleSignup} className="space-y-3">
             <input type="hidden" name="next" value={returnPath} />
-            <p className="text-xs text-zinc-600">
+            <p className="text-xs text-brand-700">
               가입키 없이 게스트 계정을 만듭니다. 설문 참여 시 작업량에 반영됩니다.
             </p>
             <AuthFields idPrefix="site-signup" withConfirm />
@@ -241,7 +241,7 @@ export function SiteAuthNav({ participant, headerTheme = "light" }: Props) {
             <button
               type="submit"
               disabled={signupPending}
-              className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+              className="w-full site-btn-primary py-2.5 text-sm disabled:opacity-60"
             >
               {signupPending ? "처리 중…" : "가입하기"}
             </button>
@@ -265,14 +265,14 @@ function AuthPopover({
     <div
       role="dialog"
       aria-label={title}
-      className="absolute right-0 top-full z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-zinc-200 bg-white p-4 shadow-lg"
+      className="absolute right-0 top-full z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-brand-900/10 bg-white p-4 shadow-xl"
     >
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-zinc-900">{title}</h2>
+        <h2 className="text-sm font-semibold text-brand-900">{title}</h2>
         <button
           type="button"
           onClick={onClose}
-          className="text-xs text-zinc-500 hover:text-zinc-800"
+          className="text-xs text-brand-700/80 hover:text-brand-900"
         >
           닫기
         </button>
@@ -292,7 +292,7 @@ function AuthFields({
   return (
     <>
       <div>
-        <label htmlFor={`${idPrefix}-email`} className="text-xs font-medium text-zinc-700">
+        <label htmlFor={`${idPrefix}-email`} className="text-xs font-medium text-brand-800">
           이메일
         </label>
         <input
@@ -301,11 +301,11 @@ function AuthFields({
           type="email"
           required
           autoComplete="email"
-          className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none ring-indigo-500/30 focus:ring-2"
+          className="site-input mt-1 text-sm"
         />
       </div>
       <div>
-        <label htmlFor={`${idPrefix}-password`} className="text-xs font-medium text-zinc-700">
+        <label htmlFor={`${idPrefix}-password`} className="text-xs font-medium text-brand-800">
           비밀번호
         </label>
         <input
@@ -314,12 +314,12 @@ function AuthFields({
           type="password"
           required
           autoComplete={withConfirm ? "new-password" : "current-password"}
-          className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none ring-indigo-500/30 focus:ring-2"
+          className="site-input mt-1 text-sm"
         />
       </div>
       {withConfirm ? (
         <div>
-          <label htmlFor={`${idPrefix}-password2`} className="text-xs font-medium text-zinc-700">
+          <label htmlFor={`${idPrefix}-password2`} className="text-xs font-medium text-brand-800">
             비밀번호 확인
           </label>
           <input
@@ -328,7 +328,7 @@ function AuthFields({
             type="password"
             required
             autoComplete="new-password"
-            className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none ring-indigo-500/30 focus:ring-2"
+            className="site-input mt-1 text-sm"
           />
         </div>
       ) : null}

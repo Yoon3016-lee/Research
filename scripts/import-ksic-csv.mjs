@@ -3,52 +3,12 @@ import path from "path";
 import pg from "pg";
 import { createClient } from "@supabase/supabase-js";
 import { loadCsvTable } from "./lib/parse-csv.mjs";
+import { loadProjectEnv, resolveDatabaseUrl } from "./lib/load-env.mjs";
 
 const REVISION = 11;
 const BATCH = 80;
 
 const root = process.cwd();
-const envPath = path.join(root, ".env.local");
-
-function loadEnvFile(filePath) {
-  if (!fs.existsSync(filePath)) return;
-  const text = fs.readFileSync(filePath, "utf8");
-  for (const line of text.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eq = trimmed.indexOf("=");
-    if (eq === -1) continue;
-    const key = trimmed.slice(0, eq).trim();
-    let val = trimmed.slice(eq + 1).trim();
-    if (
-      (val.startsWith('"') && val.endsWith('"')) ||
-      (val.startsWith("'") && val.endsWith("'"))
-    ) {
-      val = val.slice(1, -1);
-    }
-    if (!(key in process.env)) process.env[key] = val;
-  }
-}
-
-function projectRefFromUrl(url) {
-  try {
-    return new URL(url).hostname.split(".")[0] || null;
-  } catch {
-    return null;
-  }
-}
-
-function resolveDatabaseUrl() {
-  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
-  const password = process.env.SUPABASE_DB_PASSWORD;
-  const ref =
-    process.env.SUPABASE_PROJECT_REF ??
-    projectRefFromUrl(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "");
-  if (password && ref) {
-    return `postgresql://postgres:${encodeURIComponent(password)}@db.${ref}.supabase.co:5432/postgres`;
-  }
-  return null;
-}
 
 function cell(row, idx, col) {
   const i = idx[col];
@@ -253,7 +213,7 @@ async function main() {
     throw new Error(`detail_code 미매칭: ${detailMissing[0].detail_code}`);
   }
 
-  loadEnvFile(envPath);
+  loadProjectEnv();
   const databaseUrl = resolveDatabaseUrl();
 
   if (databaseUrl) {

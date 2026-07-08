@@ -76,20 +76,20 @@ export default async function SurveyParticipatePage({ params }: Props) {
   return (
     <SiteContainer as="main" width="survey" className="py-10 sm:py-12">
       <p>
-        <Link href="/surveys" className="font-medium text-indigo-700 hover:text-indigo-900">
+        <Link href="/surveys" className="font-medium text-accent-600 hover:text-accent-500">
           ← 진행중 설문 목록
         </Link>
       </p>
 
-      <header className="mt-6 border-b border-zinc-200 pb-6">
+      <header className="mt-6 border-b border-brand-900/10 pb-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h1 className="font-semibold text-zinc-900">{survey.title}</h1>
+            <h1>{survey.title}</h1>
             {survey.summary ? (
-              <p className="mt-2 text-zinc-600">{survey.summary}</p>
+              <p className="mt-2 text-brand-700">{survey.summary}</p>
             ) : null}
             {survey.periodLabel ? (
-              <p className="mt-2 text-zinc-500">기간 · {survey.periodLabel}</p>
+              <p className="mt-2 text-brand-700/80">기간 · {survey.periodLabel}</p>
             ) : null}
           </div>
           {participant.mode === "staff" ? (

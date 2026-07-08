@@ -35,7 +35,7 @@ export default async function SiteLayout({
 
   return (
     <div
-      className={`site-public ${siteBody.className} ${siteBody.variable} ${siteDisplay.variable} flex min-h-screen flex-col text-slate-900`}
+      className={`site-public ${siteBody.className} ${siteBody.variable} ${siteDisplay.variable} flex min-h-screen flex-col`}
     >
       <SiteHeader homepage={homepage} adminLink={adminLink} participant={participant} />
       <SiteVisualFrame>{children}</SiteVisualFrame>

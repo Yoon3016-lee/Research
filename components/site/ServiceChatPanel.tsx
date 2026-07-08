@@ -52,24 +52,24 @@ export function ServiceChatPanel() {
   }, [input, pushAssistant]);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+    <div className="site-card overflow-hidden p-0">
       <button
         type="button"
         onClick={() => setExpanded((e) => !e)}
-        className="flex w-full items-center justify-between gap-2 border-b border-zinc-100 px-4 py-3 text-left sm:hidden"
+        className="flex w-full items-center justify-between gap-2 border-b border-brand-900/8 px-4 py-3 text-left sm:hidden"
         aria-expanded={expanded}
       >
-        <span className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
-          <Bot className="h-4 w-4 text-indigo-600" aria-hidden />
+        <span className="flex items-center gap-2 text-sm font-semibold text-brand-900">
+          <Bot className="h-4 w-4 text-accent-600" aria-hidden />
           챗봇
         </span>
-        <span className="text-xs text-zinc-500">{expanded ? "접기" : "펼치기"}</span>
+        <span className="text-xs text-brand-700/80">{expanded ? "접기" : "펼치기"}</span>
       </button>
 
       <div className={`${expanded ? "block" : "hidden"} sm:block`}>
-        <div className="hidden items-center gap-2 border-b border-zinc-100 px-4 py-3 sm:flex">
-          <Bot className="h-4 w-4 text-indigo-600" aria-hidden />
-          <span className="text-sm font-semibold text-zinc-900">챗봇 (데모)</span>
+        <div className="hidden items-center gap-2 border-b border-brand-900/8 px-4 py-3 sm:flex">
+          <Bot className="h-4 w-4 text-accent-600" aria-hidden />
+          <span className="text-sm font-semibold text-brand-900">챗봇 (데모)</span>
         </div>
         <div className="flex max-h-[min(420px,60vh)] flex-col">
           <div className="flex-1 space-y-3 overflow-y-auto p-4">
@@ -81,8 +81,8 @@ export function ServiceChatPanel() {
                 <div
                   className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
                     m.role === "user"
-                      ? "bg-indigo-600 text-white"
-                      : "bg-zinc-100 text-zinc-800"
+                      ? "bg-gradient-to-b from-brand-800 to-brand-900 text-white"
+                      : "bg-surface text-brand-900"
                   }`}
                 >
                   {m.text}
@@ -90,7 +90,7 @@ export function ServiceChatPanel() {
               </div>
             ))}
           </div>
-          <div className="border-t border-zinc-100 p-3">
+          <div className="border-t border-brand-900/8 p-3">
             <div className="flex flex-wrap gap-2">
               {quickReplies.map((q) => (
                 <button
@@ -103,7 +103,7 @@ export function ServiceChatPanel() {
                     ]);
                     setTimeout(() => pushAssistant(demoReply.default), 400);
                   }}
-                  className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs text-zinc-700 hover:border-indigo-200 hover:bg-indigo-50"
+                  className="rounded-full border border-brand-900/10 bg-surface px-3 py-1 text-xs text-brand-800 transition hover:border-accent-500/35 hover:bg-accent-500/10"
                 >
                   {q}
                 </button>
@@ -124,12 +124,12 @@ export function ServiceChatPanel() {
                   }
                 }}
                 placeholder="메시지를 입력하세요"
-                className="min-h-10 flex-1 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none ring-indigo-500/30 focus:ring-2"
+                className="site-input min-h-10 flex-1 text-sm"
               />
               <button
                 type="button"
                 onClick={send}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
+                className="site-btn-primary inline-flex h-10 w-10 items-center justify-center p-0"
                 aria-label="보내기"
               >
                 <Send className="h-4 w-4" />

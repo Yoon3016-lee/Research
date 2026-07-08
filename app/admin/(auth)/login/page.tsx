@@ -11,9 +11,10 @@ export default async function AdminLoginPage({
   const nextPath = next?.startsWith("/") && !next.startsWith("//") ? next : "/admin";
 
   return (
-    <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
-      <h1 className="text-xl font-semibold tracking-tight text-zinc-900">관리자 로그인</h1>
-      <p className="mt-1 text-sm text-zinc-600">
+    <div className="admin-card w-full max-w-md p-8">
+      <p className="site-eyebrow">Admin</p>
+      <h1 className="mt-2 text-xl font-semibold tracking-tight text-brand-900">관리자 로그인</h1>
+      <p className="mt-2 text-sm text-brand-700">
         아이디는 이메일 주소를 사용합니다. 가입키는 회원가입 시에만 필요합니다.
       </p>
       {notice === "confirm-email" ? (

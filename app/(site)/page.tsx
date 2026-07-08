@@ -20,30 +20,23 @@ export default async function HomePage() {
     <main>
       {popupBanners.length > 0 ? <HomePopupBanners banners={popupBanners} /> : null}
       {topBanners.length > 0 ? <HomeTopBanner banners={topBanners} /> : null}
-      <section className="relative overflow-hidden border-b border-slate-200/80 bg-gradient-to-b from-white/90 via-slate-50/80 to-transparent">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(59,130,246,0.14),transparent)]" />
+      <section className="relative overflow-hidden border-b border-brand-900/8">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_55%_at_70%_-10%,rgba(196,165,116,0.18),transparent_55%)]" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-accent-500/35 to-transparent" />
         <SiteContainer className="relative py-16 sm:py-24 lg:py-28">
-          <p className="text-[0.9375rem] font-semibold tracking-wide text-blue-700">
-            Market Research
-          </p>
-          <h1 className="mt-4 max-w-4xl font-semibold text-slate-900">{siteName}</h1>
-          <p className="mt-5 max-w-3xl text-lg leading-relaxed text-slate-600">
-            데이터 기반 인사이트와 설문 리서치를 제공합니다. 상단 메뉴에서 회사 소개, 설문
-            참여, 서비스 안내를 확인하세요.
+          <p className="site-eyebrow">Market Research Platform</p>
+          <h1 className="mt-5 max-w-4xl">{siteName}</h1>
+          <p className="mt-6 max-w-2xl text-lg leading-relaxed text-brand-700">
+            데이터 기반 인사이트와 설문 리서치를 제공합니다. 신뢰할 수 있는 조사 설계부터
+            수집·분석까지, 한곳에서 경험하세요.
           </p>
           <div className="mt-10 flex flex-wrap gap-3">
-            <Link
-              href={primarySurveyHref}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3.5 text-base font-semibold text-white shadow-sm transition hover:bg-blue-700"
-            >
+            <Link href={primarySurveyHref} className="site-btn-primary">
               설문 참여하기
               <ArrowRight className="h-4 w-4" aria-hidden />
             </Link>
             {introItems[0] ? (
-              <Link
-                href={introItems[0].href}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3.5 text-base font-semibold text-slate-800 shadow-sm transition hover:border-blue-200 hover:bg-blue-50/50"
-              >
+              <Link href={introItems[0].href} className="site-btn-outline">
                 {introItems[0].label}
               </Link>
             ) : null}
@@ -52,11 +45,12 @@ export default async function HomePage() {
       </section>
 
       <SiteContainer as="section" className="py-14 sm:py-16 lg:py-20">
-        <h2 className="font-semibold text-slate-900">리서치 서비스</h2>
-        <p className="mt-2 text-slate-600">
+        <p className="site-eyebrow">Services</p>
+        <h2 className="mt-3">리서치 서비스</h2>
+        <p className="mt-3 max-w-2xl text-brand-700">
           설계부터 수집·분석까지, 맞춤형 조사 프로젝트를 지원합니다.
         </p>
-        <ul className="mt-10 grid gap-6 sm:grid-cols-3">
+        <ul className="mt-12 grid gap-6 sm:grid-cols-3">
           {[
             {
               title: "설문 설계·배포",
@@ -74,15 +68,12 @@ export default async function HomePage() {
               icon: Users,
             },
           ].map(({ title, desc, icon: Icon }) => (
-            <li
-              key={title}
-              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
-            >
-              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-800">
+            <li key={title} className="site-card group">
+              <span className="site-icon-badge">
                 <Icon className="h-5 w-5" aria-hidden />
               </span>
-              <h3 className="mt-4 font-semibold text-slate-900">{title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-slate-600">{desc}</p>
+              <h3 className="mt-5">{title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-brand-700">{desc}</p>
             </li>
           ))}
         </ul>
