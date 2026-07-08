@@ -11,6 +11,7 @@ export type SharedScriptActionState = {
 
 function revalidateSharedScriptPaths() {
   revalidatePath("/admin/shared-scripts");
+  revalidatePath("/admin/surveys");
   revalidatePath("/survey-script", "layout");
 }
 

@@ -1,6 +1,7 @@
 import { Noto_Sans_KR, Source_Serif_4 } from "next/font/google";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
+import { SiteNameFontLinks } from "@/components/site/SiteNameFontLinks";
 import { SiteVisualFrame } from "@/components/site/SiteVisualFrame";
 import { getSurveyParticipant } from "@/lib/participant";
 import { getPublicAdminLinkConfig } from "@/lib/public-admin-link";
@@ -34,12 +35,16 @@ export default async function SiteLayout({
   ]);
 
   return (
-    <div
-      className={`site-public ${siteBody.className} ${siteBody.variable} ${siteDisplay.variable} flex min-h-screen flex-col`}
-    >
-      <SiteHeader homepage={homepage} adminLink={adminLink} participant={participant} />
-      <SiteVisualFrame>{children}</SiteVisualFrame>
-      <SiteFooter siteName={homepage.siteName} groups={homepage.groups} />
-    </div>
+    <>
+      <SiteNameFontLinks fontKey={homepage.siteNameFont} />
+      <div
+        className={`site-public ${siteBody.className} ${siteBody.variable} ${siteDisplay.variable} flex min-h-screen flex-col`}
+        style={{ ["--font-site-name" as string]: homepage.siteNameFontFamily }}
+      >
+        <SiteHeader homepage={homepage} adminLink={adminLink} participant={participant} />
+        <SiteVisualFrame>{children}</SiteVisualFrame>
+        <SiteFooter siteName={homepage.siteName} groups={homepage.groups} />
+      </div>
+    </>
   );
 }

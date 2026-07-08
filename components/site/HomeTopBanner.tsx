@@ -10,7 +10,7 @@ export function HomeTopBanner({ banners }: Props) {
 
   return (
     <section
-      className="site-content-band relative z-0 border-b border-slate-200 bg-white"
+      className="relative z-0 w-full border-b border-slate-200 bg-white"
       aria-label="상단 배너"
     >
       <div className="flex flex-col">

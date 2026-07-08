@@ -14,6 +14,7 @@ export type SiteBannerActionState = {
 function revalidateBanners() {
   revalidatePath("/", "layout");
   revalidatePath("/admin/banners");
+  revalidatePath("/admin/homepage");
 }
 
 function parsePlacement(raw: string): SiteBannerPlacement | null {

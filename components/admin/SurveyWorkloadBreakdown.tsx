@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { Download } from "lucide-react";
 import type { SurveyWorkloadStats } from "@/lib/survey-workload";
 
 function WorkloadTable({
@@ -89,13 +91,27 @@ function WorkloadTable({
 export function SurveyWorkloadSection({ workload }: { workload: SurveyWorkloadStats }) {
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
-      <div className="border-b border-zinc-100 px-5 py-4">
-        <h2 className="text-sm font-semibold text-zinc-900">이 설문 작업량</h2>
-        <p className="mt-1 text-sm text-zinc-600">
-          <strong className="font-medium text-zinc-800">{workload.title}</strong>
-          <span className="mx-2 text-zinc-300">|</span>
-          총 제출 {workload.totalSubmissions.toLocaleString()}건
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-zinc-100 px-5 py-4">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-900">이 설문 작업량</h2>
+          <p className="mt-1 text-sm text-zinc-600">
+            <strong className="font-medium text-zinc-800">{workload.title}</strong>
+            <span className="mx-2 text-zinc-300">|</span>
+            총 제출 {workload.totalSubmissions.toLocaleString()}건
+          </p>
+        </div>
+        {workload.totalSubmissions > 0 ? (
+          <Link
+            href={{
+              pathname: "/admin/progress/export",
+              query: { survey: workload.slug },
+            }}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-sm font-medium text-indigo-800 transition hover:border-indigo-300 hover:bg-indigo-100"
+          >
+            <Download className="h-4 w-4" aria-hidden />
+            응답 데이터 다운로드
+          </Link>
+        ) : null}
       </div>
       <div className="p-4 sm:p-5">
         {workload.totalSubmissions === 0 ? (

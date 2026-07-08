@@ -10,6 +10,8 @@ type SurveyRow = {
   title: string;
   summary: string;
   period_label: string;
+  period_start?: string | null;
+  period_end?: string | null;
   response_count: number;
   target_count: number;
   status: string;
@@ -42,6 +44,9 @@ function mapToAdmin(row: SurveyRow): AdminSurveyRow {
     status: row.status as SurveyStatus,
     responses: row.response_count,
     targetCount: row.target_count,
+    periodStart: row.period_start ?? null,
+    periodEnd: row.period_end ?? null,
+    periodLabel: row.period_label,
   };
 }
 
@@ -120,7 +125,7 @@ export async function getAdminSurveys(): Promise<AdminSurveyRow[]> {
     const { data, error } = await supabase
       .from("surveys")
       .select(
-        "slug, title, summary, period_label, response_count, target_count, status, updated_at",
+        "slug, title, summary, period_label, period_start, period_end, response_count, target_count, status, updated_at",
       )
       .order("updated_at", { ascending: false });
 

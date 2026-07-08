@@ -17,4 +17,7 @@ export type AdminSurveyRow = {
   status: SurveyStatus;
   responses: number;
   targetCount?: number;
+  periodStart?: string | null;
+  periodEnd?: string | null;
+  periodLabel?: string;
 };

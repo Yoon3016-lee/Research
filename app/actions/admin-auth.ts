@@ -226,5 +226,6 @@ export async function updateSignupKeyAction(
   }
 
   revalidatePath("/admin/settings");
+  revalidatePath("/admin/permissions");
   return { ok: true };
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useRouter } from "next/navigation";
 import { FileText, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   createSharedScriptAction,
@@ -14,17 +15,19 @@ const initial: SharedScriptActionState = {};
 
 type Props = {
   scripts: SharedResponseScript[];
+  /** 모달 등 좁은 영역에 넣을 때 */
+  embedded?: boolean;
 };
 
-export function SharedScriptsManager({ scripts }: Props) {
+export function SharedScriptsManager({ scripts, embedded = false }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(scripts.length === 0);
 
   const editing = scripts.find((s) => s.id === editingId) ?? null;
 
   return (
-    <div className="space-y-8">
-      <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+    <div className={embedded ? "space-y-6" : "space-y-8"}>
+      <section className={embedded ? "admin-card p-4 sm:p-5" : "rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold text-zinc-900">등록된 공용 스크립트</h2>
@@ -38,7 +41,7 @@ export function SharedScriptsManager({ scripts }: Props) {
               setEditingId(null);
               setShowCreate(true);
             }}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+            className={embedded ? "admin-btn-primary inline-flex items-center gap-1.5 px-4 py-2 text-sm" : "inline-flex items-center gap-1.5 rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"}
           >
             <Plus className="h-4 w-4" aria-hidden />
             새 공용 스크립트
@@ -125,17 +128,21 @@ function ScriptForm({
   onCancel: () => void;
   onSuccess: () => void;
 }) {
+  const router = useRouter();
   const [state, formAction, pending] = useActionState(
     async (_prev: SharedScriptActionState, formData: FormData) => {
       const res = await action(formData);
-      if (res.ok) onSuccess();
+      if (res.ok) {
+        onSuccess();
+        router.refresh();
+      }
       return res;
     },
     initial,
   );
 
   return (
-    <section className="rounded-2xl border border-indigo-200/80 bg-indigo-50/30 p-6 shadow-sm">
+    <section className={embedded ? "admin-card p-4 sm:p-5" : "rounded-2xl border border-indigo-200/80 bg-indigo-50/30 p-6 shadow-sm"}>
       <h2 className="text-base font-semibold text-zinc-900">{heading}</h2>
       <form action={formAction} className="mt-4 space-y-4">
         {scriptId ? <input type="hidden" name="id" value={scriptId} /> : null}
@@ -191,9 +198,13 @@ function ScriptForm({
 }
 
 function DeleteScriptButton({ id, title }: { id: string; title: string }) {
+  const router = useRouter();
   const [state, formAction, pending] = useActionState(
-    async (_prev: SharedScriptActionState, formData: FormData) =>
-      deleteSharedScriptAction(formData),
+    async (_prev: SharedScriptActionState, formData: FormData) => {
+      const res = await deleteSharedScriptAction(formData);
+      if (res.ok) router.refresh();
+      return res;
+    },
     initial,
   );
 

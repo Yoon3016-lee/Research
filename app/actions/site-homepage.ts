@@ -2,12 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSuperAdmin } from "@/lib/require-super-admin";
+import { parseSiteNameFontKey } from "@/lib/site-name-fonts";
 import { deleteSiteMediaFile, uploadSiteMediaFile } from "@/lib/site-media-upload";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 
 export type SiteHomepageActionState = {
   error?: string;
   ok?: boolean;
+  siteName?: string;
+  siteNameFont?: string;
 };
 
 function revalidateSite() {
@@ -64,6 +67,7 @@ export async function updateSiteNameAction(
   await requireSuperAdmin();
 
   const siteName = String(formData.get("site_name") ?? "").trim();
+  const siteNameFont = parseSiteNameFontKey(formData.get("site_name_font"));
   if (!siteName) {
     return { error: "홈페이지 이름을 입력하세요." };
   }
@@ -71,13 +75,20 @@ export async function updateSiteNameAction(
   const admin = createSupabaseServiceRoleClient();
   const { error } = await admin
     .from("site_settings")
-    .upsert({
-      id: 1,
+    .update({
       site_name: siteName,
+      site_name_font: siteNameFont,
       updated_at: new Date().toISOString(),
-    });
+    })
+    .eq("id", 1);
 
   if (error) {
+    if (error.message.includes("site_name_font")) {
+      return {
+        error:
+          "site_name_font 컬럼이 없습니다. supabase/migrations/20260407600000_site_settings_name_font.sql 을 실행하세요.",
+      };
+    }
     if (error.message.includes("site_settings")) {
       return {
         error:
@@ -88,7 +99,7 @@ export async function updateSiteNameAction(
   }
 
   revalidateSite();
-  return { ok: true };
+  return { ok: true, siteName, siteNameFont };
 }
 
 export async function updateSiteLogoAction(

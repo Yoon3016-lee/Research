@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Globe, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   createNavItemAction,
@@ -13,30 +14,46 @@ import {
   type SiteHomepageActionState,
 } from "@/app/actions/site-homepage";
 import { PageBodyEditor } from "@/components/admin/PageBodyEditor";
+import { SiteNameFontField } from "@/components/admin/SiteNameFontField";
 import type { SiteHomepageConfig, SitePage } from "@/lib/site-homepage";
+import { parseSiteNameFontKey } from "@/lib/site-name-fonts";
 
 const initial: SiteHomepageActionState = {};
 
 type Props = {
   config: SiteHomepageConfig;
   pages: Record<string, SitePage>;
+  /** 홈페이지 통합 페이지에 포함될 때 true */
+  embedded?: boolean;
 };
 
-export function HomepageSettingsManager({ config, pages }: Props) {
+export function HomepageSettingsManager({ config, pages, embedded = false }: Props) {
   const [addingGroup, setAddingGroup] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
 
   return (
     <div className="space-y-10">
-      <SiteBrandingSection initialName={config.siteName} initialLogoUrl={config.logoUrl} />
+      {embedded ? (
+        <div>
+          <h2 className="text-base font-semibold text-brand-900">사이트 설정</h2>
+          <p className="mt-1 text-sm text-brand-700/80">
+            공개 사이트 이름·로고와 각 상단 탭의 하위 메뉴를 편집합니다.
+          </p>
+        </div>
+      ) : null}
+      <SiteBrandingSection
+        initialName={config.siteName}
+        initialFont={config.siteNameFont}
+        initialLogoUrl={config.logoUrl}
+      />
 
-      <p className="rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-3 text-sm text-indigo-950">
+      <p className="rounded-xl border border-accent-500/25 bg-accent-500/10 px-4 py-3 text-sm text-brand-900">
         상단 탭(회사 소개 · 설문 조사 등) 추가·삭제는{" "}
-        <a href="/admin/nav" className="font-semibold underline underline-offset-2">
-          상단 메뉴 관리
+        <a href="#section-nav" className="font-semibold underline underline-offset-2">
+          상단 메뉴
         </a>
-        에서 할 수 있습니다. 아래에서는 각 탭의 하위 메뉴만 편집합니다.
+        섹션에서 할 수 있습니다. 아래에서는 각 탭의 하위 메뉴만 편집합니다.
       </p>
 
       {config.groups.map((group) => (
@@ -146,12 +163,31 @@ export function HomepageSettingsManager({ config, pages }: Props) {
 
 function SiteBrandingSection({
   initialName,
+  initialFont,
   initialLogoUrl,
 }: {
   initialName: string;
+  initialFont: SiteHomepageConfig["siteNameFont"];
   initialLogoUrl: string | null;
 }) {
+  const router = useRouter();
   const [nameState, nameFormAction, namePending] = useActionState(updateSiteNameAction, initial);
+  const [previewName, setPreviewName] = useState(initialName);
+  const [fontKey, setFontKey] = useState(initialFont);
+
+  useEffect(() => {
+    setPreviewName(initialName);
+    setFontKey(initialFont);
+  }, [initialName, initialFont]);
+
+  useEffect(() => {
+    if (!nameState.ok) return;
+    if (nameState.siteName) setPreviewName(nameState.siteName);
+    if (nameState.siteNameFont) {
+      setFontKey(parseSiteNameFontKey(nameState.siteNameFont));
+    }
+    router.refresh();
+  }, [nameState, router]);
   const [logoState, logoFormAction, logoPending] = useActionState(updateSiteLogoAction, initial);
   const [deleteLogoState, deleteLogoFormAction, deleteLogoPending] = useActionState(
     deleteSiteLogoAction,
@@ -175,7 +211,8 @@ function SiteBrandingSection({
             name="site_name"
             type="text"
             required
-            defaultValue={initialName}
+            value={previewName}
+            onChange={(e) => setPreviewName(e.target.value)}
             className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none ring-indigo-500/30 focus:ring-2"
             placeholder="예: [ OO리서치 ]"
           />
@@ -183,13 +220,20 @@ function SiteBrandingSection({
             로고가 없을 때 표시되며, 로고 이미지의 대체 텍스트(alt)에도 사용됩니다.
           </span>
         </label>
+
+        <SiteNameFontField
+          fontKey={fontKey}
+          onFontChange={setFontKey}
+          previewText={previewName}
+        />
+
         <ActionMessage state={nameState} />
         <button
           type="submit"
           disabled={namePending}
           className="rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60"
         >
-          {namePending ? "저장 중…" : "이름 저장"}
+          {namePending ? "저장 중…" : "이름·글꼴 저장"}
         </button>
       </form>
 

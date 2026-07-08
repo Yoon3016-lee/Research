@@ -75,6 +75,7 @@ export async function updateProfileRoleAction(
 
   revalidatePath("/admin");
   revalidatePath("/admin/staff");
+  revalidatePath("/admin/permissions");
   revalidatePath("/", "layout");
 
   return { ok: true };

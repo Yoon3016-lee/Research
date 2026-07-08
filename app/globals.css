@@ -57,29 +57,6 @@
       linear-gradient(180deg, #f3f2ee 0%, #f8f7f4 42%, #faf9f7 100%);
   }
 
-  .site-side-rail {
-    position: fixed;
-    top: var(--site-header-height);
-    bottom: 0;
-    width: 1px;
-    pointer-events: none;
-    z-index: 2;
-    background: linear-gradient(
-      180deg,
-      rgba(166, 139, 91, 0.45) 0%,
-      rgba(15, 23, 42, 0.12) 42%,
-      rgba(15, 23, 42, 0.06) 100%
-    );
-  }
-
-  .site-side-rail-left {
-    left: max(0px, calc(50% - var(--site-content-half)));
-  }
-
-  .site-side-rail-right {
-    right: max(0px, calc(50% - var(--site-content-half)));
-  }
-
   /* —— 공개 사이트 UI —— */
   .site-eyebrow {
     font-size: 0.8125rem;
@@ -319,11 +296,16 @@
     --site-content-max: 1440px;
     --site-container-padding: clamp(1rem, 2.5vw, 1.75rem);
     --site-content-half: min(720px, 50vw - var(--site-container-padding));
+    --font-site-name: var(--font-site-display), "Source Serif 4", Georgia, serif;
     font-size: 1.0625rem;
     line-height: 1.7;
     letter-spacing: -0.011em;
     -webkit-font-smoothing: antialiased;
     color: #0f172a;
+  }
+
+  .site-public .site-name-font {
+    font-family: var(--font-site-name);
   }
 
   .site-public :where(h1, h2, h3) {

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import { LayoutList, Pencil, Plus, Trash2 } from "lucide-react";
 import {
@@ -15,26 +14,36 @@ const initial: SiteHomepageActionState = {};
 
 type Props = {
   groups: SiteNavGroup[];
+  /** 홈페이지 통합 페이지에 포함될 때 true */
+  embedded?: boolean;
 };
 
-export function NavGroupsManager({ groups }: Props) {
+export function NavGroupsManager({ groups, embedded = false }: Props) {
   const [showCreate, setShowCreate] = useState(false);
   const [editingKey, setEditingKey] = useState<string | null>(null);
 
   return (
     <div className="space-y-8">
+      {embedded ? (
+        <div>
+          <h2 className="text-base font-semibold text-brand-900">상단 메뉴</h2>
+          <p className="mt-1 text-sm text-brand-700/80">
+            공개 사이트 헤더의 상단 탭을 추가·수정·삭제합니다.
+          </p>
+        </div>
+      ) : null}
       <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="flex items-center gap-2 text-base font-semibold text-zinc-900">
               <LayoutList className="h-4 w-4 text-indigo-600" aria-hidden />
-              상단 탭 목록
+              {embedded ? "상단 탭 목록" : "상단 탭 목록"}
             </h2>
             <p className="mt-1 text-sm text-zinc-500">
               공개 사이트 헤더에 표시되는 상단 메뉴 탭입니다. 각 탭의 하위 메뉴는{" "}
-              <Link href="/admin/homepage" className="font-medium text-indigo-700 hover:underline">
-                홈페이지 관리
-              </Link>
+              <a href="#section-homepage" className="font-medium text-indigo-700 hover:underline">
+                사이트 설정
+              </a>
               에서 편집할 수 있습니다.
             </p>
           </div>

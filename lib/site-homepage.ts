@@ -1,5 +1,11 @@
 import "server-only";
 
+import {
+  DEFAULT_SITE_NAME_FONT,
+  getSiteNameFontOption,
+  parseSiteNameFontKey,
+  type SiteNameFontKey,
+} from "@/lib/site-name-fonts";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 
 export type SiteNavGroupKey = string;
@@ -22,6 +28,8 @@ export type SiteNavGroup = {
 
 export type SiteHomepageConfig = {
   siteName: string;
+  siteNameFont: SiteNameFontKey;
+  siteNameFontFamily: string;
   logoUrl: string | null;
   groups: SiteNavGroup[];
 };
@@ -35,6 +43,8 @@ export type SitePage = {
 
 const DEFAULT_CONFIG: SiteHomepageConfig = {
   siteName: "[ OO리서치 ]",
+  siteNameFont: DEFAULT_SITE_NAME_FONT,
+  siteNameFontFamily: getSiteNameFontOption(DEFAULT_SITE_NAME_FONT).fontFamily,
   logoUrl: null,
   groups: [
     { key: "intro", label: "회사 소개", sortOrder: 0, items: [] },
@@ -50,26 +60,45 @@ export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
 
   const admin = createSupabaseServiceRoleClient();
 
-  let settings: { site_name?: string; logo_url?: string } | null = null;
+  let settings: { site_name?: string; logo_url?: string; site_name_font?: string } | null = null;
   let settingsError: { message: string } | null = null;
 
-  const settingsWithLogo = await admin
+  const settingsWithFont = await admin
     .from("site_settings")
-    .select("site_name, logo_url")
+    .select("site_name, logo_url, site_name_font")
     .eq("id", 1)
     .maybeSingle();
 
-  if (settingsWithLogo.error?.message.includes("logo_url")) {
+  if (settingsWithFont.error?.message.includes("site_name_font")) {
+    const settingsWithLogo = await admin
+      .from("site_settings")
+      .select("site_name, logo_url")
+      .eq("id", 1)
+      .maybeSingle();
+
+    if (settingsWithLogo.error?.message.includes("logo_url")) {
+      const fallback = await admin
+        .from("site_settings")
+        .select("site_name")
+        .eq("id", 1)
+        .maybeSingle();
+      settings = fallback.data;
+      settingsError = fallback.error;
+    } else {
+      settings = settingsWithLogo.data;
+      settingsError = settingsWithLogo.error;
+    }
+  } else if (settingsWithFont.error?.message.includes("logo_url")) {
     const fallback = await admin
       .from("site_settings")
-      .select("site_name")
+      .select("site_name, site_name_font")
       .eq("id", 1)
       .maybeSingle();
     settings = fallback.data;
     settingsError = fallback.error;
   } else {
-    settings = settingsWithLogo.data;
-    settingsError = settingsWithLogo.error;
+    settings = settingsWithFont.data;
+    settingsError = settingsWithFont.error;
   }
 
   const [
@@ -95,6 +124,8 @@ export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
 
   const siteName =
     (settings?.site_name as string | undefined)?.trim() || DEFAULT_CONFIG.siteName;
+  const siteNameFont = parseSiteNameFontKey(settings?.site_name_font);
+  const siteNameFontFamily = getSiteNameFontOption(siteNameFont).fontFamily;
   const logoRaw = (settings?.logo_url as string | undefined)?.trim();
   const logoUrl = logoRaw || null;
 
@@ -140,7 +171,7 @@ export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
         }))
       : DEFAULT_CONFIG.groups;
 
-  return { siteName, logoUrl, groups: builtGroups };
+  return { siteName, siteNameFont, siteNameFontFamily, logoUrl, groups: builtGroups };
 }
 
 export async function getSitePagesByIds(ids: string[]): Promise<Record<string, SitePage>> {

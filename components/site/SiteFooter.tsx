@@ -16,7 +16,7 @@ export function SiteFooter({ siteName, groups }: Props) {
     <footer className="border-t border-white/10 bg-gradient-to-b from-brand-900 to-brand-950 text-slate-300">
       <SiteContainer className="flex flex-col gap-10 py-14 sm:flex-row sm:items-start sm:justify-between">
         <div className="max-w-md">
-          <p className="font-[family-name:var(--font-site-display)] text-xl font-semibold tracking-tight text-white">
+          <p className="site-name-font text-xl font-semibold tracking-tight text-white">
             {displayName}
           </p>
           <p className="mt-3 leading-relaxed text-slate-400">

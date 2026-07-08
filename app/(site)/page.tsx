@@ -25,7 +25,7 @@ export default async function HomePage() {
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-accent-500/35 to-transparent" />
         <SiteContainer className="relative py-16 sm:py-24 lg:py-28">
           <p className="site-eyebrow">Market Research Platform</p>
-          <h1 className="mt-5 max-w-4xl">{siteName}</h1>
+          <h1 className="site-name-font mt-5 max-w-4xl">{siteName}</h1>
           <p className="mt-6 max-w-2xl text-lg leading-relaxed text-brand-700">
             데이터 기반 인사이트와 설문 리서치를 제공합니다. 신뢰할 수 있는 조사 설계부터
             수집·분석까지, 한곳에서 경험하세요.

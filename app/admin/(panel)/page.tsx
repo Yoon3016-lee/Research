@@ -1,10 +1,20 @@
 import Link from "next/link";
-import { ArrowUpRight, ClipboardList, Mail, Users } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { AdminHeader } from "@/components/admin/AdminHeader";
+import {
+  AdminSurveyIconActions,
+  AdminSurveyStatusBadge,
+} from "@/components/admin/AdminSurveyIconActions";
+import {
+  DashboardProgressSection,
+  DashboardScheduleAlertsSection,
+} from "@/components/admin/DashboardSurveyInsights";
+import { buildDashboardSurveyInsights } from "@/lib/admin-dashboard";
 import { getAdminSurveys } from "@/lib/surveys-db";
 
 export default async function AdminDashboardPage() {
   const adminSurveys = await getAdminSurveys();
+  const { progressItems, scheduleAlerts } = buildDashboardSurveyInsights(adminSurveys);
   const totalResponses = adminSurveys.reduce((a, s) => a + s.responses, 0);
   const activeSurveys = adminSurveys.filter((s) => s.status === "진행중").length;
 
@@ -12,7 +22,7 @@ export default async function AdminDashboardPage() {
     <>
       <AdminHeader
         title="대시보드"
-        description="Supabase에 저장된 설문·응답 요약입니다."
+        description="설문·응답 현황과 일정 알림을 한눈에 확인합니다."
       />
       <div className="space-y-8 p-4 sm:p-6">
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -59,61 +69,47 @@ export default async function AdminDashboardPage() {
               </Link>
             </p>
           ) : (
-            <ul className="mt-4 divide-y divide-brand-900/6">
-              {adminSurveys.slice(0, 4).map((s) => (
-                <li key={s.id} className="flex items-center justify-between gap-3 py-3 first:pt-0">
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-brand-900">{s.title}</p>
-                    <p className="text-xs text-brand-700/80">수정 {s.updatedAt}</p>
-                  </div>
-                  <span className="shrink-0 rounded-full bg-brand-900/6 px-2.5 py-0.5 text-xs font-medium text-brand-800">
-                    {s.status}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full min-w-[480px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-brand-900/8 text-xs font-medium text-brand-700/80">
+                    <th className="pb-2.5 pr-3 font-medium">설문</th>
+                    <th className="pb-2.5 pr-3 font-medium">상태</th>
+                    <th className="hidden pb-2.5 pr-3 font-medium sm:table-cell">응답</th>
+                    <th className="pb-2.5 text-right font-medium">작업</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-brand-900/6">
+                  {adminSurveys.slice(0, 5).map((s) => (
+                    <tr key={s.id} className="group transition hover:bg-surface/50">
+                      <td className="py-3 pr-3">
+                        <p className="truncate font-medium text-brand-900">{s.title}</p>
+                        <p className="mt-0.5 text-xs text-brand-700/70">
+                          {s.updatedAt}
+                          <span className="mx-1 opacity-40">·</span>
+                          <span className="font-mono text-[11px]">{s.id}</span>
+                        </p>
+                      </td>
+                      <td className="py-3 pr-3 align-middle">
+                        <AdminSurveyStatusBadge status={s.status} />
+                      </td>
+                      <td className="hidden py-3 pr-3 align-middle tabular-nums text-brand-800 sm:table-cell">
+                        {s.responses.toLocaleString()}
+                      </td>
+                      <td className="py-3 align-middle">
+                        <AdminSurveyIconActions slug={s.id} status={s.status} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
 
-        <section className="admin-card p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold text-brand-900">바로가기</h2>
-            <Link
-              href="/admin/progress"
-              className="text-xs font-medium text-accent-600 hover:text-accent-500"
-            >
-              진행·업무 현황 →
-            </Link>
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <Link
-              href="/admin/surveys"
-              className="flex items-center gap-3 rounded-xl border border-brand-900/8 bg-surface/80 p-4 transition hover:border-accent-500/30 hover:bg-white"
-            >
-              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-brand-900 shadow-sm">
-                <ClipboardList className="h-5 w-5" aria-hidden />
-              </span>
-              <span className="text-sm font-semibold text-brand-900">설문 추가·변경</span>
-            </Link>
-            <Link
-              href="/admin/emails"
-              className="flex items-center gap-3 rounded-xl border border-brand-900/8 bg-surface/80 p-4 transition hover:border-accent-500/30 hover:bg-white"
-            >
-              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-brand-900 shadow-sm">
-                <Mail className="h-5 w-5" aria-hidden />
-              </span>
-              <span className="text-sm font-semibold text-brand-900">이메일 전송</span>
-            </Link>
-            <Link
-              href="/admin/progress"
-              className="flex items-center gap-3 rounded-xl border border-brand-900/8 bg-surface/80 p-4 transition hover:border-accent-500/30 hover:bg-white"
-            >
-              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-brand-900 shadow-sm">
-                <Users className="h-5 w-5" aria-hidden />
-              </span>
-              <span className="text-sm font-semibold text-brand-900">진행 현황</span>
-            </Link>
-          </div>
+        <section className="grid gap-6 lg:grid-cols-2">
+          <DashboardProgressSection items={progressItems} />
+          <DashboardScheduleAlertsSection alerts={scheduleAlerts} />
         </section>
       </div>
     </>

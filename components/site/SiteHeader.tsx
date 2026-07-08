@@ -71,7 +71,7 @@ export function SiteHeader({ homepage, adminLink, participant }: SiteHeaderProps
                 />
               </>
             ) : (
-              <span className="font-[family-name:var(--font-site-display)] text-lg font-semibold tracking-tight text-brand-900 sm:text-xl">
+              <span className="site-name-font text-lg font-semibold tracking-tight text-brand-900 sm:text-xl">
                 {homepage.siteName}
               </span>
             )}
