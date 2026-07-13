@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronDown, LogIn, LogOut, UserPlus } from "lucide-react";
+import { ChevronDown, LogIn, LogOut, UserPlus, UserRound } from "lucide-react";
 import { guestSignupAction, surveyLoginAction } from "@/app/actions/site-auth";
 import type { SiteAuthResult } from "@/app/actions/site-auth";
 import type { SurveyParticipant } from "@/lib/participant-types";
@@ -135,17 +135,13 @@ export function SiteAuthNav({ participant, headerTheme = "light" }: Props) {
 
     return (
       <div className="flex items-center gap-2">
-        <div
-          className="hidden max-w-[10rem] truncate text-right leading-tight sm:block"
-          title={participant.email}
-        >
-          <p className={`truncate text-xs font-medium ${dark ? "text-slate-100" : "text-brand-900"}`}>
+        <Link href="/mypage" className={btnOutline} title="마이페이지">
+          <UserRound className="h-4 w-4 shrink-0" aria-hidden />
+          <span className="hidden max-w-[10rem] truncate text-left leading-tight sm:inline">
             {participant.email}
-          </p>
-          <p className={`truncate text-[11px] ${dark ? "text-slate-300" : "text-brand-700/80"}`}>
-            {subtitle}
-          </p>
-        </div>
+          </span>
+          <span className="sr-only">{subtitle}</span>
+        </Link>
         <button
           type="button"
           onClick={handleLogout}

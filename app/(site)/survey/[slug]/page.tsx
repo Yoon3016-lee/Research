@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CatiStaffSurveySection } from "@/components/site/CatiStaffSurveySection";
 import { SurveyParticipantPanel } from "@/components/site/SurveyParticipantPanel";
-import { SurveyResponseForm } from "@/components/site/SurveyResponseForm";
 import { SiteContainer } from "@/components/site/SiteContainer";
 import { SurveyScriptCheckButton } from "@/components/site/SurveyScriptCheckButton";
+import { hasActiveCatiBatch } from "@/lib/cati-samples";
+import { listActiveCatiContactOptions } from "@/lib/cati-contact-options";
 import { getSurveyParticipant } from "@/lib/participant";
+import { getSurveyViewModeForUser } from "@/lib/user-preferences";
 import { loadSurveyForParticipation } from "@/lib/survey-public";
 
 type Props = {
@@ -72,6 +75,13 @@ export default async function SurveyParticipatePage({ params }: Props) {
 
   const survey = loaded.survey;
   const participant = await getSurveyParticipant();
+  const catiEnabled = await hasActiveCatiBatch(survey.slug);
+  const contactOptions = catiEnabled
+    ? await listActiveCatiContactOptions(survey.slug)
+    : [];
+  const viewMode = await getSurveyViewModeForUser(
+    participant.mode === "anonymous" ? null : participant.userId,
+  );
 
   return (
     <SiteContainer as="main" width="survey" className="py-10 sm:py-12">
@@ -109,9 +119,13 @@ export default async function SurveyParticipatePage({ params }: Props) {
             slug={survey.slug}
             participant={participant}
           />
-          <SurveyResponseForm
+          <CatiStaffSurveySection
+            slug={survey.slug}
             survey={survey}
             isStaff={participant.mode === "staff"}
+            catiEnabled={catiEnabled}
+            contactOptions={contactOptions}
+            viewMode={viewMode}
           />
         </div>
       )}

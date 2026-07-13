@@ -5,7 +5,7 @@ import { SurveyTemplateImportButton } from "@/components/admin/SurveyTemplateImp
 import { getAdminSurveys } from "@/lib/surveys-db";
 import { listSharedResponseScripts } from "@/lib/shared-scripts";
 import { listSurveyResponseScriptsForAdmin } from "@/lib/survey-scripts-admin";
-import { ExternalLink, Plus, Pencil, GitBranch, Sparkles, PackageOpen } from "lucide-react";
+import { ExternalLink, Plus, Pencil, GitBranch, Sparkles, PackageOpen, Users, ListChecks } from "lucide-react";
 
 export const metadata = { title: "설문 관리" };
 
@@ -28,7 +28,7 @@ export default async function AdminSurveysPage({
     <>
       <AdminHeader
         title="설문 관리"
-        description="설문 작성·배포(이메일·문자), 스크립트를 관리합니다."
+        description="설문 작성·표본 업로드·배포(이메일·문자), 스크립트를 관리합니다."
       />
       <div className="space-y-10 p-4 sm:p-6">
         {created ? (
@@ -127,6 +127,26 @@ export default async function AdminSurveysPage({
                               참여 링크
                             </Link>
                           ) : null}
+                          <Link
+                            href={{
+                              pathname: "/admin/surveys/samples",
+                              query: { slug: s.id },
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-900 hover:bg-emerald-100"
+                          >
+                            <Users className="h-3.5 w-3.5" aria-hidden />
+                            표본 관리
+                          </Link>
+                          <Link
+                            href={{
+                              pathname: "/admin/surveys/contact",
+                              query: { slug: s.id },
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-900 hover:bg-indigo-100"
+                          >
+                            <ListChecks className="h-3.5 w-3.5" aria-hidden />
+                            컨택 관리
+                          </Link>
                           <Link
                             href={{
                               pathname: "/admin/surveys/distribute",
