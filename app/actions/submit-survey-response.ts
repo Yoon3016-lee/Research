@@ -183,9 +183,6 @@ export async function submitSurveyResponseAction(
   await admin.from("surveys").update({ response_count: nextCount }).eq("id", survey.id);
 
   if (sampleId) {
-    if (!participant.userId) {
-      return { error: "직원 정보를 확인할 수 없습니다." };
-    }
     // 컨택 결과(예: 성공)는 조사원이 선택 시 이미 기록됨. 제출 시에는 응답-표본 연결만 유지.
     // 제출 완료 → 저장해 둔 중도 중단 초안 제거.
     await deleteCatiDraft(sampleId);

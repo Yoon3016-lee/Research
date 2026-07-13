@@ -116,7 +116,15 @@ export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
       .order("sort_order", { ascending: true }),
   ]);
 
-  let { data: groups, error: groupsError } = groupsResult;
+  let groupsError = groupsResult.error;
+  let groupRows: {
+    key: string;
+    label: string;
+    sort_order: number;
+    guide_pdf_url?: string | null;
+    guide_media_type?: string | null;
+  }[];
+
   // guide_* 마이그레이션 전이면 컬럼 없이 재조회
   if (
     groupsError?.message.includes("guide_pdf_url") ||
@@ -126,8 +134,10 @@ export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
       .from("site_nav_groups")
       .select("key, label, sort_order")
       .order("sort_order");
-    groups = fallback.data;
+    groupRows = fallback.data ?? [];
     groupsError = fallback.error;
+  } else {
+    groupRows = groupsResult.data ?? [];
   }
 
   if (settingsError) {
@@ -146,14 +156,6 @@ export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
   const siteNameFontFamily = getSiteNameFontOption(siteNameFont).fontFamily;
   const logoRaw = (settings?.logo_url as string | undefined)?.trim();
   const logoUrl = logoRaw || null;
-
-  const groupRows = (groups ?? []) as {
-    key: string;
-    label: string;
-    sort_order: number;
-    guide_pdf_url?: string | null;
-    guide_media_type?: string | null;
-  }[];
 
   const itemRows = (items ?? []) as {
     id: string;

@@ -168,12 +168,12 @@ export function SiteNavMegaMenu({ groups }: Props) {
               <button
                 type="button"
                 onFocus={() => openGroup(group.key)}
-                className={`whitespace-nowrap rounded-lg px-3 py-2 text-left text-[1.0625rem] font-medium transition sm:px-4 ${
-                  isActiveKey
-                    ? "bg-brand-900/6 text-brand-900 ring-1 ring-brand-900/10"
-                    : active
-                      ? "bg-brand-900/6 text-brand-900"
-                      : "text-brand-700 hover:bg-brand-900/5 hover:text-brand-900"
+                className={`whitespace-nowrap rounded-t-md border-b-[3px] px-3 py-2.5 text-left text-[1.25rem] font-bold tracking-tight transition sm:px-5 ${
+                  active
+                    ? "border-brand-900 text-brand-900"
+                    : isActiveKey
+                      ? "border-brand-900/40 text-brand-900"
+                      : "border-transparent text-brand-800 hover:border-brand-900/30 hover:text-brand-900"
                 }`}
                 aria-expanded={isActiveKey}
                 aria-controls="site-nav-mega-panel"
