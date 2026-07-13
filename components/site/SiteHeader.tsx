@@ -54,28 +54,30 @@ function AdminEntryLink({ adminLink }: { adminLink: PublicAdminLinkConfig }) {
 export function SiteHeader({ homepage, adminLink, participant }: SiteHeaderProps) {
   return (
     <header className="site-header relative sticky top-0 z-[60] overflow-visible backdrop-blur-md">
+      <Link
+        href="/"
+        className="absolute left-4 top-1/2 z-[2] flex min-w-0 max-w-[min(45vw,14rem)] -translate-y-1/2 items-center sm:left-6 sm:max-w-[16rem] lg:left-8"
+      >
+        {homepage.logoUrl ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={homepage.logoUrl}
+              alt={homepage.siteName}
+              className="h-8 w-auto max-w-full object-contain object-left sm:h-9"
+            />
+          </>
+        ) : (
+          <span className="site-name-font text-lg font-semibold tracking-tight text-brand-900 sm:text-xl">
+            {homepage.siteName}
+          </span>
+        )}
+      </Link>
+
       <div className="site-content-band relative">
         <div className="site-header-content-band" aria-hidden />
         <div className="site-container relative grid min-h-[4.25rem] grid-cols-[1fr_auto_1fr] items-center gap-3 sm:min-h-[4.5rem] sm:gap-4">
-          <Link
-            href="/"
-            className="relative z-[1] flex min-w-0 max-w-[min(100%,14rem)] items-center justify-self-start sm:max-w-[16rem]"
-          >
-            {homepage.logoUrl ? (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={homepage.logoUrl}
-                  alt={homepage.siteName}
-                  className="h-8 w-auto max-w-full object-contain object-left sm:h-9"
-                />
-              </>
-            ) : (
-              <span className="site-name-font text-lg font-semibold tracking-tight text-brand-900 sm:text-xl">
-                {homepage.siteName}
-              </span>
-            )}
-          </Link>
+          <span aria-hidden className="justify-self-start" />
 
           <nav
             className="site-header-nav-band overflow-visible"

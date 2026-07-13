@@ -1,28 +1,21 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { saveCatiContactOptions } from "@/lib/cati-contact-options";
+import { saveGlobalCatiContactOptions } from "@/lib/cati-contact-options";
 import type {
   CatiContactOptionInput,
   SaveCatiContactOptionsResult,
 } from "@/lib/cati-contact-types";
 import { requireAdminPanelAccess } from "@/lib/require-admin";
 
-export async function saveCatiContactOptionsAction(
-  slug: string,
+export async function saveGlobalCatiContactOptionsAction(
   options: CatiContactOptionInput[],
 ): Promise<SaveCatiContactOptionsResult> {
   await requireAdminPanelAccess();
 
-  const trimmedSlug = slug.trim();
-  if (!trimmedSlug) {
-    return { ok: false, error: "설문 slug가 없습니다." };
-  }
-
-  const result = await saveCatiContactOptions(trimmedSlug, options);
+  const result = await saveGlobalCatiContactOptions(options);
   if (result.ok) {
-    revalidatePath("/admin/surveys/contact");
-    revalidatePath(`/survey/${trimmedSlug}`);
+    revalidatePath("/admin/surveys/contact-defaults");
   }
   return result;
 }

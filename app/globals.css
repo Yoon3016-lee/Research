@@ -23,24 +23,15 @@
   }
 
   .site-header {
-    background: rgba(255, 255, 255, 0.82);
+    background: #ffffff;
     border-bottom: 1px solid rgba(15, 23, 42, 0.08);
     box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
   }
 
+  /* 가운데 탭 영역에만 덧칠하던 오버레이 제거 — 헤더 전체 톤을 통일한다.
+     (로고 바깥 영역과 탭 영역의 투명도 차이로 로고가 따로 놀던 문제 해결) */
   .site-header-content-band {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background:
-      linear-gradient(
-        180deg,
-        rgba(196, 165, 116, 0.07) 0%,
-        rgba(255, 255, 255, 0) 28%,
-        rgba(255, 255, 255, 0) 72%,
-        rgba(15, 23, 42, 0.03) 100%
-      ),
-      rgba(255, 255, 255, 0.4);
+    display: none;
   }
 
   .site-header-nav-band {

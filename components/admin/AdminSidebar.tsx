@@ -14,11 +14,39 @@ import {
 import { logoutAction } from "@/app/actions/admin-auth";
 import { ROLE_LABELS, type StaffRole } from "@/lib/roles";
 
+type NavColor = "indigo" | "emerald" | "amber" | "sky" | "rose";
+
+const colorStyles: Record<
+  NavColor,
+  { base: string; active: string }
+> = {
+  indigo: {
+    base: "text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700",
+    active: "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-500/25",
+  },
+  emerald: {
+    base: "text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700",
+    active: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-500/25",
+  },
+  amber: {
+    base: "text-amber-600 hover:bg-amber-50 hover:text-amber-700",
+    active: "bg-amber-50 text-amber-700 ring-1 ring-amber-500/25",
+  },
+  sky: {
+    base: "text-sky-600 hover:bg-sky-50 hover:text-sky-700",
+    active: "bg-sky-50 text-sky-700 ring-1 ring-sky-500/25",
+  },
+  rose: {
+    base: "text-rose-600 hover:bg-rose-50 hover:text-rose-700",
+    active: "bg-rose-50 text-rose-700 ring-1 ring-rose-500/25",
+  },
+};
+
 const items = [
-  { href: "/admin", label: "대시보드", icon: LayoutDashboard, exact: true },
-  { href: "/admin/surveys", label: "설문 관리", icon: ClipboardList, exact: false },
-  { href: "/admin/permissions", label: "권한 관리", icon: ShieldCheck, exact: false },
-  { href: "/admin/progress", label: "진행·업무 현황", icon: Users, exact: false },
+  { href: "/admin", label: "대시보드", icon: LayoutDashboard, exact: true, color: "indigo" },
+  { href: "/admin/surveys", label: "설문 관리", icon: ClipboardList, exact: false, color: "emerald" },
+  { href: "/admin/permissions", label: "권한 관리", icon: ShieldCheck, exact: false, color: "amber" },
+  { href: "/admin/progress", label: "진행·업무 현황", icon: Users, exact: false, color: "sky" },
 ] as const;
 
 type Props = {
@@ -26,11 +54,10 @@ type Props = {
   role: string | null;
 };
 
-function navLinkClass(active: boolean) {
-  return `flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-    active
-      ? "bg-brand-900/8 text-brand-900 shadow-[inset_0_0_0_1px_rgba(166,139,91,0.22)]"
-      : "text-brand-700 hover:bg-brand-900/5 hover:text-brand-900"
+function navLinkClass(active: boolean, color: NavColor) {
+  const style = colorStyles[color];
+  return `flex items-center gap-3 rounded-xl px-3.5 py-3 text-[0.95rem] font-semibold tracking-tight transition-colors ${
+    active ? style.active : style.base
   }`;
 }
 
@@ -84,8 +111,8 @@ export function AdminSidebar({ email, role }: Props) {
         </div>
       ) : null}
 
-      <nav className="flex flex-1 flex-col gap-0.5 p-2.5" aria-label="관리자 메뉴">
-        {items.map(({ href, label, icon: Icon, exact }) => {
+      <nav className="flex flex-1 flex-col gap-1 p-2.5" aria-label="관리자 메뉴">
+        {items.map(({ href, label, icon: Icon, exact, color }) => {
           const active = exact
             ? pathname === href
             : href === "/admin/surveys"
@@ -97,10 +124,10 @@ export function AdminSidebar({ email, role }: Props) {
             <Link
               key={href}
               href={href}
-              className={navLinkClass(active)}
+              className={navLinkClass(active, color)}
               aria-current={active ? "page" : undefined}
             >
-              <Icon className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+              <Icon className="h-5 w-5 shrink-0" aria-hidden />
               {label}
             </Link>
           );
@@ -108,9 +135,9 @@ export function AdminSidebar({ email, role }: Props) {
         {role === "super_admin" ? (
           <Link
             href="/admin/homepage"
-            className={navLinkClass(isHomepageActive(pathname))}
+            className={navLinkClass(isHomepageActive(pathname), "rose")}
           >
-            <Globe className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+            <Globe className="h-5 w-5 shrink-0" aria-hidden />
             홈페이지 관리
           </Link>
         ) : null}

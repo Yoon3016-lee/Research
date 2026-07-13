@@ -7,7 +7,6 @@ import {
   type CatiContactOption,
   type CatiContactOptionInput,
 } from "@/lib/cati-contact-types";
-import { isUuid, normalizeSurveyRef } from "@/lib/survey-slug";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 
 type ContactOptionRow = {
@@ -17,19 +16,6 @@ type ContactOptionRow = {
   is_success: boolean;
   is_active: boolean;
 };
-
-async function resolveSurveyId(ref: string): Promise<string | null> {
-  const admin = createSupabaseServiceRoleClient();
-  const normalized = normalizeSurveyRef(ref);
-  if (!normalized) return null;
-
-  let query = admin.from("surveys").select("id");
-  query = isUuid(normalized) ? query.eq("id", normalized) : query.eq("slug", normalized);
-
-  const { data, error } = await query.maybeSingle();
-  if (error || !data) return null;
-  return data.id as string;
-}
 
 function mapRow(row: ContactOptionRow): CatiContactOption {
   return {
@@ -41,58 +27,49 @@ function mapRow(row: ContactOptionRow): CatiContactOption {
   };
 }
 
-export async function listCatiContactOptions(surveyRef: string): Promise<{
-  surveyId: string | null;
+/** 전체 설문 공통(전역) 컨택 선택지 — 없으면 앱 내장 기본값 */
+export async function listGlobalCatiContactOptions(): Promise<{
   options: CatiContactOption[];
   usingDefaults: boolean;
 }> {
-  const surveyId = await resolveSurveyId(surveyRef);
-  if (!surveyId) {
-    return { surveyId: null, options: defaultCatiContactOptions(), usingDefaults: true };
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return { options: defaultCatiContactOptions(), usingDefaults: true };
   }
 
   const admin = createSupabaseServiceRoleClient();
   const { data, error } = await admin
-    .from("survey_contact_options")
+    .from("cati_contact_options_global")
     .select("id, position, label, is_success, is_active")
-    .eq("survey_id", surveyId)
     .order("position", { ascending: true });
 
   if (error || !data?.length) {
-    return { surveyId, options: defaultCatiContactOptions(), usingDefaults: true };
+    return { options: defaultCatiContactOptions(), usingDefaults: true };
   }
 
-  return { surveyId, options: (data as ContactOptionRow[]).map(mapRow), usingDefaults: false };
+  return { options: (data as ContactOptionRow[]).map(mapRow), usingDefaults: false };
 }
 
-/** 조사원 화면용 — 활성 선택지만 */
-export async function listActiveCatiContactOptions(
-  surveyRef: string,
-): Promise<CatiContactOption[]> {
-  const { options } = await listCatiContactOptions(surveyRef);
+/** 조사원 화면용 — 활성 선택지만 (전역 공통) */
+export async function listActiveCatiContactOptions(): Promise<CatiContactOption[]> {
+  const { options } = await listGlobalCatiContactOptions();
   return options.filter((o) => o.isActive);
 }
 
-/** 선택된 optionId를 검증하고 라벨·성공여부 반환 */
+/** 선택된 optionId를 검증하고 라벨·성공여부 반환 (전역 공통) */
 export async function resolveCatiContactOutcome(
-  surveyRef: string,
   optionId: string,
 ): Promise<{ label: string; isSuccess: boolean } | null> {
-  const { options } = await listCatiContactOptions(surveyRef);
+  const { options } = await listGlobalCatiContactOptions();
   const found = options.find((o) => o.id === optionId && o.isActive);
   if (!found) return null;
   return { label: found.label, isSuccess: found.isSuccess };
 }
 
-export async function saveCatiContactOptions(
-  surveyRef: string,
-  inputs: CatiContactOptionInput[],
-): Promise<{ ok: true; options: CatiContactOption[] } | { ok: false; error: string }> {
-  const surveyId = await resolveSurveyId(surveyRef);
-  if (!surveyId) {
-    return { ok: false, error: "설문을 찾을 수 없습니다." };
-  }
+type CleanedOption = { label: string; isSuccess: boolean; isActive: boolean };
 
+function cleanContactInputs(
+  inputs: CatiContactOptionInput[],
+): { ok: true; cleaned: CleanedOption[] } | { ok: false; error: string } {
   const cleaned = inputs
     .map((i) => ({
       label: i.label.trim(),
@@ -125,19 +102,33 @@ export async function saveCatiContactOptions(
     return { ok: false, error: "활성 선택지가 최소 1개 이상이어야 합니다." };
   }
 
+  return { ok: true, cleaned };
+}
+
+/** 전체 설문 공통(전역) 컨택 선택지 저장 */
+export async function saveGlobalCatiContactOptions(
+  inputs: CatiContactOptionInput[],
+): Promise<{ ok: true; options: CatiContactOption[] } | { ok: false; error: string }> {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return { ok: false, error: "서버 설정이 완료되지 않았습니다." };
+  }
+
+  const validated = cleanContactInputs(inputs);
+  if (!validated.ok) return validated;
+  const { cleaned } = validated;
+
   const admin = createSupabaseServiceRoleClient();
 
   const { error: deleteError } = await admin
-    .from("survey_contact_options")
+    .from("cati_contact_options_global")
     .delete()
-    .eq("survey_id", surveyId);
+    .neq("position", 0);
 
   if (deleteError) {
     return { ok: false, error: deleteError.message };
   }
 
   const rows = cleaned.map((c, i) => ({
-    survey_id: surveyId,
     position: i + 1,
     label: c.label,
     is_success: c.isSuccess,
@@ -145,7 +136,7 @@ export async function saveCatiContactOptions(
   }));
 
   const { data, error } = await admin
-    .from("survey_contact_options")
+    .from("cati_contact_options_global")
     .insert(rows)
     .select("id, position, label, is_success, is_active")
     .order("position", { ascending: true });

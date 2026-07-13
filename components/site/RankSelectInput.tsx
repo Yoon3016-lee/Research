@@ -37,7 +37,7 @@ export function RankSelectInput({
         제외됩니다.
       </p>
       <ul className="space-y-2">
-        {options.map((opt) => {
+        {options.map((opt, optIndex) => {
           const rank = rankOf(opt.id);
           const selected = rank > 0;
           return (
@@ -46,13 +46,16 @@ export function RankSelectInput({
                 type="button"
                 disabled={disabled || (!selected && rankedOptionIds.length >= rankCount)}
                 onClick={() => toggle(opt.id)}
-                className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition ${
+                className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition ${
                   selected
                     ? "border-indigo-300 bg-indigo-50 text-indigo-950"
                     : "border-zinc-200 bg-white text-zinc-800 hover:border-indigo-200 hover:bg-indigo-50/40 disabled:opacity-50"
                 }`}
               >
-                <span>{opt.label}</span>
+                <span className="shrink-0 text-[0.8125rem] font-semibold tabular-nums text-zinc-500">
+                  {optIndex + 1}.
+                </span>
+                <span className="min-w-0 flex-1">{opt.label}</span>
                 {selected ? (
                   <span className="shrink-0 rounded-full bg-indigo-600 px-2.5 py-0.5 text-xs font-semibold text-white">
                     {rank}순위

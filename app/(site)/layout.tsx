@@ -1,4 +1,5 @@
 import { Noto_Sans_KR, Source_Serif_4 } from "next/font/google";
+import { NavGuideBanner, type NavGuideItem } from "@/components/site/NavGuideBanner";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteNameFontLinks } from "@/components/site/SiteNameFontLinks";
@@ -34,6 +35,16 @@ export default async function SiteLayout({
     getSiteHomepageConfig(),
   ]);
 
+  const guideItems: NavGuideItem[] = homepage.groups
+    .filter((g) => Boolean(g.guidePdfUrl) && g.items.length > 0)
+    .map((g) => ({
+      key: g.key,
+      label: g.label,
+      hrefs: g.items.map((i) => i.href),
+      guidePdfUrl: g.guidePdfUrl as string,
+      guideMediaType: g.guideMediaType ?? "pdf",
+    }));
+
   return (
     <>
       <SiteNameFontLinks fontKey={homepage.siteNameFont} />
@@ -42,7 +53,10 @@ export default async function SiteLayout({
         style={{ ["--font-site-name" as string]: homepage.siteNameFontFamily }}
       >
         <SiteHeader homepage={homepage} adminLink={adminLink} participant={participant} />
-        <SiteVisualFrame>{children}</SiteVisualFrame>
+        <SiteVisualFrame>
+          <NavGuideBanner items={guideItems} />
+          {children}
+        </SiteVisualFrame>
         <SiteFooter siteName={homepage.siteName} groups={homepage.groups} />
       </div>
     </>

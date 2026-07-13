@@ -76,9 +76,7 @@ export default async function SurveyParticipatePage({ params }: Props) {
   const survey = loaded.survey;
   const participant = await getSurveyParticipant();
   const catiEnabled = await hasActiveCatiBatch(survey.slug);
-  const contactOptions = catiEnabled
-    ? await listActiveCatiContactOptions(survey.slug)
-    : [];
+  const contactOptions = catiEnabled ? await listActiveCatiContactOptions() : [];
   const viewMode = await getSurveyViewModeForUser(
     participant.mode === "anonymous" ? null : participant.userId,
   );

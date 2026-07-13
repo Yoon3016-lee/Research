@@ -73,11 +73,11 @@ export function SurveyQuestionField({
           ) : null}
         </div>
       </div>
-      <p className="mt-2 text-base font-medium text-zinc-900">{q.prompt}</p>
+      <p className="mt-2 text-xl font-semibold leading-snug text-zinc-900">{q.prompt}</p>
 
       {(q.type === "mc_single" || q.type === "mc_multi") && (
         <ul className="mt-4 space-y-2">
-          {q.options.map((opt) => {
+          {q.options.map((opt, optIndex) => {
             const isMulti = q.type === "mc_multi";
             const max = q.maxSelections ?? q.options.length;
             const selected = isMulti
@@ -100,7 +100,10 @@ export function SurveyQuestionField({
                     }}
                     className="mt-1 shrink-0"
                   />
-                  <span className="text-sm text-zinc-800">{opt.label}</span>
+                  <span className="mt-px shrink-0 text-[0.8125rem] font-semibold tabular-nums text-zinc-500">
+                    {optIndex + 1}.
+                  </span>
+                  <span className="text-[0.8125rem] leading-relaxed text-zinc-700">{opt.label}</span>
                 </label>
               </li>
             );
@@ -165,9 +168,9 @@ export function SurveyQuestionField({
           className="mt-4 w-full max-w-md rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm outline-none ring-indigo-500/30 focus:ring-2 disabled:opacity-60"
         >
           <option value="">선택하세요</option>
-          {q.options.map((opt) => (
+          {q.options.map((opt, optIndex) => (
             <option key={opt.id} value={opt.id}>
-              {opt.label}
+              {optIndex + 1}. {opt.label}
             </option>
           ))}
         </select>

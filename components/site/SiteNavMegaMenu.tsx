@@ -10,12 +10,10 @@ type Props = {
   groups: SiteNavGroup[];
 };
 
-type ColumnPos = { left: number; width: number };
-
-type PanelLayout = {
+type DropdownPos = {
   top: number;
   left: number;
-  width: number;
+  minWidth: number;
 };
 
 const CLOSE_DELAY_MS = 150;
@@ -25,41 +23,26 @@ export function SiteNavMegaMenu({ groups }: Props) {
   const navRef = useRef<HTMLDivElement>(null);
   const columnRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [open, setOpen] = useState(false);
-  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
-  const [panelLayout, setPanelLayout] = useState<PanelLayout | null>(null);
-  const [columnPos, setColumnPos] = useState<Map<string, ColumnPos>>(new Map());
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const [dropdownPos, setDropdownPos] = useState<DropdownPos | null>(null);
 
   const isGroupActive = (group: SiteNavGroup) =>
     group.items.some(
       (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
     );
 
-  const updateLayout = useCallback(() => {
+  const computeDropdown = useCallback((key: string) => {
     const header = navRef.current?.closest("header");
-    const band = header?.querySelector(".site-content-band");
-    if (!header || !(band instanceof HTMLElement)) return;
+    const col = columnRefs.current.get(key);
+    if (!header || !col) return;
 
     const headerRect = header.getBoundingClientRect();
-    const bandRect = band.getBoundingClientRect();
-    setPanelLayout({
-      top: headerRect.bottom,
-      left: bandRect.left,
-      width: bandRect.width,
-    });
-
-    const next = new Map<string, ColumnPos>();
-    for (const group of groups) {
-      const col = columnRefs.current.get(group.key);
-      if (!col) continue;
-      const rect = col.getBoundingClientRect();
-      next.set(group.key, {
-        left: rect.left - bandRect.left,
-        width: rect.width,
-      });
-    }
-    setColumnPos(next);
-  }, [groups]);
+    const rect = col.getBoundingClientRect();
+    const minWidth = Math.max(rect.width, 224);
+    const maxLeft = window.innerWidth - minWidth - 12;
+    const left = Math.max(12, Math.min(rect.left, maxLeft));
+    setDropdownPos({ top: headerRect.bottom, left, minWidth });
+  }, []);
 
   const cancelClose = useCallback(() => {
     if (closeTimerRef.current) {
@@ -68,17 +51,19 @@ export function SiteNavMegaMenu({ groups }: Props) {
     }
   }, []);
 
-  const openPanel = useCallback(() => {
-    cancelClose();
-    setOpen(true);
-    requestAnimationFrame(() => updateLayout());
-  }, [cancelClose, updateLayout]);
+  const openGroup = useCallback(
+    (key: string) => {
+      cancelClose();
+      setActiveKey(key);
+      requestAnimationFrame(() => computeDropdown(key));
+    },
+    [cancelClose, computeDropdown],
+  );
 
   const scheduleClose = useCallback(() => {
     cancelClose();
     closeTimerRef.current = setTimeout(() => {
-      setOpen(false);
-      setHoveredKey(null);
+      setActiveKey(null);
     }, CLOSE_DELAY_MS);
   }, [cancelClose]);
 
@@ -92,109 +77,71 @@ export function SiteNavMegaMenu({ groups }: Props) {
   }, [cancelClose]);
 
   useEffect(() => {
-    if (!open) return;
-    updateLayout();
-    const onScrollOrResize = () => updateLayout();
+    if (!activeKey) return;
+    computeDropdown(activeKey);
+    const onScrollOrResize = () => computeDropdown(activeKey);
     window.addEventListener("scroll", onScrollOrResize, true);
     window.addEventListener("resize", onScrollOrResize);
     return () => {
       window.removeEventListener("scroll", onScrollOrResize, true);
       window.removeEventListener("resize", onScrollOrResize);
     };
-  }, [open, updateLayout]);
+  }, [activeKey, computeDropdown]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!activeKey) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setOpen(false);
-        setHoveredKey(null);
-      }
+      if (e.key === "Escape") setActiveKey(null);
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open]);
+  }, [activeKey]);
 
-  const maxItemCount = Math.max(...groups.map((g) => Math.max(g.items.length, 1)), 1);
-  const panelMinHeight = 16 + maxItemCount * 40 + 8;
+  const activeGroup = activeKey
+    ? (groups.find((g) => g.key === activeKey) ?? null)
+    : null;
 
   const panel =
-    open && panelLayout && columnPos.size > 0 ? (
+    activeGroup && dropdownPos ? (
       <div
         id="site-nav-mega-panel"
         role="navigation"
-        aria-label="전체 하위 메뉴"
-        className="fixed z-[200] overflow-hidden border-b border-brand-900/10 bg-white/98 shadow-[0_24px_48px_-12px_rgba(15,23,42,0.18)] backdrop-blur-md"
+        aria-label={`${activeGroup.label} 하위 메뉴`}
+        className="fixed z-[200] overflow-hidden rounded-b-xl border border-t-0 border-brand-900/10 bg-white/98 shadow-[0_20px_44px_-16px_rgba(15,23,42,0.24)] backdrop-blur-md"
         style={{
-          top: panelLayout.top,
-          left: panelLayout.left,
-          width: panelLayout.width,
+          top: dropdownPos.top,
+          left: dropdownPos.left,
+          minWidth: dropdownPos.minWidth,
         }}
-        onMouseEnter={openPanel}
+        onMouseEnter={cancelClose}
         onMouseLeave={scheduleClose}
       >
-        <div className="relative py-3" style={{ minHeight: panelMinHeight }}>
-          {groups.map((group) => {
-            const pos = columnPos.get(group.key);
-            if (!pos) return null;
-
-            const groupActive = isGroupActive(group);
-            const columnHighlighted =
-              hoveredKey === group.key || (!hoveredKey && groupActive);
-
-            return (
-              <div
-                key={group.key}
-                className={`absolute top-3 box-border rounded-xl py-1 pl-2 pr-1 transition-all duration-150 sm:pl-3 ${
-                  columnHighlighted
-                    ? "bg-accent-500/10 ring-1 ring-inset ring-accent-500/25"
-                    : "opacity-40"
-                }`}
-                style={{
-                  left: pos.left,
-                  width: pos.width,
-                }}
-                onMouseEnter={() => setHoveredKey(group.key)}
-              >
-                {group.items.length === 0 ? (
-                  <p
-                    className={`text-sm ${
-                      columnHighlighted ? "font-medium text-brand-800" : "text-brand-700/60"
-                    }`}
-                  >
-                    등록된 메뉴가 없습니다.
-                  </p>
-                ) : (
-                  <ul className="space-y-0.5">
-                    {group.items.map((item) => {
-                      const itemActive =
-                        pathname === item.href || pathname.startsWith(`${item.href}/`);
-                      return (
-                        <li key={item.id}>
-                          <Link
-                            href={item.href}
-                            onClick={() => {
-                              setOpen(false);
-                              setHoveredKey(null);
-                            }}
-                            className={`block rounded-lg py-2 pr-2 text-left text-sm transition ${
-                              itemActive
-                                ? "bg-brand-900/8 font-semibold text-brand-900"
-                                : columnHighlighted
-                                  ? "font-medium text-brand-800 hover:bg-brand-900/5"
-                                  : "text-brand-700/70 hover:bg-brand-900/5 hover:text-brand-900"
-                            }`}
-                          >
-                            {item.label}
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-            );
-          })}
+        <div className="p-2">
+          {activeGroup.items.length === 0 ? (
+            <p className="px-3 py-2 text-sm text-brand-700/60">등록된 메뉴가 없습니다.</p>
+          ) : (
+            <ul className="space-y-0.5">
+              {activeGroup.items.map((item) => {
+                const itemActive =
+                  pathname === item.href || pathname.startsWith(`${item.href}/`);
+                return (
+                  <li key={item.id}>
+                    <Link
+                      href={item.href}
+                      onClick={() => setActiveKey(null)}
+                      className={`block whitespace-nowrap rounded-lg px-3 py-2 text-left text-sm transition ${
+                        itemActive
+                          ? "bg-brand-900/8 font-semibold text-brand-900"
+                          : "font-medium text-brand-800 hover:bg-brand-900/5"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
       </div>
     ) : null;
@@ -207,31 +154,28 @@ export function SiteNavMegaMenu({ groups }: Props) {
         style={{
           gridTemplateColumns: `repeat(${groups.length}, minmax(7.5rem, max-content))`,
         }}
-        onMouseEnter={openPanel}
         onMouseLeave={scheduleClose}
       >
         {groups.map((group) => {
           const active = isGroupActive(group);
-          const highlighted = open && (hoveredKey === group.key || (!hoveredKey && active));
+          const isActiveKey = activeKey === group.key;
           return (
             <div
               key={group.key}
               ref={(el) => setColumnRef(group.key, el)}
-              onMouseEnter={() => setHoveredKey(group.key)}
+              onMouseEnter={() => openGroup(group.key)}
             >
               <button
                 type="button"
-                onFocus={openPanel}
+                onFocus={() => openGroup(group.key)}
                 className={`whitespace-nowrap rounded-lg px-3 py-2 text-left text-[1.0625rem] font-medium transition sm:px-4 ${
-                  highlighted || (open && active)
+                  isActiveKey
                     ? "bg-brand-900/6 text-brand-900 ring-1 ring-brand-900/10"
-                    : open
-                      ? "text-brand-700 hover:bg-brand-900/5 hover:text-brand-900"
-                      : active
-                        ? "bg-brand-900/6 text-brand-900"
-                        : "text-brand-700 hover:bg-brand-900/5 hover:text-brand-900"
+                    : active
+                      ? "bg-brand-900/6 text-brand-900"
+                      : "text-brand-700 hover:bg-brand-900/5 hover:text-brand-900"
                 }`}
-                aria-expanded={open}
+                aria-expanded={isActiveKey}
                 aria-controls="site-nav-mega-panel"
               >
                 {group.label}

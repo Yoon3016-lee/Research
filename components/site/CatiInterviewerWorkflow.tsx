@@ -268,7 +268,7 @@ export function CatiInterviewerWorkflow({
             </p>
             {contactOptions.length === 0 ? (
               <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-                등록된 컨택 결과 선택지가 없습니다. 관리자에게 「컨택 관리」 설정을 요청하세요.
+                등록된 컨택 결과 선택지가 없습니다. 관리자에게 「전체 컨택 관리」 설정을 요청하세요.
               </p>
             ) : (
               <>

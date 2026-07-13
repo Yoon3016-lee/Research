@@ -66,6 +66,13 @@ export default async function AdminSurveysPage({
               defaultOpen={scriptsOpen}
             />
             <SurveyTemplateImportButton surveys={adminSurveys} mode="navigate" />
+            <Link
+              href="/admin/surveys/contact-defaults"
+              className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-900 shadow-sm transition hover:bg-indigo-100"
+            >
+              <ListChecks className="h-4 w-4" aria-hidden />
+              전체 컨택 관리
+            </Link>
           </div>
 
           <div className="admin-card mt-6 overflow-hidden">
@@ -136,16 +143,6 @@ export default async function AdminSurveysPage({
                           >
                             <Users className="h-3.5 w-3.5" aria-hidden />
                             표본 관리
-                          </Link>
-                          <Link
-                            href={{
-                              pathname: "/admin/surveys/contact",
-                              query: { slug: s.id },
-                            }}
-                            className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-900 hover:bg-indigo-100"
-                          >
-                            <ListChecks className="h-3.5 w-3.5" aria-hidden />
-                            컨택 관리
                           </Link>
                           <Link
                             href={{

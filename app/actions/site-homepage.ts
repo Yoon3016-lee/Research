@@ -293,6 +293,7 @@ export async function updateNavItemAction(
   if (!href) return { error: "링크는 / 로 시작해야 합니다." };
 
   const admin = createSupabaseServiceRoleClient();
+
   const { error } = await admin
     .from("site_nav_items")
     .update({
@@ -355,6 +356,12 @@ export async function deleteNavItemAction(
   const id = String(formData.get("id") ?? "").trim();
   if (!id) return { error: "메뉴 ID가 없습니다." };
 
+  const admin = createSupabaseServiceRoleClient();
+  const { error } = await admin.from("site_nav_items").delete().eq("id", id);
+  if (error) {
+    return { error: error.message };
+  }
+
   revalidateSite();
   return { ok: true };
 }
@@ -399,13 +406,29 @@ export async function createNavGroupAction(
   const sortOrder =
     typeof maxRow?.sort_order === "number" ? maxRow.sort_order + 1 : 0;
 
+  const guideFile = formData.get("guide_pdf");
+  let guidePdfUrl: string | null = null;
+  let guidePdfPath: string | null = null;
+  let guideMediaType: "image" | "pdf" | null = null;
+  if (guideFile instanceof File && guideFile.size > 0) {
+    const uploaded = await uploadSiteMediaFile(guideFile, "nav-guides");
+    if (!uploaded.ok) return { error: uploaded.error };
+    guidePdfUrl = uploaded.data.url;
+    guidePdfPath = uploaded.data.storagePath;
+    guideMediaType = uploaded.data.mediaType;
+  }
+
   const { error } = await admin.from("site_nav_groups").insert({
     key,
     label,
     sort_order: sortOrder,
+    guide_pdf_url: guidePdfUrl,
+    guide_pdf_path: guidePdfPath,
+    guide_media_type: guideMediaType,
   });
 
   if (error) {
+    await deleteSiteMediaFile(guidePdfPath);
     if (error.message.includes("site_nav_groups")) {
       return {
         error:
@@ -427,14 +450,41 @@ export async function updateNavGroupAction(
 
   const key = normalizeGroupKey(String(formData.get("key") ?? ""));
   const label = String(formData.get("label") ?? "").trim();
+  const removeGuide = String(formData.get("remove_guide_pdf") ?? "") === "on";
+  const guideFile = formData.get("guide_pdf");
 
   if (!key) return { error: "탭 ID가 올바르지 않습니다." };
   if (!label) return { error: "탭 이름을 입력하세요." };
 
   const admin = createSupabaseServiceRoleClient();
+
+  const { data: existing } = await admin
+    .from("site_nav_groups")
+    .select("guide_pdf_path")
+    .eq("key", key)
+    .maybeSingle();
+  const currentGuidePath = (existing?.guide_pdf_path as string | null) ?? null;
+
+  const update: Record<string, unknown> = { label };
+  let pathToDelete: string | null = null;
+
+  if (guideFile instanceof File && guideFile.size > 0) {
+    const uploaded = await uploadSiteMediaFile(guideFile, "nav-guides");
+    if (!uploaded.ok) return { error: uploaded.error };
+    update.guide_pdf_url = uploaded.data.url;
+    update.guide_pdf_path = uploaded.data.storagePath;
+    update.guide_media_type = uploaded.data.mediaType;
+    pathToDelete = currentGuidePath;
+  } else if (removeGuide) {
+    update.guide_pdf_url = null;
+    update.guide_pdf_path = null;
+    update.guide_media_type = null;
+    pathToDelete = currentGuidePath;
+  }
+
   const { data, error } = await admin
     .from("site_nav_groups")
-    .update({ label })
+    .update(update)
     .eq("key", key)
     .select("key")
     .maybeSingle();
@@ -445,6 +495,8 @@ export async function updateNavGroupAction(
   if (!data) {
     return { error: "해당 탭을 찾을 수 없습니다." };
   }
+
+  await deleteSiteMediaFile(pathToDelete);
 
   revalidateSite();
   return { ok: true };
@@ -460,11 +512,19 @@ export async function deleteNavGroupAction(
   if (!key) return { error: "탭 ID가 올바르지 않습니다." };
 
   const admin = createSupabaseServiceRoleClient();
+  const { data: existing } = await admin
+    .from("site_nav_groups")
+    .select("guide_pdf_path")
+    .eq("key", key)
+    .maybeSingle();
+
   const { error } = await admin.from("site_nav_groups").delete().eq("key", key);
 
   if (error) {
     return { error: error.message };
   }
+
+  await deleteSiteMediaFile((existing?.guide_pdf_path as string | null) ?? null);
 
   revalidateSite();
   return { ok: true };

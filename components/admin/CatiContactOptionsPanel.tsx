@@ -12,7 +12,7 @@ import {
   Save,
   Trash2,
 } from "lucide-react";
-import { saveCatiContactOptionsAction } from "@/app/actions/cati-contact-options";
+import { saveGlobalCatiContactOptionsAction } from "@/app/actions/cati-contact-options";
 import {
   DEFAULT_CATI_CONTACT_OPTIONS,
   MAX_CATI_CONTACT_OPTIONS,
@@ -20,8 +20,8 @@ import {
 } from "@/lib/cati-contact-types";
 
 type Props = {
-  slug: string;
   title: string;
+  description?: string;
   initialOptions: CatiContactOption[];
   usingDefaults: boolean;
 };
@@ -58,8 +58,8 @@ function defaultsAsEditable(): EditableOption[] {
 }
 
 export function CatiContactOptionsPanel({
-  slug,
   title,
+  description,
   initialOptions,
   usingDefaults,
 }: Props) {
@@ -106,14 +106,12 @@ export function CatiContactOptionsPanel({
     setError(null);
     setSuccess(null);
     startTransition(async () => {
-      const result = await saveCatiContactOptionsAction(
-        slug,
-        options.map((o) => ({
-          label: o.label,
-          isSuccess: o.isSuccess,
-          isActive: o.isActive,
-        })),
-      );
+      const payload = options.map((o) => ({
+        label: o.label,
+        isSuccess: o.isSuccess,
+        isActive: o.isActive,
+      }));
+      const result = await saveGlobalCatiContactOptionsAction(payload);
       if (!result.ok) {
         setError(result.error);
         return;
@@ -132,19 +130,24 @@ export function CatiContactOptionsPanel({
             <ListChecks className="h-5 w-5" aria-hidden />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="site-eyebrow">CATI Contact</p>
+            <p className="site-eyebrow">CATI Contact · 전체 공통</p>
             <h2 className="mt-1 text-lg font-semibold text-brand-900">{title}</h2>
             <p className="mt-1 text-sm text-brand-700/85">
-              조사원이 UID 확인 후 선택하는 컨택 결과 항목입니다. <strong>「성공(설문 진행)」</strong>
-              으로 지정한 항목을 선택하면 설문 문항으로 넘어갑니다.
+              {description ?? (
+                <>
+                  조사원이 UID 확인 후 선택하는 컨택 결과 항목입니다.{" "}
+                  <strong>「성공(설문 진행)」</strong>으로 지정한 항목을 선택하면 설문 문항으로
+                  넘어갑니다.
+                </>
+              )}
             </p>
           </div>
         </div>
 
         {savedDefaults ? (
           <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-            아직 이 설문에 저장된 선택지가 없어 <strong>기본 선택지</strong>를 표시하고 있습니다.
-            수정 후 저장하면 이 설문 전용으로 적용됩니다.
+            아직 저장된 선택지가 없어 <strong>앱 내장 기본 선택지</strong>를 표시하고 있습니다.
+            수정 후 저장하면 모든 설문에 적용됩니다.
           </p>
         ) : null}
       </section>

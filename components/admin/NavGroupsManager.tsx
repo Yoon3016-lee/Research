@@ -8,7 +8,7 @@ import {
   updateNavGroupAction,
   type SiteHomepageActionState,
 } from "@/app/actions/site-homepage";
-import type { SiteNavGroup } from "@/lib/site-homepage";
+import type { SiteNavGroup, SiteNavGuideMediaType } from "@/lib/site-homepage";
 
 const initial: SiteHomepageActionState = {};
 
@@ -44,7 +44,8 @@ export function NavGroupsManager({ groups, embedded = false }: Props) {
               <a href="#section-homepage" className="font-medium text-indigo-700 hover:underline">
                 사이트 설정
               </a>
-              에서 편집할 수 있습니다.
+              에서 편집할 수 있습니다. 「이름·배너 수정」에서 탭별 안내 배너(PDF·이미지)를
+              등록하면 해당 탭의 하위 페이지 상단에 표시됩니다.
             </p>
           </div>
           <button
@@ -77,6 +78,11 @@ export function NavGroupsManager({ groups, embedded = false }: Props) {
                       <span className="ml-2 text-xs text-zinc-400">
                         하위 메뉴 {group.items.length}개
                       </span>
+                      {group.guidePdfUrl ? (
+                        <span className="ml-2 inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                          안내 배너
+                        </span>
+                      ) : null}
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
@@ -89,7 +95,7 @@ export function NavGroupsManager({ groups, embedded = false }: Props) {
                       className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
                     >
                       <Pencil className="h-3.5 w-3.5" aria-hidden />
-                      이름 수정
+                      이름·배너 수정
                     </button>
                     <DeleteNavGroupButton
                       groupKey={group.key}
@@ -103,6 +109,8 @@ export function NavGroupsManager({ groups, embedded = false }: Props) {
                   <NavGroupEditForm
                     groupKey={group.key}
                     initialLabel={group.label}
+                    initialGuidePdfUrl={group.guidePdfUrl}
+                    initialGuideMediaType={group.guideMediaType}
                     onDone={() => setEditingKey(null)}
                   />
                 ) : null}
@@ -129,6 +137,7 @@ function NavGroupCreateForm({ onDone }: { onDone: () => void }) {
   return (
     <form
       action={formAction}
+      encType="multipart/form-data"
       className="mt-6 space-y-4 rounded-xl border border-zinc-100 bg-zinc-50 p-4"
     >
       <p className="text-sm font-medium text-zinc-800">새 상단 탭</p>
@@ -156,6 +165,7 @@ function NavGroupCreateForm({ onDone }: { onDone: () => void }) {
           이름은 ID를 직접 입력하세요)
         </span>
       </label>
+      <GuideFileField />
       <ActionMessage state={state} />
       <div className="flex gap-2">
         <button
@@ -180,10 +190,14 @@ function NavGroupCreateForm({ onDone }: { onDone: () => void }) {
 function NavGroupEditForm({
   groupKey,
   initialLabel,
+  initialGuidePdfUrl,
+  initialGuideMediaType,
   onDone,
 }: {
   groupKey: string;
   initialLabel: string;
+  initialGuidePdfUrl: string | null;
+  initialGuideMediaType: SiteNavGuideMediaType | null;
   onDone: () => void;
 }) {
   const [state, formAction, pending] = useActionState(updateNavGroupAction, initial);
@@ -195,6 +209,7 @@ function NavGroupEditForm({
   return (
     <form
       action={formAction}
+      encType="multipart/form-data"
       className="mt-4 space-y-3 rounded-xl border border-indigo-100 bg-indigo-50/40 p-4"
     >
       <input type="hidden" name="key" value={groupKey} />
@@ -211,6 +226,10 @@ function NavGroupEditForm({
           className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
         />
       </label>
+      <GuideFileField
+        currentUrl={initialGuidePdfUrl}
+        currentMediaType={initialGuideMediaType}
+      />
       <ActionMessage state={state} />
       <div className="flex gap-2">
         <button
@@ -229,6 +248,51 @@ function NavGroupEditForm({
         </button>
       </div>
     </form>
+  );
+}
+
+function GuideFileField({
+  currentUrl = null,
+  currentMediaType = null,
+}: {
+  currentUrl?: string | null;
+  currentMediaType?: SiteNavGuideMediaType | null;
+}) {
+  return (
+    <div className="rounded-xl border border-zinc-200 bg-white p-3 text-sm">
+      <p className="font-medium text-zinc-700">안내 배너 (선택)</p>
+      <p className="mt-1 text-xs text-zinc-500">
+        이 탭에 속한 하위 메뉴 페이지 상단에 표시됩니다. PDF 또는 이미지(JPG·PNG) 파일을
+        올릴 수 있습니다.
+      </p>
+      {currentUrl ? (
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <a
+            href={currentUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center rounded-lg border border-indigo-200 px-2.5 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
+          >
+            현재 배너 보기{currentMediaType === "image" ? " (이미지)" : " (PDF)"}
+          </a>
+          <label className="inline-flex items-center gap-1.5 text-xs text-zinc-600">
+            <input type="checkbox" name="remove_guide_pdf" className="h-3.5 w-3.5" />
+            배너 삭제
+          </label>
+        </div>
+      ) : null}
+      <input
+        type="file"
+        name="guide_pdf"
+        accept="application/pdf,image/png,image/jpeg,image/jpg,image/webp"
+        className="mt-2 block w-full text-xs text-zinc-600 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-zinc-700 hover:file:bg-zinc-200"
+      />
+      {currentUrl ? (
+        <p className="mt-1 text-xs text-zinc-400">
+          새 파일을 선택하면 기존 배너를 교체합니다.
+        </p>
+      ) : null}
+    </div>
   );
 }
 

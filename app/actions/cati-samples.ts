@@ -45,7 +45,7 @@ export async function recordCatiContactOutcomeAction(
   const auth = await requireCatiStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
 
-  const resolved = await resolveCatiContactOutcome(slug, optionId);
+  const resolved = await resolveCatiContactOutcome(optionId);
   if (!resolved) {
     return { ok: false, error: "선택한 컨택 결과를 찾을 수 없습니다." };
   }

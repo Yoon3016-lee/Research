@@ -10,6 +10,8 @@ import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 
 export type SiteNavGroupKey = string;
 
+export type SiteNavGuideMediaType = "image" | "pdf";
+
 export type SiteNavItem = {
   id: string;
   groupKey: string;
@@ -24,6 +26,8 @@ export type SiteNavGroup = {
   label: string;
   sortOrder: number;
   items: SiteNavItem[];
+  guidePdfUrl: string | null;
+  guideMediaType: SiteNavGuideMediaType | null;
 };
 
 export type SiteHomepageConfig = {
@@ -47,9 +51,9 @@ const DEFAULT_CONFIG: SiteHomepageConfig = {
   siteNameFontFamily: getSiteNameFontOption(DEFAULT_SITE_NAME_FONT).fontFamily,
   logoUrl: null,
   groups: [
-    { key: "intro", label: "회사 소개", sortOrder: 0, items: [] },
-    { key: "survey", label: "설문 조사", sortOrder: 1, items: [] },
-    { key: "service", label: "서비스", sortOrder: 2, items: [] },
+    { key: "intro", label: "회사 소개", sortOrder: 0, items: [], guidePdfUrl: null, guideMediaType: null },
+    { key: "survey", label: "설문 조사", sortOrder: 1, items: [], guidePdfUrl: null, guideMediaType: null },
+    { key: "service", label: "서비스", sortOrder: 2, items: [], guidePdfUrl: null, guideMediaType: null },
   ],
 };
 
@@ -101,16 +105,30 @@ export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
     settingsError = settingsWithFont.error;
   }
 
-  const [
-    { data: groups, error: groupsError },
-    { data: items, error: itemsError },
-  ] = await Promise.all([
-    admin.from("site_nav_groups").select("key, label, sort_order").order("sort_order"),
+  const [groupsResult, { data: items, error: itemsError }] = await Promise.all([
+    admin
+      .from("site_nav_groups")
+      .select("key, label, sort_order, guide_pdf_url, guide_media_type")
+      .order("sort_order"),
     admin
       .from("site_nav_items")
       .select("id, group_key, label, href, sort_order, page_id")
       .order("sort_order", { ascending: true }),
   ]);
+
+  let { data: groups, error: groupsError } = groupsResult;
+  // guide_* 마이그레이션 전이면 컬럼 없이 재조회
+  if (
+    groupsError?.message.includes("guide_pdf_url") ||
+    groupsError?.message.includes("guide_media_type")
+  ) {
+    const fallback = await admin
+      .from("site_nav_groups")
+      .select("key, label, sort_order")
+      .order("sort_order");
+    groups = fallback.data;
+    groupsError = fallback.error;
+  }
 
   if (settingsError) {
     console.error("[getSiteHomepageConfig] site_settings:", settingsError.message);
@@ -133,6 +151,8 @@ export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
     key: string;
     label: string;
     sort_order: number;
+    guide_pdf_url?: string | null;
+    guide_media_type?: string | null;
   }[];
 
   const itemRows = (items ?? []) as {
@@ -168,6 +188,13 @@ export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
           label: g.label,
           sortOrder: g.sort_order,
           items: itemsByGroup.get(g.key) ?? [],
+          guidePdfUrl: g.guide_pdf_url ?? null,
+          guideMediaType:
+            g.guide_media_type === "image" || g.guide_media_type === "pdf"
+              ? g.guide_media_type
+              : g.guide_pdf_url
+                ? "pdf"
+                : null,
         }))
       : DEFAULT_CONFIG.groups;
 
