@@ -95,6 +95,7 @@ export async function createSurveyAction(
     return { error: persistError };
   }
 
+  revalidatePath("/admin");
   revalidatePath("/admin/surveys");
   revalidatePath("/admin/surveys/logic");
   revalidatePath("/surveys");

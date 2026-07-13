@@ -101,9 +101,11 @@ export async function updateSurveyAction(
     return { error: persistError };
   }
 
+  revalidatePath("/admin");
   revalidatePath("/admin/surveys");
   revalidatePath("/admin/surveys/edit");
   revalidatePath("/admin/surveys/logic");
+  revalidatePath("/admin/progress");
   revalidatePath("/surveys");
   revalidatePath(`/survey/${normalizedSlug}`);
   revalidatePath(`/survey-script/${normalizedSlug}`);
