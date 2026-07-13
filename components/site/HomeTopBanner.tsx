@@ -13,7 +13,7 @@ export function HomeTopBanner({ banners }: Props) {
       className="relative z-0 w-full border-b border-slate-200 bg-white"
       aria-label="상단 배너"
     >
-      <div className="flex flex-col">
+      <div className="mx-auto flex w-[var(--site-banner-max)] max-w-full flex-col">
         {banners.map((banner, index) => (
           <TopBannerCard key={banner.id} banner={banner} stacked={index > 0} />
         ))}

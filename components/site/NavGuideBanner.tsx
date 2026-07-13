@@ -46,22 +46,24 @@ export function NavGuideBanner({ items }: Props) {
       className="relative z-0 w-full border-b border-slate-200 bg-white"
       aria-label={`${best.label} 안내`}
     >
-      {best.guideMediaType === "pdf" ? (
-        <iframe
-          title={`${best.label} 안내`}
-          src={best.guidePdfUrl}
-          className="aspect-[8/1] min-h-[4.5rem] w-full border-0 bg-slate-50"
-        />
-      ) : (
-        <div className="aspect-[8/1] min-h-[4.5rem] w-full overflow-hidden bg-slate-50">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+      <div className="mx-auto w-[var(--site-banner-max)] max-w-full">
+        {best.guideMediaType === "pdf" ? (
+          <iframe
+            title={`${best.label} 안내`}
             src={best.guidePdfUrl}
-            alt={`${best.label} 안내`}
-            className="block h-full w-full object-fill"
+            className="aspect-[8/1] min-h-[4.5rem] w-full border-0 bg-slate-50"
           />
-        </div>
-      )}
+        ) : (
+          <div className="aspect-[8/1] min-h-[4.5rem] w-full overflow-hidden bg-slate-50">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={best.guidePdfUrl}
+              alt={`${best.label} 안내`}
+              className="block h-full w-full object-fill"
+            />
+          </div>
+        )}
+      </div>
     </section>
   );
 }

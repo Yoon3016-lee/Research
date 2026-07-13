@@ -1,4 +1,5 @@
 import { Noto_Sans_KR, Source_Serif_4 } from "next/font/google";
+import { BannerWidthVar } from "@/components/site/BannerWidthVar";
 import { NavGuideBanner, type NavGuideItem } from "@/components/site/NavGuideBanner";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
@@ -48,6 +49,7 @@ export default async function SiteLayout({
   return (
     <>
       <SiteNameFontLinks fontKey={homepage.siteNameFont} />
+      <BannerWidthVar />
       <div
         className={`site-public ${siteBody.className} ${siteBody.variable} ${siteDisplay.variable} flex min-h-screen flex-col`}
         style={{ ["--font-site-name" as string]: homepage.siteNameFontFamily }}

@@ -285,6 +285,7 @@
   .site-public {
     --site-header-height: 4.25rem;
     --site-content-max: 1440px;
+    --site-banner-max: var(--site-banner-resolution, 100%);
     --site-container-padding: clamp(1rem, 2.5vw, 1.75rem);
     --site-content-half: min(720px, 50vw - var(--site-container-padding));
     --font-site-name: var(--font-site-display), "Source Serif 4", Georgia, serif;
