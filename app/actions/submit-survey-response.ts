@@ -9,7 +9,7 @@ import { getSurveyParticipant, resolveRespondentForInsert } from "@/lib/particip
 import { validateSurveyAnswers } from "@/lib/survey-validate-answers";
 import {
   branchingSnapshotFromAnswers,
-  isPublicQuestionVisible,
+  isQuestionShownInSurvey,
 } from "@/lib/survey-visibility";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -25,12 +25,18 @@ function toAnswerJson(
 ): Record<string, unknown> | null {
   if (qType === "mc_single" && a.type === "mc_single") {
     if (!a.optionId?.trim()) return null;
-    return { optionId: a.optionId };
+    const otherText = a.otherText?.trim();
+    return otherText
+      ? { optionId: a.optionId, otherText }
+      : { optionId: a.optionId };
   }
   if (qType === "mc_multi" && a.type === "mc_multi") {
     const optionIds = [...new Set(a.optionIds.filter(Boolean))];
     if (optionIds.length === 0) return null;
-    return { optionIds };
+    const otherText = a.otherText?.trim();
+    return otherText
+      ? { optionIds, otherText }
+      : { optionIds };
   }
   if (qType === "text_single" && a.type === "text_single") {
     const text = a.text?.trim() ?? "";
@@ -66,6 +72,15 @@ function toAnswerJson(
   if (qType === "star_rating" && a.type === "star_rating") {
     if (a.value == null || !isStarRatingValue(a.value)) return null;
     return { value: a.value };
+  }
+  if (qType === "contact_fields" && a.type === "contact_fields") {
+    const values: Record<string, string> = {};
+    for (const [k, v] of Object.entries(a.values ?? {})) {
+      const text = v?.trim() ?? "";
+      if (text) values[k] = text;
+    }
+    if (Object.keys(values).length === 0) return null;
+    return { values };
   }
   return null;
 }
@@ -155,7 +170,7 @@ export async function submitSurveyResponseAction(
     [];
 
   for (const q of survey.questions) {
-    if (!isPublicQuestionVisible(q, survey.questions, branchingSnapshot, isStaff)) {
+    if (!isQuestionShownInSurvey(q, survey.questions, branchingSnapshot, isStaff)) {
       continue;
     }
     const a = answers.find((x) => x.questionId === q.id);

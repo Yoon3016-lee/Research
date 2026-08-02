@@ -38,6 +38,10 @@ export function SurveyLogicViewer({ model }: Props) {
             <span className="h-3 w-3 rounded-full bg-fuchsia-100 ring-2 ring-fuchsia-300" aria-hidden />
             분기 보기
           </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded-full bg-amber-100 ring-2 ring-amber-300" aria-hidden />
+            조사 종료
+          </span>
         </div>
         <div className="flex gap-3 text-sm tabular-nums text-zinc-600">
           <span>

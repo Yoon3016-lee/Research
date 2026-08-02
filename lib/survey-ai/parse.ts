@@ -33,6 +33,9 @@ function normalizeRawQuestion(raw: SurveyAiRawQuestion, index: number): DraftQue
 
   if (Array.isArray(raw.options)) {
     q.options = raw.options.map((o) => (typeof o === "string" ? o : String(o)));
+    q.optionEndsSurvey = Array.isArray(raw.optionEndsSurvey)
+      ? q.options.map((_, i) => Boolean(raw.optionEndsSurvey?.[i]))
+      : q.options.map((o) => /조사\s*종료/.test(o));
   }
 
   if (typeof raw.maxSelections === "number" && Number.isFinite(raw.maxSelections)) {

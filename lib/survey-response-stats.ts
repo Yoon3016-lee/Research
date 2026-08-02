@@ -527,6 +527,36 @@ export async function getSurveyResponseStats(ref: string): Promise<SurveyRespons
       return { ...base, buckets: buildLikertBuckets(totalSubmissions, noAnswer, entries) };
     }
 
+    if (type === "info_media") {
+      return {
+        ...base,
+        buckets: buildBuckets(totalSubmissions, noAnswer, [
+          {
+            key: "display",
+            label: "안내 문항 (응답 없음)",
+            counts: emptyCounts(),
+          },
+        ]),
+      };
+    }
+
+    if (type === "contact_fields") {
+      const answered = emptyCounts();
+      for (const a of answers) {
+        if (!a.answer || typeof a.answer !== "object") continue;
+        const values = (a.answer as { values?: Record<string, string> }).values;
+        if (!values || typeof values !== "object") continue;
+        const has = Object.values(values).some((v) => (v ?? "").trim().length > 0);
+        if (has) bump(answered, a.kind);
+      }
+      return {
+        ...base,
+        buckets: buildBuckets(totalSubmissions, noAnswer, [
+          { key: "answered", label: "항목 입력 완료", counts: answered },
+        ]),
+      };
+    }
+
     return { ...base, buckets: buildBuckets(totalSubmissions, noAnswer, []) };
   });
 

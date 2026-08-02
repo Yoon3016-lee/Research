@@ -3,6 +3,8 @@
 import { Plus, Trash2, ChevronUp, ChevronDown, ChevronRight, GripVertical } from "lucide-react";
 import {
   QUESTION_TYPE_LABELS,
+  labelSuggestsSurveyEnd,
+  syncOptionEndsSurvey,
   type DraftQuestion,
   type QuestionType,
 } from "@/lib/survey-types";
@@ -12,6 +14,7 @@ import {
   SURVEY_BRANCHING_SOURCE_RULE_DETAIL,
   type QuestionVisibilityCondition,
 } from "@/lib/survey-visibility";
+import { InfoMediaEditFields } from "@/components/admin/survey-builder/InfoMediaEditFields";
 
 type Props = {
   q: DraftQuestion;
@@ -33,6 +36,8 @@ const TYPE_BADGE: Record<QuestionType, string> = {
   likert_7: "bg-emerald-100 text-emerald-900 ring-emerald-200",
   likert_multi: "bg-emerald-100 text-emerald-900 ring-emerald-200",
   star_rating: "bg-amber-100 text-amber-900 ring-amber-200",
+  info_media: "bg-rose-100 text-rose-900 ring-rose-200",
+  contact_fields: "bg-teal-100 text-teal-900 ring-teal-200",
 };
 
 export function QuestionEditCard({
@@ -110,13 +115,18 @@ export function QuestionEditCard({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-semibold text-zinc-900">
-                문항 {index + 1}
+                {q.type === "info_media" ? "안내" : `문항 ${index + 1}`}
               </span>
               <span
                 className={`inline-flex max-w-full items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ${TYPE_BADGE[q.type]}`}
               >
                 {QUESTION_TYPE_LABELS[q.type]}
               </span>
+              {q.type === "info_media" ? (
+                <span className="inline-flex rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-800 ring-1 ring-rose-200">
+                  번호 없음
+                </span>
+              ) : null}
               {q.allowSkip ? (
                 <span className="inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700 ring-1 ring-zinc-200">
                   무응답 허용
@@ -199,20 +209,26 @@ export function QuestionEditCard({
             <span className="truncate text-xs font-normal text-zinc-500">{conditionSummary}</span>
           </summary>
           <div className="space-y-3 border-t border-zinc-100 px-3 pb-3 pt-3">
-            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-100 bg-white px-3 py-2.5 transition hover:bg-zinc-50/80">
-              <input
-                type="checkbox"
-                checked={q.allowSkip}
-                onChange={(e) => onChange({ allowSkip: e.target.checked })}
-                className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
-              />
-              <span>
-                <span className="text-sm font-medium text-zinc-800">무응답 허용</span>
-                <span className="mt-0.5 block text-xs leading-relaxed text-zinc-500">
-                  체크하면 이 문항을 비우고 다음으로 넘어갈 수 있습니다.
+            {q.type !== "info_media" ? (
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-100 bg-white px-3 py-2.5 transition hover:bg-zinc-50/80">
+                <input
+                  type="checkbox"
+                  checked={q.allowSkip}
+                  onChange={(e) => onChange({ allowSkip: e.target.checked })}
+                  className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span>
+                  <span className="text-sm font-medium text-zinc-800">무응답 허용</span>
+                  <span className="mt-0.5 block text-xs leading-relaxed text-zinc-500">
+                    체크하면 이 문항을 비우고 다음으로 넘어갈 수 있습니다.
+                  </span>
                 </span>
-              </span>
-            </label>
+              </label>
+            ) : (
+              <p className="rounded-xl border border-rose-100 bg-rose-50/50 px-3 py-2.5 text-xs text-rose-900">
+                글/그림/영상 문항은 응답을 받지 않는 안내 문항입니다.
+              </p>
+            )}
 
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-indigo-100 bg-indigo-50/40 px-3 py-2.5 transition hover:bg-indigo-50/70">
               <input
@@ -234,7 +250,8 @@ export function QuestionEditCard({
               <span className="text-sm font-medium text-zinc-800">표시 조건</span>
               <p className="mt-0.5 text-xs leading-relaxed text-zinc-500">
                 {SURVEY_BRANCHING_SOURCE_RULE} {SURVEY_BRANCHING_SOURCE_RULE_DETAIL}
-                조건이 여러 개이면 모두 만족할 때 표시됩니다.
+                조건이 여러 개이면 하나라도 만족할 때 표시됩니다 (OR).
+                예: 문항 A의 보기 1·2·3을 각각 조건으로 넣으면, 그중 하나를 골랐을 때 이 문항이 나타납니다.
               </p>
               {priorBranching.length === 0 ? (
                 <p className="mt-2 text-xs text-zinc-500">
@@ -320,7 +337,7 @@ export function QuestionEditCard({
                         onClick={addRule}
                         className="text-xs font-medium text-fuchsia-800 hover:text-fuchsia-950"
                       >
-                        + 조건 추가 (AND)
+                        + 조건 추가 (OR)
                       </button>
                     </div>
                   ) : null}
@@ -337,29 +354,96 @@ export function QuestionEditCard({
               {q.type === "dropdown"
                 ? "드롭다운에 표시할 보기입니다. 최소 2개 이상 채워 주세요."
                 : "응답자에게 보일 보기 문구입니다. 최소 2개 이상 채워 주세요."}
+              {q.type === "mc_single" || q.type === "dropdown"
+                ? " 「조사 종료」를 켜면 해당 보기 선택 시 이후 문항 없이 제출로 이어집니다."
+                : ""}
             </p>
             <div className="mt-3 space-y-2">
-              {q.options.map((opt, oi) => (
-                <input
-                  key={oi}
-                  value={opt}
-                  onChange={(e) => {
-                    const opts = [...q.options];
-                    opts[oi] = e.target.value;
-                    onChange({ options: opts });
-                  }}
-                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/15"
-                  placeholder={`보기 ${oi + 1}`}
-                />
-              ))}
+              {q.options.map((opt, oi) => {
+                const ends = Boolean(q.optionEndsSurvey?.[oi]);
+                const canEnd = q.type === "mc_single" || q.type === "dropdown";
+                return (
+                  <div key={oi} className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+                    <input
+                      value={opt}
+                      onChange={(e) => {
+                        const opts = [...q.options];
+                        opts[oi] = e.target.value;
+                        const endsArr = syncOptionEndsSurvey(opts, q.optionEndsSurvey);
+                        if (canEnd && labelSuggestsSurveyEnd(e.target.value)) {
+                          endsArr[oi] = true;
+                        }
+                        onChange({ options: opts, optionEndsSurvey: endsArr });
+                      }}
+                      className="min-w-0 flex-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/15"
+                      placeholder={`보기 ${oi + 1}`}
+                    />
+                    {canEnd ? (
+                      <label className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-zinc-100 bg-zinc-50 px-2.5 py-2 text-xs text-zinc-700 sm:whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={ends}
+                          onChange={(e) => {
+                            const endsArr = syncOptionEndsSurvey(q.options, q.optionEndsSurvey);
+                            endsArr[oi] = e.target.checked;
+                            onChange({ optionEndsSurvey: endsArr });
+                          }}
+                        />
+                        조사 종료
+                      </label>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
             <button
               type="button"
-              onClick={() => onChange({ options: [...q.options, ""] })}
+              onClick={() =>
+                onChange({
+                  options: [...q.options, ""],
+                  optionEndsSurvey: [
+                    ...syncOptionEndsSurvey(q.options, q.optionEndsSurvey),
+                    false,
+                  ],
+                })
+              }
               className="mt-2 text-xs font-medium text-indigo-700 hover:text-indigo-900"
             >
               + 보기 추가
             </button>
+            {(q.type === "mc_single" || q.type === "mc_multi") && (
+              <div className="mt-4 space-y-2 border-t border-zinc-100 pt-3">
+                <label className="flex cursor-pointer items-start gap-2.5">
+                  <input
+                    type="checkbox"
+                    checked={q.otherOptionEnabled}
+                    onChange={(e) =>
+                      onChange({ otherOptionEnabled: e.target.checked })
+                    }
+                    className="mt-0.5"
+                  />
+                  <span>
+                    <span className="text-sm font-medium text-zinc-800">
+                      기타 보기 추가
+                    </span>
+                    <span className="mt-0.5 block text-xs text-zinc-500">
+                      선택 시 응답자가 직접 텍스트를 입력할 수 있습니다.
+                    </span>
+                  </span>
+                </label>
+                {q.otherOptionEnabled ? (
+                  <label className="block pl-6">
+                    <span className="text-xs font-medium text-zinc-600">기타 보기 문구</span>
+                    <input
+                      value={q.otherOptionLabel}
+                      onChange={(e) => onChange({ otherOptionLabel: e.target.value })}
+                      className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/15"
+                      placeholder="기타"
+                    />
+                  </label>
+                ) : null}
+              </div>
+            )}
             {q.type === "mc_multi" && (
               <label className="mt-4 block border-t border-zinc-100 pt-3">
                 <span className="text-sm font-medium text-zinc-800">
@@ -371,7 +455,11 @@ export function QuestionEditCard({
                 <input
                   type="number"
                   min={1}
-                  max={Math.max(1, q.options.filter((x) => x.trim()).length)}
+                  max={Math.max(
+                    1,
+                    q.options.filter((x) => x.trim()).length +
+                      (q.otherOptionEnabled ? 1 : 0),
+                  )}
                   value={q.maxSelections}
                   onChange={(e) =>
                     onChange({
@@ -381,7 +469,10 @@ export function QuestionEditCard({
                   className="mt-2 w-28 rounded-lg border border-zinc-200 px-3 py-2 text-sm"
                 />
                 <span className="ml-2 text-xs text-zinc-400">
-                  (최대 {q.options.filter((x) => x.trim()).length || 0}개)
+                  (최대{" "}
+                  {q.options.filter((x) => x.trim()).length +
+                    (q.otherOptionEnabled ? 1 : 0) || 0}
+                  개)
                 </span>
               </label>
             )}
@@ -552,6 +643,54 @@ export function QuestionEditCard({
                 </button>
               )}
             </div>
+          </div>
+        )}
+
+        {q.type === "info_media" ? <InfoMediaEditFields q={q} onChange={onChange} /> : null}
+
+        {q.type === "contact_fields" && (
+          <div className="rounded-xl border border-teal-100 bg-teal-50/40 p-3">
+            <span className="text-sm font-medium text-zinc-800">조사 항목</span>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              각 줄의 라벨(예: 연락처, 이름)과 응답자 입력란이 한 세트로 표시됩니다.
+            </p>
+            <div className="mt-3 space-y-2">
+              {q.options.map((opt, oi) => (
+                <div key={oi} className="flex items-center gap-2">
+                  <input
+                    value={opt}
+                    onChange={(e) => {
+                      const opts = [...q.options];
+                      opts[oi] = e.target.value;
+                      onChange({ options: opts });
+                    }}
+                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-teal-300 focus:ring-2 focus:ring-teal-500/15"
+                    placeholder={`항목 ${oi + 1} (예: 연락처)`}
+                  />
+                  {q.options.length > 1 ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onChange({
+                          options: q.options.filter((_, i) => i !== oi),
+                        })
+                      }
+                      className="shrink-0 rounded-lg border border-zinc-200 px-2 py-2 text-xs text-zinc-500 hover:bg-zinc-50"
+                      aria-label="항목 삭제"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => onChange({ options: [...q.options, ""] })}
+              className="mt-2 text-xs font-medium text-teal-800 hover:text-teal-950"
+            >
+              + 항목 추가
+            </button>
           </div>
         )}
       </div>

@@ -46,6 +46,8 @@ export type SurveyAiRawQuestion = {
   allowSkip?: boolean;
   staffOnly?: boolean;
   options?: string[];
+  /** mc_single·dropdown: options와 같은 길이, true면 조사 종료 */
+  optionEndsSurvey?: boolean[];
   maxSelections?: number;
   textLineCount?: number;
   visibilityRules?: { sourceOrderIndex: number; optionIndex: number }[];

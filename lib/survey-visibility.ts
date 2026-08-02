@@ -117,7 +117,8 @@ function rulesMatch(
   snapshot: BranchingAnswerSnapshot,
 ): boolean {
   if (rules.length === 0) return true;
-  return rules.every((rule) => {
+  // 조건이 여러 개이면 하나라도 만족하면 표시 (OR)
+  return rules.some((rule) => {
     const source = questionsById.get(rule.sourceQuestionId);
     if (!source) return false;
     const selectedId = selectedOptionIdForBranching(source, snapshot);
@@ -139,6 +140,48 @@ export function isPublicQuestionVisible(
   return rulesMatch(question.visibilityRules, questionsById, snapshot);
 }
 
+/** 해당 문항에서 「조사 종료」 보기를 선택했는지 */
+export function isEndsSurveyOptionSelected(
+  question: Pick<PublicSurveyQuestion, "id" | "type" | "options">,
+  snapshot: BranchingAnswerSnapshot,
+): boolean {
+  const selectedId = selectedOptionIdForBranching(question, snapshot);
+  if (!selectedId) return false;
+  const opt = question.options.find((o) => o.id === selectedId);
+  return Boolean(opt?.endsSurvey);
+}
+
+/**
+ * 앞선(보이는) 문항에서 조사 종료 보기를 고르면, 그보다 뒤 문항은 숨김.
+ * staffOnly·visibilityRules 통과 여부와 별도로 적용.
+ */
+export function isBlockedBySurveyEnd(
+  question: PublicSurveyQuestion,
+  allQuestions: PublicSurveyQuestion[],
+  snapshot: BranchingAnswerSnapshot,
+  isStaff: boolean,
+): boolean {
+  for (const prior of allQuestions) {
+    if (prior.orderIndex >= question.orderIndex) break;
+    if (!isPublicQuestionVisible(prior, allQuestions, snapshot, isStaff)) continue;
+    if (isEndsSurveyOptionSelected(prior, snapshot)) return true;
+  }
+  return false;
+}
+
+/** 참여·제출에 실제로 노출되는 문항인지 (표시 조건 + 조사 종료) */
+export function isQuestionShownInSurvey(
+  question: PublicSurveyQuestion,
+  allQuestions: PublicSurveyQuestion[],
+  snapshot: BranchingAnswerSnapshot,
+  isStaff: boolean,
+): boolean {
+  if (!isPublicQuestionVisible(question, allQuestions, snapshot, isStaff)) {
+    return false;
+  }
+  return !isBlockedBySurveyEnd(question, allQuestions, snapshot, isStaff);
+}
+
 /** 참여 화면·제출 검증 메시지용 — 현재 보이는 문항만 1부터 연속 번호 */
 export function buildParticipantDisplayNumbers(
   questions: PublicSurveyQuestion[],
@@ -148,7 +191,9 @@ export function buildParticipantDisplayNumbers(
   const map = new Map<string, number>();
   let n = 0;
   for (const q of questions) {
-    if (!isPublicQuestionVisible(q, questions, snapshot, isStaff)) continue;
+    if (!isQuestionShownInSurvey(q, questions, snapshot, isStaff)) continue;
+    // 글/그림/영상(안내) 문항은 번호 없이 표기만 함
+    if (q.type === "info_media") continue;
     n += 1;
     map.set(q.id, n);
   }

@@ -82,7 +82,8 @@ ${questionSpec}
 - questionScripts는 questions의 모든 문항에 orderIndex 0부터 순서대로 포함
 - 한국어로 작성, 존댓말·전화 조사에 적합한 톤
 - ${SURVEY_BRANCHING_SOURCE_RULE} ${SURVEY_BRANCHING_SOURCE_RULE_DETAIL}
-- visibilityRules는 꼭 필요할 때만 사용 (복잡한 분기 지양). 사용 시 sourceOrderIndex는 반드시 앞쪽 문항 중 type이 mc_single 또는 dropdown인 문항만 지정. 애매하면 visibilityRules 없이 평면 구조로 작성.
+- visibilityRules는 꼭 필요할 때만 사용 (복잡한 분기 지양). 사용 시 sourceOrderIndex는 반드시 앞쪽 문항 중 type이 mc_single 또는 dropdown인 문항만 지정. 조건이 여러 개이면 OR(하나라도 만족하면 표시). 예: 보기 1·2·3 중 하나면 후속 문항 표시 → 규칙 3개. 애매하면 visibilityRules 없이 평면 구조로 작성.
+- 스크리닝에서 「아니오」 등으로 조사를 끝내려면, 후속 문항마다 「예」 visibilityRules를 달지 말고 해당 보기에 optionEndsSurvey: true를 지정 (options와 같은 길이의 boolean 배열). 예: options ["예","아니오"], optionEndsSurvey [false, true]
 - 선택지는 중립적·상호배타적으로`;
 }
 

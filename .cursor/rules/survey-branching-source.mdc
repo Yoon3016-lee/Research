@@ -15,9 +15,17 @@ alwaysApply: false
 | ✅ | `mc_single`, `dropdown` |
 | ❌ | `mc_multi`, `likert_7`, `likert_multi`, `text_*`, `rank`, `star_rating` |
 
+## 조사 종료 (`optionEndsSurvey` / `ends_survey`)
+
+스크리닝에서 「아니오」 등으로 조사를 끝낼 때, 후속 문항마다 「예」 표시 조건을 걸지 말고 **해당 보기에 조사 종료**를 켠다.
+
+- 편집: `DraftQuestion.optionEndsSurvey` (options와 같은 길이)
+- DB: `survey_question_options.ends_survey`
+- 런타임: `isQuestionShownInSurvey` — 종료 보기 선택 시 이후 문항 숨김
+
 ## 구현 위치
 
-- 상수·검증: `lib/survey-visibility.ts` — `BRANCHING_SOURCE_TYPES`, `SURVEY_BRANCHING_SOURCE_RULE`, `validateVisibilityRules`, `sanitizeVisibilityRules`
+- 상수·검증: `lib/survey-visibility.ts` — `BRANCHING_SOURCE_TYPES`, `SURVEY_BRANCHING_SOURCE_RULE`, `validateVisibilityRules`, `sanitizeVisibilityRules`, `isQuestionShownInSurvey`
 - AI 프롬프트: `lib/survey-ai/prompts.ts`, `question-schema.ts`
 - 편집기 UI: `components/admin/survey-builder/QuestionEditCard.tsx`
 

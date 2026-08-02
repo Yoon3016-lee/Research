@@ -40,12 +40,18 @@ type QuestionRow = {
   visibility_rules?: unknown;
   max_selections: number | null;
   text_line_count: number | null;
+  info_body?: string | null;
+  media_url?: string | null;
+  media_path?: string | null;
+  media_type?: string | null;
 };
 
 type OptionRow = {
   question_id: string;
   order_index: number;
   label: string;
+  is_other?: boolean | null;
+  ends_survey?: boolean | null;
 };
 
 async function fetchSurveyRow(
@@ -106,46 +112,134 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
 
   const admin = createSupabaseServiceRoleClient();
 
-  const { data: qRows, error: qError } = await admin
+  const { data: qRowsRaw, error: qError } = await admin
     .from("survey_questions")
     .select(
-      "id, order_index, prompt, question_type, allow_skip, staff_only, visibility_rules, max_selections, text_line_count",
+      "id, order_index, prompt, question_type, allow_skip, staff_only, visibility_rules, max_selections, text_line_count, info_body, media_url, media_path, media_type",
     )
     .eq("survey_id", surveyRow.id)
     .order("order_index", { ascending: true });
 
-  if (qError) {
+  let questions: QuestionRow[] = [];
+  if (
+    qError &&
+    (qError.message.includes("info_body") ||
+      qError.message.includes("media_url") ||
+      qError.message.includes("media_path") ||
+      qError.message.includes("media_type"))
+  ) {
+    const fallback = await admin
+      .from("survey_questions")
+      .select(
+        "id, order_index, prompt, question_type, allow_skip, staff_only, visibility_rules, max_selections, text_line_count",
+      )
+      .eq("survey_id", surveyRow.id)
+      .order("order_index", { ascending: true });
+    questions = (fallback.data ?? []) as QuestionRow[];
+    if (fallback.error) {
+      console.error("[loadSurveyForEdit] questions:", fallback.error.message);
+    }
+  } else if (qError) {
     console.error("[loadSurveyForEdit] questions:", qError.message);
+  } else {
+    questions = (qRowsRaw ?? []) as QuestionRow[];
   }
 
-  const questions = (qRows ?? []) as QuestionRow[];
   const questionIds = questions.map((q) => q.id);
   let optionRows: OptionRow[] = [];
 
   if (questionIds.length > 0) {
     const { data: opts, error: oError } = await admin
       .from("survey_question_options")
-      .select("question_id, order_index, label")
+      .select("question_id, order_index, label, is_other, ends_survey")
       .in("question_id", questionIds)
       .order("order_index", { ascending: true });
 
     if (oError) {
-      console.error("[loadSurveyForEdit] options:", oError.message);
+      if (oError.message.includes("ends_survey")) {
+        const withoutEnds = await admin
+          .from("survey_question_options")
+          .select("question_id, order_index, label, is_other")
+          .in("question_id", questionIds)
+          .order("order_index", { ascending: true });
+        if (withoutEnds.error?.message.includes("is_other")) {
+          const fallback = await admin
+            .from("survey_question_options")
+            .select("question_id, order_index, label")
+            .in("question_id", questionIds)
+            .order("order_index", { ascending: true });
+          if (fallback.error) {
+            console.error("[loadSurveyForEdit] options:", fallback.error.message);
+          } else {
+            optionRows = (fallback.data ?? []) as OptionRow[];
+          }
+        } else if (withoutEnds.error) {
+          console.error("[loadSurveyForEdit] options:", withoutEnds.error.message);
+        } else {
+          optionRows = (withoutEnds.data ?? []) as OptionRow[];
+        }
+      } else if (oError.message.includes("is_other")) {
+        const fallback = await admin
+          .from("survey_question_options")
+          .select("question_id, order_index, label")
+          .in("question_id", questionIds)
+          .order("order_index", { ascending: true });
+        if (fallback.error) {
+          console.error("[loadSurveyForEdit] options:", fallback.error.message);
+        } else {
+          optionRows = (fallback.data ?? []) as OptionRow[];
+        }
+      } else {
+        console.error("[loadSurveyForEdit] options:", oError.message);
+      }
     } else {
       optionRows = (opts ?? []) as OptionRow[];
     }
   }
 
-  const optionsByQuestion = new Map<string, string[]>();
+  const optionsByQuestion = new Map<
+    string,
+    { labels: string[]; ends: boolean[]; otherLabel: string | null }
+  >();
   for (const o of optionRows) {
-    const list = optionsByQuestion.get(o.question_id) ?? [];
-    list.push(o.label);
-    optionsByQuestion.set(o.question_id, list);
+    const entry = optionsByQuestion.get(o.question_id) ?? {
+      labels: [],
+      ends: [],
+      otherLabel: null,
+    };
+    if (o.is_other) {
+      entry.otherLabel = o.label;
+    } else {
+      entry.labels.push(o.label);
+      entry.ends.push(Boolean(o.ends_survey));
+    }
+    optionsByQuestion.set(o.question_id, entry);
   }
 
   const draftQuestions: DraftQuestion[] = questions.map((q) => {
     const type = q.question_type as QuestionType;
-    const opts = optionsByQuestion.get(q.id) ?? [];
+    const entry = optionsByQuestion.get(q.id);
+    const opts = entry?.labels ?? [];
+    const ends = entry?.ends ?? [];
+    const otherLabel = entry?.otherLabel ?? null;
+    const otherEnabled =
+      (type === "mc_single" || type === "mc_multi") && Boolean(otherLabel);
+    const optionCountForMax = opts.length + (otherEnabled ? 1 : 0);
+    const resolvedOptions =
+      type === "likert_7"
+        ? [opts[0] ?? "", opts[1] ?? ""]
+        : opts.length > 0
+          ? opts
+          : type === "mc_single" ||
+              type === "mc_multi" ||
+              type === "dropdown" ||
+              type === "rank" ||
+              type === "likert_multi" ||
+              type === "contact_fields"
+            ? type === "contact_fields"
+              ? ["연락처", "이름", "소속 부서"]
+              : ["", ""]
+            : [];
     return {
       clientId: q.id,
       type,
@@ -153,23 +247,20 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
       allowSkip: q.allow_skip,
       staffOnly: q.staff_only ?? false,
       visibilityRules: parseStoredVisibilityRules(q.visibility_rules),
-      options:
-        type === "likert_7"
-          ? [opts[0] ?? "", opts[1] ?? ""]
-          : opts.length > 0
-            ? opts
-            : type === "mc_single" ||
-                type === "mc_multi" ||
-                type === "dropdown" ||
-                type === "rank" ||
-                type === "likert_multi"
-              ? ["", ""]
-              : [],
+      options: resolvedOptions,
+      optionEndsSurvey: resolvedOptions.map((_, i) => Boolean(ends[i])),
+      otherOptionEnabled: otherEnabled,
+      otherOptionLabel: otherLabel?.trim() || "기타",
       maxSelections:
         type === "rank"
           ? (q.max_selections ?? Math.min(3, opts.length || 3))
-          : (q.max_selections ?? Math.min(2, opts.length || 2)),
+          : (q.max_selections ?? Math.min(2, optionCountForMax || 2)),
       textLineCount: q.text_line_count ?? (type === "text_multi" ? 2 : 1),
+      infoBody: q.info_body ?? "",
+      mediaUrl: q.media_url ?? null,
+      mediaPath: q.media_path ?? null,
+      mediaType:
+        q.media_type === "image" || q.media_type === "video" ? q.media_type : null,
     };
   });
 

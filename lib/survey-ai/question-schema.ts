@@ -24,15 +24,17 @@ export function buildQuestionTypeSpecForAi(): string {
     "- allowSkip (boolean, 기본 false): 무응답 허용",
     "- staffOnly (boolean, 기본 false): 직원 전용 문항",
     `- visibilityRules (선택): [{ sourceOrderIndex: number, optionIndex: number }] — ${SURVEY_BRANCHING_SOURCE_RULE}`,
+    "- optionEndsSurvey (선택, mc_single·dropdown만): boolean[] — options와 같은 길이. true면 해당 보기 선택 시 조사 종료(이후 문항 숨김). 스크리닝 「아니오」 등에 사용. 후속 문항마다 visibilityRules를 걸 필요 없음.",
   ].join("\n");
 }
 
 function describeFieldsForType(type: QuestionType): string {
   switch (type) {
     case "mc_single":
-    case "mc_multi":
     case "dropdown":
-      return "options (string[], 2개 이상), mc_multi는 maxSelections (1~선택지 수)";
+      return "options (string[], 2개 이상), optionEndsSurvey (boolean[], 선택 — 조사 종료 보기)";
+    case "mc_multi":
+      return "options (string[], 2개 이상), maxSelections (1~선택지 수)";
     case "rank":
       return "options (string[], 2개 이상), maxSelections = 순위 개수 (1~선택지 수)";
     case "text_single":
@@ -45,6 +47,10 @@ function describeFieldsForType(type: QuestionType): string {
       return "options = 평가 항목 (string[], 2개 이상)";
     case "star_rating":
       return "options 불필요 (0~5점 별점)";
+    case "info_media":
+      return "infoBody (string, 안내 본문), media는 관리자가 별도 업로드 — AI는 infoBody만";
+    case "contact_fields":
+      return "options = 항목 라벨 (string[], 1개 이상, 예: 연락처/이름/소속 부서)";
     default:
       return "";
   }

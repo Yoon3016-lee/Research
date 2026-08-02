@@ -16,6 +16,8 @@ export type LogicQuestionRow = {
   staffOnly: boolean;
   allowSkip: boolean;
   options: string[];
+  /** options와 대응 — 조사 종료 보기 */
+  optionEndsSurvey: boolean[];
   isBranchingSource: boolean;
   /** 이 문항 보기 중 조건부 문항과 연결된 분기만 */
   linkedBranches: BranchFromOption[];
@@ -31,6 +33,8 @@ export type BranchFromOption = {
   optionIndex: number;
   optionLabel: string;
   targetNumbers: number[];
+  /** true면 해당 보기 → 조사 종료 */
+  endsSurvey: boolean;
 };
 
 export type SurveyLogicModel = {
@@ -75,6 +79,18 @@ export function buildSurveyLogicModel(questions: DraftQuestion[]): SurveyLogicMo
       };
     });
 
+    const trimmedOptions = q.options.map((o) => o.trim()).filter(Boolean);
+    const ends = trimmedOptions.map((_, oi) => {
+      // options 원본에서 빈 라벨을 건너뛴 인덱스와 optionEndsSurvey 정렬
+      let nonEmpty = -1;
+      for (let j = 0; j < q.options.length; j++) {
+        if (!q.options[j]?.trim()) continue;
+        nonEmpty += 1;
+        if (nonEmpty === oi) return Boolean(q.optionEndsSurvey?.[j]);
+      }
+      return false;
+    });
+
     return {
       number: i + 1,
       type: q.type,
@@ -82,7 +98,8 @@ export function buildSurveyLogicModel(questions: DraftQuestion[]): SurveyLogicMo
       prompt: q.prompt.trim() || "(질문 없음)",
       staffOnly: q.staffOnly,
       allowSkip: q.allowSkip,
-      options: q.options.map((o) => o.trim()).filter(Boolean),
+      options: trimmedOptions,
+      optionEndsSurvey: ends,
       isBranchingSource: isBranchingSourceType(q.type),
       linkedBranches: [],
       showOnSpine: true,
@@ -96,10 +113,17 @@ export function buildSurveyLogicModel(questions: DraftQuestion[]): SurveyLogicMo
     const source = questions[si];
     if (!isBranchingSourceType(source.type)) continue;
 
-    const optionIndices = referencedBranchOptionIndices(si, questions);
-    if (optionIndices.length === 0) continue;
+    const optionIndices = new Set(referencedBranchOptionIndices(si, questions));
+    // 조사 종료 보기도 분기로 표시
+    source.options.forEach((label, oi) => {
+      if (label.trim() && source.optionEndsSurvey?.[oi]) {
+        optionIndices.add(oi);
+      }
+    });
+    if (optionIndices.size === 0) continue;
 
-    for (const optionIndex of optionIndices) {
+    for (const optionIndex of [...optionIndices].sort((a, b) => a - b)) {
+      const endsSurvey = Boolean(source.optionEndsSurvey?.[optionIndex]);
       const targetIndices: number[] = [];
       for (let ti = 0; ti < questions.length; ti++) {
         const rules = questions[ti].visibilityRules;
@@ -108,7 +132,7 @@ export function buildSurveyLogicModel(questions: DraftQuestion[]): SurveyLogicMo
         }
       }
 
-      if (targetIndices.length === 0) continue;
+      if (targetIndices.length === 0 && !endsSurvey) continue;
 
       branches.push({
         sourceNumber: si + 1,
@@ -116,6 +140,7 @@ export function buildSurveyLogicModel(questions: DraftQuestion[]): SurveyLogicMo
         optionIndex,
         optionLabel: optionLabel(source.options, optionIndex),
         targetNumbers: targetIndices.map((i) => i + 1),
+        endsSurvey,
       });
     }
   }
@@ -134,7 +159,9 @@ export function buildSurveyLogicModel(questions: DraftQuestion[]): SurveyLogicMo
 
   const hasStaffOnly = rows.some((r) => r.staffOnly);
   const hasBranching =
-    rows.some((r) => r.visibilityMode === "conditional") || branches.length > 0;
+    rows.some((r) => r.visibilityMode === "conditional") ||
+    branches.length > 0 ||
+    rows.some((r) => r.optionEndsSurvey.some(Boolean));
   const hasAnyLogic = hasStaffOnly || hasBranching;
 
   return { questions: rows, branches, hasStaffOnly, hasBranching, hasAnyLogic };

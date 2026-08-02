@@ -4,7 +4,9 @@ import {
   CheckSquare,
   ChevronDown,
   CircleDot,
+  Contact,
   FileText,
+  ImageIcon,
   LayoutList,
   ListOrdered,
   SlidersHorizontal,
@@ -66,6 +68,16 @@ const TYPE_META: Record<
     accent:
       "border-amber-200 bg-amber-50/80 hover:border-amber-300 hover:bg-amber-50",
   },
+  info_media: {
+    icon: ImageIcon,
+    accent:
+      "border-rose-200 bg-rose-50/80 hover:border-rose-300 hover:bg-rose-50",
+  },
+  contact_fields: {
+    icon: Contact,
+    accent:
+      "border-teal-200 bg-teal-50/80 hover:border-teal-300 hover:bg-teal-50",
+  },
 };
 
 type Props = {
@@ -78,6 +90,7 @@ export function QuestionAddPanel({ onAdd, disabled }: Props) {
     { title: "객관식", types: ["mc_single", "mc_multi", "dropdown"] },
     { title: "순위·척도", types: ["rank", "likert_7", "likert_multi", "star_rating"] },
     { title: "주관식", types: ["text_single", "text_multi"] },
+    { title: "안내·연락처", types: ["info_media", "contact_fields"] },
   ];
 
   return (

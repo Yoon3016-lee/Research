@@ -19,7 +19,8 @@ import {
 import {
   branchingSnapshotFromFormState,
   buildParticipantDisplayNumbers,
-  isPublicQuestionVisible,
+  isEndsSurveyOptionSelected,
+  isQuestionShownInSurvey,
 } from "@/lib/survey-visibility";
 import {
   validateSurveyAnswers,
@@ -51,6 +52,7 @@ function emptyTextMulti(lineCount: number): string[] {
 type HydratedState = {
   mcSingle: Record<string, string>;
   mcMulti: Record<string, string[]>;
+  mcOtherText: Record<string, string>;
   textSingle: Record<string, string>;
   textMulti: Record<string, string[]>;
   likert7: Record<string, number | null>;
@@ -58,12 +60,14 @@ type HydratedState = {
   rank: Record<string, string[]>;
   likertMulti: Record<string, Record<string, number | null>>;
   starRating: Record<string, number | null>;
+  contactFields: Record<string, Record<string, string>>;
 };
 
 function hydrateState(answers: SurveyAnswerInput[] | undefined): HydratedState {
   const state: HydratedState = {
     mcSingle: {},
     mcMulti: {},
+    mcOtherText: {},
     textSingle: {},
     textMulti: {},
     likert7: {},
@@ -71,12 +75,15 @@ function hydrateState(answers: SurveyAnswerInput[] | undefined): HydratedState {
     rank: {},
     likertMulti: {},
     starRating: {},
+    contactFields: {},
   };
   for (const a of answers ?? []) {
     if (a.type === "mc_single") {
       state.mcSingle[a.questionId] = a.optionId;
+      if (a.otherText) state.mcOtherText[a.questionId] = a.otherText;
     } else if (a.type === "mc_multi") {
       state.mcMulti[a.questionId] = a.optionIds;
+      if (a.otherText) state.mcOtherText[a.questionId] = a.otherText;
     } else if (a.type === "text_single") {
       state.textSingle[a.questionId] = a.text;
     } else if (a.type === "text_multi") {
@@ -93,6 +100,8 @@ function hydrateState(answers: SurveyAnswerInput[] | undefined): HydratedState {
       state.likertMulti[a.questionId] = rec;
     } else if (a.type === "star_rating") {
       state.starRating[a.questionId] = Number.isNaN(a.value) ? null : a.value;
+    } else if (a.type === "contact_fields") {
+      state.contactFields[a.questionId] = { ...a.values };
     }
   }
   return state;
@@ -123,6 +132,9 @@ export function SurveyResponseForm({
 
   const [mcSingle, setMcSingle] = useState<Record<string, string>>(initialState.mcSingle);
   const [mcMulti, setMcMulti] = useState<Record<string, string[]>>(initialState.mcMulti);
+  const [mcOtherText, setMcOtherText] = useState<Record<string, string>>(
+    initialState.mcOtherText,
+  );
   const [textSingle, setTextSingle] = useState<Record<string, string>>(initialState.textSingle);
   const [textMulti, setTextMulti] = useState<Record<string, string[]>>(initialState.textMulti);
   const [likert7, setLikert7] = useState<Record<string, number | null>>(initialState.likert7);
@@ -134,6 +146,9 @@ export function SurveyResponseForm({
   const [starRating, setStarRating] = useState<Record<string, number | null>>(
     initialState.starRating,
   );
+  const [contactFields, setContactFields] = useState<Record<string, Record<string, string>>>(
+    initialState.contactFields,
+  );
 
   const branchingSnapshot = useMemo(
     () => branchingSnapshotFromFormState(mcSingle, dropdown),
@@ -143,10 +158,17 @@ export function SurveyResponseForm({
   const visibleQuestions = useMemo(
     () =>
       survey.questions.filter((q) =>
-        isPublicQuestionVisible(q, survey.questions, branchingSnapshot, isStaff),
+        isQuestionShownInSurvey(q, survey.questions, branchingSnapshot, isStaff),
       ),
     [survey.questions, branchingSnapshot, isStaff],
   );
+
+  const surveyEndedByOption = useMemo(() => {
+    for (const q of visibleQuestions) {
+      if (isEndsSurveyOptionSelected(q, branchingSnapshot)) return true;
+    }
+    return false;
+  }, [visibleQuestions, branchingSnapshot]);
 
   const visibleQuestionIds = useMemo(
     () => new Set(visibleQuestions.map((q) => q.id)),
@@ -209,6 +231,14 @@ export function SurveyResponseForm({
       const next = Object.fromEntries(Object.entries(prev).filter(([id]) => keep(id)));
       return Object.keys(next).length === Object.keys(prev).length ? prev : next;
     });
+    setMcOtherText((prev) => {
+      const next = Object.fromEntries(Object.entries(prev).filter(([id]) => keep(id)));
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next;
+    });
+    setContactFields((prev) => {
+      const next = Object.fromEntries(Object.entries(prev).filter(([id]) => keep(id)));
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next;
+    });
   }, [visibleQuestionIds]);
 
   const stepIndex = activeQuestionId
@@ -222,6 +252,7 @@ export function SurveyResponseForm({
   const fieldState = {
     mcSingle,
     mcMulti,
+    mcOtherText,
     textSingle,
     textMulti,
     likert7,
@@ -229,6 +260,7 @@ export function SurveyResponseForm({
     rank,
     likertMulti,
     starRating,
+    contactFields,
   };
 
   const toggleMulti = (questionId: string, optionId: string, max: number) => {
@@ -261,9 +293,25 @@ export function SurveyResponseForm({
     for (const q of survey.questions) {
       if (!visibleQuestionIds.has(q.id)) continue;
       if (q.type === "mc_single") {
-        out.push({ questionId: q.id, type: "mc_single", optionId: mcSingle[q.id] ?? "" });
+        const optionId = mcSingle[q.id] ?? "";
+        const otherOpt = q.options.find((o) => o.isOther);
+        const otherSelected = Boolean(otherOpt && optionId === otherOpt.id);
+        out.push({
+          questionId: q.id,
+          type: "mc_single",
+          optionId,
+          ...(otherSelected ? { otherText: mcOtherText[q.id] ?? "" } : {}),
+        });
       } else if (q.type === "mc_multi") {
-        out.push({ questionId: q.id, type: "mc_multi", optionIds: mcMulti[q.id] ?? [] });
+        const optionIds = mcMulti[q.id] ?? [];
+        const otherOpt = q.options.find((o) => o.isOther);
+        const otherSelected = Boolean(otherOpt && optionIds.includes(otherOpt.id));
+        out.push({
+          questionId: q.id,
+          type: "mc_multi",
+          optionIds,
+          ...(otherSelected ? { otherText: mcOtherText[q.id] ?? "" } : {}),
+        });
       } else if (q.type === "text_single") {
         out.push({ questionId: q.id, type: "text_single", text: textSingle[q.id] ?? "" });
       } else if (q.type === "text_multi") {
@@ -298,7 +346,14 @@ export function SurveyResponseForm({
           type: "star_rating",
           value: value ?? Number.NaN,
         });
+      } else if (q.type === "contact_fields") {
+        out.push({
+          questionId: q.id,
+          type: "contact_fields",
+          values: contactFields[q.id] ?? {},
+        });
       }
+      // info_media: 답변 없음
     }
     return out;
   };
@@ -306,6 +361,7 @@ export function SurveyResponseForm({
   const resetForm = () => {
     setMcSingle({});
     setMcMulti({});
+    setMcOtherText({});
     setTextSingle({});
     setTextMulti({});
     setLikert7({});
@@ -313,6 +369,7 @@ export function SurveyResponseForm({
     setRank({});
     setLikertMulti({});
     setStarRating({});
+    setContactFields({});
     setActiveQuestionId(visibleQuestions[0]?.id ?? null);
   };
 
@@ -414,7 +471,11 @@ export function SurveyResponseForm({
     );
   }
 
-  const renderQuestion = (q: PublicSurveyQuestion, displayNumber: number) => (
+  const answerableCount = visibleQuestions.filter(
+    (q) => q.type !== "info_media",
+  ).length;
+
+  const renderQuestion = (q: PublicSurveyQuestion, displayNumber: number | null) => (
     <SurveyQuestionField
       key={q.id}
       question={q}
@@ -425,6 +486,9 @@ export function SurveyResponseForm({
         setMcSingle((prev) => ({ ...prev, [questionId]: optionId }))
       }
       onMcMultiToggle={toggleMulti}
+      onMcOtherText={(questionId, value) =>
+        setMcOtherText((prev) => ({ ...prev, [questionId]: value }))
+      }
       onTextSingle={(questionId, value) =>
         setTextSingle((prev) => ({ ...prev, [questionId]: value }))
       }
@@ -446,6 +510,12 @@ export function SurveyResponseForm({
       }
       onStarRating={(questionId, value) =>
         setStarRating((prev) => ({ ...prev, [questionId]: value }))
+      }
+      onContactField={(questionId, optionId, value) =>
+        setContactFields((prev) => ({
+          ...prev,
+          [questionId]: { ...(prev[questionId] ?? {}), [optionId]: value },
+        }))
       }
     />
   );
@@ -510,6 +580,14 @@ export function SurveyResponseForm({
           {success}
         </p>
       ) : null}
+      {surveyEndedByOption && !success ? (
+        <p
+          className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+          role="status"
+        >
+          선택하신 보기로 조사가 종료됩니다. 아래 제출 버튼을 눌러 주세요.
+        </p>
+      ) : null}
     </>
   );
 
@@ -517,12 +595,16 @@ export function SurveyResponseForm({
     return (
       <div ref={containerRef} className="scroll-mt-4 space-y-6">
         <div className="rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-3 text-xs font-medium text-zinc-600">
-          전체 {visibleQuestions.length}문항 · 스크롤하며 응답한 뒤 제출하세요.
+          전체 {answerableCount}문항
+          {visibleQuestions.length > answerableCount
+            ? ` · 안내 ${visibleQuestions.length - answerableCount}`
+            : ""}{" "}
+          · 스크롤하며 응답한 뒤 제출하세요.
         </div>
 
         <div className="space-y-4">
-          {visibleQuestions.map((q, i) =>
-            renderQuestion(q, displayNumberByQuestionId.get(q.id) ?? i + 1),
+          {visibleQuestions.map((q) =>
+            renderQuestion(q, displayNumberByQuestionId.get(q.id) ?? null),
           )}
         </div>
 
@@ -546,7 +628,9 @@ export function SurveyResponseForm({
       <div className="rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-3">
         <div className="flex items-center justify-between gap-3 text-xs font-medium text-zinc-600">
           <span>
-            문항 {stepIndex + 1} / {visibleQuestions.length}
+            {currentQuestion?.type === "info_media"
+              ? `안내 · ${stepIndex + 1} / ${visibleQuestions.length}`
+              : `문항 ${displayNumberByQuestionId.get(currentQuestion?.id ?? "") ?? "—"} · ${stepIndex + 1} / ${visibleQuestions.length}`}
           </span>
           <span>{progressPercent}%</span>
         </div>
@@ -568,7 +652,7 @@ export function SurveyResponseForm({
       {currentQuestion
         ? renderQuestion(
             currentQuestion,
-            displayNumberByQuestionId.get(currentQuestion.id) ?? stepIndex + 1,
+            displayNumberByQuestionId.get(currentQuestion.id) ?? null,
           )
         : null}
 

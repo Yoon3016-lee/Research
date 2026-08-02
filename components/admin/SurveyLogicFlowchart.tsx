@@ -90,9 +90,14 @@ function FlowQuestionCard({ q }: { q: LogicQuestionRow }) {
             {q.linkedBranches.map((b) => (
               <span
                 key={b.optionIndex}
-                className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-950"
+                className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${
+                  b.endsSurvey
+                    ? "border-amber-300 bg-amber-50 text-amber-950"
+                    : "border-amber-200 bg-amber-50 text-amber-950"
+                }`}
               >
                 {b.optionLabel}
+                {b.endsSurvey ? " → 종료" : ""}
               </span>
             ))}
           </div>
@@ -102,6 +107,9 @@ function FlowQuestionCard({ q }: { q: LogicQuestionRow }) {
           <div className="mt-3 space-y-1 rounded-lg border border-fuchsia-100 bg-white/80 px-3 py-2">
             {q.visibilityConditions.map((c, i) => (
               <p key={i} className="text-[11px] leading-relaxed text-fuchsia-900">
+                {i > 0 ? (
+                  <span className="mr-1 font-semibold text-fuchsia-700">또는</span>
+                ) : null}
                 문항 {c.sourceNumber} 「{c.optionLabel}」 선택 시
               </p>
             ))}
@@ -181,6 +189,11 @@ function FlowBranchFork({
               <ArrowDown className="h-3.5 w-3.5 text-fuchsia-400" />
             </div>
             <div className="flex w-full flex-col items-stretch gap-2">
+              {b.endsSurvey ? (
+                <div className="mx-auto rounded-full border-2 border-amber-300 bg-amber-50 px-3 py-1.5 text-center text-[11px] font-bold text-amber-950 shadow-sm">
+                  조사 종료
+                </div>
+              ) : null}
               {b.targetNumbers.map((n) => {
                 const tq = questionsByNumber.get(n);
                 return tq ? (

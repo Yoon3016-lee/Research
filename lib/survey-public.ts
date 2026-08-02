@@ -15,6 +15,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export type PublicSurveyOption = {
   id: string;
   label: string;
+  isOther: boolean;
+  /** true면 선택 시 이후 문항 없이 조사 종료 */
+  endsSurvey: boolean;
 };
 
 export type PublicSurveyQuestion = {
@@ -28,6 +31,9 @@ export type PublicSurveyQuestion = {
   maxSelections: number | null;
   textLineCount: number | null;
   options: PublicSurveyOption[];
+  infoBody: string | null;
+  mediaUrl: string | null;
+  mediaType: "image" | "video" | null;
 };
 
 export type PublicSurveyDetail = {
@@ -40,15 +46,16 @@ export type PublicSurveyDetail = {
 };
 
 export type SurveyAnswerInput =
-  | { questionId: string; type: "mc_single"; optionId: string }
-  | { questionId: string; type: "mc_multi"; optionIds: string[] }
+  | { questionId: string; type: "mc_single"; optionId: string; otherText?: string }
+  | { questionId: string; type: "mc_multi"; optionIds: string[]; otherText?: string }
   | { questionId: string; type: "text_single"; text: string }
   | { questionId: string; type: "text_multi"; lines: string[] }
   | { questionId: string; type: "likert_7"; value: number }
   | { questionId: string; type: "dropdown"; optionId: string }
   | { questionId: string; type: "rank"; rankedOptionIds: string[] }
   | { questionId: string; type: "likert_multi"; values: Record<string, number> }
-  | { questionId: string; type: "star_rating"; value: number };
+  | { questionId: string; type: "star_rating"; value: number }
+  | { questionId: string; type: "contact_fields"; values: Record<string, string> };
 
 export type SurveyParticipationLoad =
   | { ok: true; survey: PublicSurveyDetail }
@@ -90,6 +97,9 @@ type QuestionRow = {
   visibility_rules?: unknown;
   max_selections: number | null;
   text_line_count: number | null;
+  info_body?: string | null;
+  media_url?: string | null;
+  media_type?: string | null;
 };
 
 type OptionRow = {
@@ -97,6 +107,8 @@ type OptionRow = {
   question_id: string;
   order_index: number;
   label: string;
+  is_other?: boolean | null;
+  ends_survey?: boolean | null;
 };
 
 function mapQuestions(
@@ -106,7 +118,12 @@ function mapQuestions(
   const optionsByQuestion = new Map<string, PublicSurveyOption[]>();
   for (const o of optionRows) {
     const list = optionsByQuestion.get(o.question_id) ?? [];
-    list.push({ id: o.id, label: o.label });
+    list.push({
+      id: o.id,
+      label: o.label,
+      isOther: Boolean(o.is_other),
+      endsSurvey: Boolean(o.ends_survey),
+    });
     optionsByQuestion.set(o.question_id, list);
   }
 
@@ -129,6 +146,10 @@ function mapQuestions(
       maxSelections: q.max_selections,
       textLineCount: q.text_line_count,
       options: optionsByQuestion.get(q.id) ?? [],
+      infoBody: q.info_body?.trim() || null,
+      mediaUrl: q.media_url?.trim() || null,
+      mediaType:
+        q.media_type === "image" || q.media_type === "video" ? q.media_type : null,
     };
   });
 }
@@ -144,12 +165,30 @@ async function loadQuestionsForSurvey(
   const { data: questions, error: qError } = await client
     .from("survey_questions")
     .select(
-      "id, order_index, prompt, question_type, allow_skip, staff_only, visibility_rules, max_selections, text_line_count",
+      "id, order_index, prompt, question_type, allow_skip, staff_only, visibility_rules, max_selections, text_line_count, info_body, media_url, media_type",
     )
     .eq("survey_id", surveyId)
     .order("order_index", { ascending: true });
 
   if (qError) {
+    if (
+      qError.message.includes("info_body") ||
+      qError.message.includes("media_url") ||
+      qError.message.includes("media_type")
+    ) {
+      const fallback = await client
+        .from("survey_questions")
+        .select(
+          "id, order_index, prompt, question_type, allow_skip, staff_only, visibility_rules, max_selections, text_line_count",
+        )
+        .eq("survey_id", surveyId)
+        .order("order_index", { ascending: true });
+      if (fallback.error) {
+        console.error("[loadQuestionsForSurvey]", fallback.error.message);
+        return [];
+      }
+      return (fallback.data ?? []) as QuestionRow[];
+    }
     console.error("[loadQuestionsForSurvey]", qError.message);
     return [];
   }
@@ -169,11 +208,47 @@ async function loadOptionsForQuestions(
 
   const { data: opts, error: oError } = await client
     .from("survey_question_options")
-    .select("id, question_id, order_index, label")
+    .select("id, question_id, order_index, label, is_other, ends_survey")
     .in("question_id", questionIds)
     .order("order_index", { ascending: true });
 
   if (oError) {
+    if (oError.message.includes("ends_survey")) {
+      const withoutEnds = await client
+        .from("survey_question_options")
+        .select("id, question_id, order_index, label, is_other")
+        .in("question_id", questionIds)
+        .order("order_index", { ascending: true });
+      if (withoutEnds.error?.message.includes("is_other")) {
+        const fallback = await client
+          .from("survey_question_options")
+          .select("id, question_id, order_index, label")
+          .in("question_id", questionIds)
+          .order("order_index", { ascending: true });
+        if (fallback.error) {
+          console.error("[loadOptionsForQuestions]", fallback.error.message);
+          return [];
+        }
+        return (fallback.data ?? []) as OptionRow[];
+      }
+      if (withoutEnds.error) {
+        console.error("[loadOptionsForQuestions]", withoutEnds.error.message);
+        return [];
+      }
+      return (withoutEnds.data ?? []) as OptionRow[];
+    }
+    if (oError.message.includes("is_other")) {
+      const fallback = await client
+        .from("survey_question_options")
+        .select("id, question_id, order_index, label")
+        .in("question_id", questionIds)
+        .order("order_index", { ascending: true });
+      if (fallback.error) {
+        console.error("[loadOptionsForQuestions]", fallback.error.message);
+        return [];
+      }
+      return (fallback.data ?? []) as OptionRow[];
+    }
     console.error("[loadOptionsForQuestions]", oError.message);
     return [];
   }

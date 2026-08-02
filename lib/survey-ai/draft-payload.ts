@@ -25,6 +25,24 @@ export function rehydrateDraftQuestion(raw: Partial<DraftQuestion> & { type?: st
     staffOnly: Boolean(raw.staffOnly),
     visibilityRules: Array.isArray(raw.visibilityRules) ? raw.visibilityRules : [],
     options: Array.isArray(raw.options) ? raw.options.map((o) => String(o)) : base.options,
+    optionEndsSurvey: Array.isArray(raw.optionEndsSurvey)
+      ? (raw.options ?? base.options).map((_, i) => Boolean(raw.optionEndsSurvey?.[i]))
+      : Array.isArray(raw.options)
+        ? raw.options.map((o) =>
+            typeof o === "string" ? /조사\s*종료/.test(o) : false,
+          )
+        : base.optionEndsSurvey,
+    otherOptionEnabled: Boolean(raw.otherOptionEnabled),
+    otherOptionLabel:
+      typeof raw.otherOptionLabel === "string" && raw.otherOptionLabel.trim()
+        ? raw.otherOptionLabel.trim()
+        : base.otherOptionLabel,
+    infoBody: typeof raw.infoBody === "string" ? raw.infoBody : base.infoBody,
+    mediaUrl: typeof raw.mediaUrl === "string" ? raw.mediaUrl : (raw.mediaUrl ?? base.mediaUrl),
+    mediaPath:
+      typeof raw.mediaPath === "string" ? raw.mediaPath : (raw.mediaPath ?? base.mediaPath),
+    mediaType:
+      raw.mediaType === "image" || raw.mediaType === "video" ? raw.mediaType : base.mediaType,
     maxSelections:
       typeof raw.maxSelections === "number" && Number.isFinite(raw.maxSelections)
         ? raw.maxSelections

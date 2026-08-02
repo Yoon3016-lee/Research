@@ -34,6 +34,7 @@ type OptionRow = {
   question_id: string;
   order_index: number;
   label: string;
+  is_other?: boolean | null;
 };
 
 type ResponseRow = {
@@ -54,7 +55,7 @@ export type QuestionExportMeta = {
   prompt: string;
   type: QuestionType;
   typeLabel: string;
-  options: { id: string; index: number; label: string }[];
+  options: { id: string; index: number; label: string; isOther?: boolean }[];
 };
 
 export type ResponseExportRow = {
@@ -164,6 +165,13 @@ function optionMeta(
   return { index: 0, label: `(삭제된 보기: ${optionId.slice(0, 8)}…)` };
 }
 
+function parseOtherText(answer: unknown): string | null {
+  if (!answer || typeof answer !== "object") return null;
+  const text = (answer as { otherText?: string }).otherText;
+  const t = text?.trim() ?? "";
+  return t.length > 0 ? t : null;
+}
+
 function formatAnswer(
   type: QuestionType,
   answer: unknown,
@@ -174,22 +182,28 @@ function formatAnswer(
     if (!optionId) return { code: "", label: "" };
     const meta = optionMeta(options, optionId);
     if (!meta) return { code: "", label: "" };
+    const otherText = type === "mc_single" ? parseOtherText(answer) : null;
+    const label = otherText ? `${meta.label} (${otherText})` : meta.label;
     return {
       code: meta.index > 0 ? String(meta.index) : "",
-      label: meta.label,
+      label,
     };
   }
 
   if (type === "mc_multi") {
     const ids = parseMcMulti(answer);
     if (ids.length === 0) return { code: "", label: "" };
+    const otherText = parseOtherText(answer);
     const codes: string[] = [];
     const labels: string[] = [];
     for (const id of ids) {
       const meta = optionMeta(options, id);
       if (!meta) continue;
       if (meta.index > 0) codes.push(String(meta.index));
-      labels.push(meta.label);
+      const opt = options.find((o) => o.id === id);
+      labels.push(
+        otherText && opt?.isOther ? `${meta.label} (${otherText})` : meta.label,
+      );
     }
     return { code: codes.join(","), label: labels.join(", ") };
   }
@@ -249,6 +263,31 @@ function formatAnswer(
     return { code: String(value), label: `${value}점` };
   }
 
+  if (type === "info_media") {
+    return { code: "", label: "" };
+  }
+
+  if (type === "contact_fields") {
+    if (!answer || typeof answer !== "object") return { code: "", label: "" };
+    const values = (answer as { values?: Record<string, string> }).values;
+    if (!values || typeof values !== "object") return { code: "", label: "" };
+    const parts: string[] = [];
+    for (const opt of options) {
+      const text = values[opt.id]?.trim() ?? "";
+      if (text) parts.push(`${opt.label}: ${text}`);
+    }
+    if (parts.length === 0) {
+      for (const [id, text] of Object.entries(values)) {
+        const t = text?.trim() ?? "";
+        if (!t) continue;
+        const meta = optionMeta(options, id);
+        parts.push(`${meta?.label ?? id.slice(0, 8)}: ${t}`);
+      }
+    }
+    if (parts.length === 0) return { code: "", label: "" };
+    return { code: parts.join(" | "), label: parts.join(" | ") };
+  }
+
   return { code: "", label: "" };
 }
 
@@ -293,15 +332,32 @@ async function loadExportDataset(ref: string): Promise<ExportDataset | null> {
 
   const optionsByQuestion = new Map<string, QuestionExportMeta["options"]>();
   if (questionIds.length > 0) {
-    const { data: optRows } = await admin
+    let optRows: OptionRow[] = [];
+    const withOther = await admin
       .from("survey_question_options")
-      .select("id, question_id, order_index, label")
+      .select("id, question_id, order_index, label, is_other")
       .in("question_id", questionIds)
       .order("order_index", { ascending: true });
 
-    for (const o of (optRows ?? []) as OptionRow[]) {
+    if (withOther.error?.message.includes("is_other")) {
+      const fallback = await admin
+        .from("survey_question_options")
+        .select("id, question_id, order_index, label")
+        .in("question_id", questionIds)
+        .order("order_index", { ascending: true });
+      optRows = (fallback.data ?? []) as OptionRow[];
+    } else {
+      optRows = (withOther.data ?? []) as OptionRow[];
+    }
+
+    for (const o of optRows) {
       const list = optionsByQuestion.get(o.question_id) ?? [];
-      list.push({ id: o.id, index: list.length + 1, label: o.label });
+      list.push({
+        id: o.id,
+        index: list.length + 1,
+        label: o.label,
+        isOther: Boolean(o.is_other),
+      });
       optionsByQuestion.set(o.question_id, list);
     }
   }

@@ -12,5 +12,12 @@ export function cloneQuestionsAsTemplate(questions: DraftQuestion[]): DraftQuest
     ...q,
     clientId: newClientId(),
     options: [...q.options],
+    optionEndsSurvey: [...(q.optionEndsSurvey ?? q.options.map(() => false))],
+    otherOptionEnabled: q.otherOptionEnabled ?? false,
+    otherOptionLabel: q.otherOptionLabel?.trim() || "기타",
+    infoBody: q.infoBody ?? "",
+    mediaUrl: q.mediaUrl ?? null,
+    mediaPath: q.mediaPath ?? null,
+    mediaType: q.mediaType ?? null,
   }));
 }

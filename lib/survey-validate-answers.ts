@@ -3,7 +3,7 @@ import { isLikert7Value, isStarRatingValue } from "@/lib/survey-types";
 import {
   branchingSnapshotFromAnswers,
   buildParticipantDisplayNumbers,
-  isPublicQuestionVisible,
+  isQuestionShownInSurvey,
 } from "@/lib/survey-visibility";
 
 type PublicQuestion = PublicSurveyDetail["questions"][number];
@@ -21,6 +21,10 @@ function validateOneAnswer(
   a: SurveyAnswerInput | undefined,
   n: number,
 ): string | null {
+  if (q.type === "info_media") {
+    return null;
+  }
+
   if (!a) {
     if (q.allowSkip) return null;
     return `문항 ${n}: 답변을 입력하세요.`;
@@ -35,6 +39,10 @@ function validateOneAnswer(
     if (empty && !q.allowSkip) return `문항 ${n}: 보기를 선택하세요.`;
     if (!empty && !q.options.some((o) => o.id === a.optionId)) {
       return `문항 ${n}: 잘못된 선택입니다.`;
+    }
+    const otherOpt = q.options.find((o) => o.isOther);
+    if (otherOpt && a.optionId === otherOpt.id && !(a.otherText?.trim())) {
+      return `문항 ${n}: 기타 내용을 입력하세요.`;
     }
   }
 
@@ -52,6 +60,10 @@ function validateOneAnswer(
       if (!q.options.some((o) => o.id === id)) {
         return `문항 ${n}: 잘못된 선택이 포함되어 있습니다.`;
       }
+    }
+    const otherOpt = q.options.find((o) => o.isOther);
+    if (otherOpt && ids.includes(otherOpt.id) && !(a.otherText?.trim())) {
+      return `문항 ${n}: 기타 내용을 입력하세요.`;
     }
   }
 
@@ -149,6 +161,23 @@ function validateOneAnswer(
     }
   }
 
+  if (q.type === "contact_fields") {
+    if (a.type !== "contact_fields") return null;
+    const values = a.values ?? {};
+    const filled = q.options.filter((o) => (values[o.id] ?? "").trim().length > 0);
+    if (filled.length === 0 && !q.allowSkip) {
+      return `문항 ${n}: 항목을 입력하세요.`;
+    }
+    if (!q.allowSkip && filled.length < q.options.length) {
+      return `문항 ${n}: ${q.options.length}개 항목을 모두 입력하세요.`;
+    }
+    for (const optionId of Object.keys(values)) {
+      if (!q.options.some((o) => o.id === optionId)) {
+        return `문항 ${n}: 잘못된 항목이 포함되어 있습니다.`;
+      }
+    }
+  }
+
   return null;
 }
 
@@ -167,7 +196,7 @@ export function validateSurveyAnswers(
 
   for (let i = 0; i < survey.questions.length; i++) {
     const q = survey.questions[i];
-    if (!isPublicQuestionVisible(q, survey.questions, branchingSnapshot, isStaff)) {
+    if (!isQuestionShownInSurvey(q, survey.questions, branchingSnapshot, isStaff)) {
       continue;
     }
     const n = questionLabel(q, displayNumbers, i + 1);
@@ -193,7 +222,7 @@ export function validateSurveyQuestionAnswer(
   );
   const q = survey.questions.find((item) => item.id === questionId);
   if (!q) return null;
-  if (!isPublicQuestionVisible(q, survey.questions, branchingSnapshot, isStaff)) {
+  if (!isQuestionShownInSurvey(q, survey.questions, branchingSnapshot, isStaff)) {
     return null;
   }
   const orderIndex = survey.questions.findIndex((item) => item.id === questionId);

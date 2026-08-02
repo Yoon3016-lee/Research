@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
+import { SurveyDeleteButton } from "@/components/admin/SurveyDeleteButton";
 import { SurveyScriptsLauncher } from "@/components/admin/SurveyScriptsLauncher";
 import { SurveyTemplateImportButton } from "@/components/admin/SurveyTemplateImportButton";
 import { getAdminSurveys } from "@/lib/surveys-db";
@@ -14,9 +15,14 @@ export const dynamic = "force-dynamic";
 export default async function AdminSurveysPage({
   searchParams,
 }: {
-  searchParams: Promise<{ created?: string; updated?: string; scripts?: string }>;
+  searchParams: Promise<{
+    created?: string;
+    updated?: string;
+    deleted?: string;
+    scripts?: string;
+  }>;
 }) {
-  const { created, updated, scripts } = await searchParams;
+  const { created, updated, deleted, scripts } = await searchParams;
   const scriptsOpen = scripts === "open" || scripts === "1";
   const [adminSurveys, sharedScripts, surveyScripts] = await Promise.all([
     getAdminSurveys(),
@@ -41,6 +47,12 @@ export default async function AdminSurveysPage({
           <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
             설문이 수정되었습니다. (slug:{" "}
             <code className="rounded bg-emerald-100/80 px-1">{decodeURIComponent(updated)}</code>)
+          </p>
+        ) : null}
+        {deleted ? (
+          <p className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-800">
+            설문을 삭제했습니다. (slug:{" "}
+            <code className="rounded bg-zinc-100 px-1">{decodeURIComponent(deleted)}</code>)
           </p>
         ) : null}
 
@@ -174,6 +186,11 @@ export default async function AdminSurveysPage({
                             <Pencil className="h-3.5 w-3.5" aria-hidden />
                             편집
                           </Link>
+                          <SurveyDeleteButton
+                            slug={s.id}
+                            title={s.title}
+                            responseCount={s.responses}
+                          />
                         </div>
                       </td>
                     </tr>

@@ -10,6 +10,7 @@ import { StarRatingInput } from "@/components/site/StarRatingInput";
 export type SurveyQuestionFieldState = {
   mcSingle: Record<string, string>;
   mcMulti: Record<string, string[]>;
+  mcOtherText: Record<string, string>;
   textSingle: Record<string, string>;
   textMulti: Record<string, string[]>;
   likert7: Record<string, number | null>;
@@ -17,15 +18,18 @@ export type SurveyQuestionFieldState = {
   rank: Record<string, string[]>;
   likertMulti: Record<string, Record<string, number | null>>;
   starRating: Record<string, number | null>;
+  contactFields: Record<string, Record<string, string>>;
 };
 
 type Props = {
   question: PublicSurveyQuestion;
-  displayNumber: number;
+  /** 응답 문항 번호. 안내(info_media)는 null */
+  displayNumber: number | null;
   state: SurveyQuestionFieldState;
   pending: boolean;
   onMcSingle: (questionId: string, optionId: string) => void;
   onMcMultiToggle: (questionId: string, optionId: string, max: number) => void;
+  onMcOtherText: (questionId: string, value: string) => void;
   onTextSingle: (questionId: string, value: string) => void;
   onTextMultiLine: (questionId: string, index: number, value: string, lineCount: number) => void;
   onLikert7: (questionId: string, value: number | null) => void;
@@ -33,6 +37,7 @@ type Props = {
   onRank: (questionId: string, rankedOptionIds: string[]) => void;
   onLikertMulti: (questionId: string, optionId: string, value: number | null) => void;
   onStarRating: (questionId: string, value: number | null) => void;
+  onContactField: (questionId: string, optionId: string, value: string) => void;
 };
 
 function emptyTextMulti(lineCount: number): string[] {
@@ -46,6 +51,7 @@ export function SurveyQuestionField({
   pending,
   onMcSingle,
   onMcMultiToggle,
+  onMcOtherText,
   onTextSingle,
   onTextMultiLine,
   onLikert7,
@@ -53,12 +59,25 @@ export function SurveyQuestionField({
   onRank,
   onLikertMulti,
   onStarRating,
+  onContactField,
 }: Props) {
   return (
-    <article className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+    <article
+      className={`rounded-2xl border p-6 shadow-sm ${
+        q.type === "info_media"
+          ? "border-rose-200/80 bg-rose-50/30"
+          : "border-zinc-200 bg-white"
+      }`}
+    >
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <p className="text-xs font-medium text-indigo-700">
-          문항 {displayNumber} · {QUESTION_TYPE_LABELS[q.type]}
+        <p
+          className={`text-xs font-medium ${
+            q.type === "info_media" ? "text-rose-800" : "text-indigo-700"
+          }`}
+        >
+          {q.type === "info_media"
+            ? "안내"
+            : `문항 ${displayNumber ?? ""} · ${QUESTION_TYPE_LABELS[q.type]}`}
         </p>
         <div className="flex flex-wrap gap-1.5">
           {q.staffOnly ? (
@@ -66,7 +85,7 @@ export function SurveyQuestionField({
               직원 전용
             </span>
           ) : null}
-          {q.allowSkip ? (
+          {q.type !== "info_media" && q.allowSkip ? (
             <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">
               무응답 허용
             </span>
@@ -105,6 +124,17 @@ export function SurveyQuestionField({
                   </span>
                   <span className="text-[0.8125rem] leading-relaxed text-zinc-700">{opt.label}</span>
                 </label>
+                {opt.isOther && selected ? (
+                  <input
+                    type="text"
+                    value={state.mcOtherText[q.id] ?? ""}
+                    disabled={pending}
+                    onChange={(e) => onMcOtherText(q.id, e.target.value)}
+                    className="mt-2 ml-8 w-[calc(100%-2rem)] rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none ring-indigo-500/30 focus:ring-2 disabled:opacity-60"
+                    placeholder="기타 내용을 입력하세요"
+                    aria-label={`${opt.label} 직접 입력`}
+                  />
+                ) : null}
               </li>
             );
           })}
@@ -201,6 +231,49 @@ export function SurveyQuestionField({
           disabled={pending}
           onChange={(value) => onStarRating(q.id, value)}
         />
+      )}
+
+      {q.type === "info_media" && (
+        <div className="mt-4 space-y-4">
+          {q.infoBody ? (
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">
+              {q.infoBody}
+            </p>
+          ) : null}
+          {q.mediaUrl && q.mediaType === "image" ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={q.mediaUrl}
+              alt={q.prompt}
+              className="max-h-[28rem] w-full rounded-xl border border-zinc-200 object-contain bg-zinc-50"
+            />
+          ) : null}
+          {q.mediaUrl && q.mediaType === "video" ? (
+            <video
+              src={q.mediaUrl}
+              controls
+              className="max-h-[28rem] w-full rounded-xl border border-zinc-200 bg-black"
+            />
+          ) : null}
+        </div>
+      )}
+
+      {q.type === "contact_fields" && (
+        <div className="mt-4 space-y-3">
+          {q.options.map((opt) => (
+            <label key={opt.id} className="block">
+              <span className="text-sm font-medium text-zinc-800">{opt.label}</span>
+              <input
+                type="text"
+                value={state.contactFields[q.id]?.[opt.id] ?? ""}
+                disabled={pending}
+                onChange={(e) => onContactField(q.id, opt.id, e.target.value)}
+                className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none ring-indigo-500/30 focus:ring-2 disabled:opacity-60"
+                placeholder={`${opt.label} 입력`}
+              />
+            </label>
+          ))}
+        </div>
       )}
     </article>
   );

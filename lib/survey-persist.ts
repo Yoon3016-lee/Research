@@ -10,6 +10,7 @@ const OPTION_TYPES: QuestionType[] = [
   "dropdown",
   "rank",
   "likert_multi",
+  "contact_fields",
 ];
 
 export function validateQuestion(
@@ -24,13 +25,20 @@ export function validateQuestion(
   if (visibilityErr) return visibilityErr;
   if (q.type === "mc_single" || q.type === "mc_multi" || q.type === "dropdown") {
     const opts = q.options.map((o) => o.trim()).filter(Boolean);
-    if (opts.length < 2) {
+    const otherOn =
+      (q.type === "mc_single" || q.type === "mc_multi") && q.otherOptionEnabled;
+    const otherLabel = q.otherOptionLabel.trim() || "기타";
+    const total = opts.length + (otherOn ? 1 : 0);
+    if (total < 2) {
       return `문항 ${index + 1}: 선택지를 2개 이상 입력하세요.`;
+    }
+    if (otherOn && !otherLabel) {
+      return `문항 ${index + 1}: 기타 보기 문구를 입력하세요.`;
     }
     if (q.type === "mc_multi") {
       const max = q.maxSelections;
-      if (max < 1 || max > opts.length) {
-        return `문항 ${index + 1}: 최대 선택 개수는 1~선택지 개수(${opts.length}) 사이여야 합니다.`;
+      if (max < 1 || max > total) {
+        return `문항 ${index + 1}: 최대 선택 개수는 1~선택지 개수(${total}) 사이여야 합니다.`;
       }
     }
   }
@@ -55,6 +63,19 @@ export function validateQuestion(
       return `문항 ${index + 1}: 주관식 다중 응답은 답변 줄을 2개 이상으로 하세요.`;
     }
   }
+  if (q.type === "info_media") {
+    const hasBody = Boolean(q.infoBody.trim());
+    const hasMedia = Boolean(q.mediaUrl?.trim());
+    if (!hasBody && !hasMedia) {
+      return `문항 ${index + 1}: 안내 본문 또는 그림/영상 중 하나 이상 넣어 주세요.`;
+    }
+  }
+  if (q.type === "contact_fields") {
+    const rows = q.options.map((o) => o.trim()).filter(Boolean);
+    if (rows.length < 1) {
+      return `문항 ${index + 1}: 연락처 항목(라벨)을 1개 이상 입력하세요.`;
+    }
+  }
   return null;
 }
 
@@ -73,26 +94,20 @@ export async function persistSurveyQuestions(
           }))
         : null;
 
-    const row: {
-      survey_id: string;
-      order_index: number;
-      prompt: string;
-      question_type: QuestionType;
-      allow_skip: boolean;
-      staff_only: boolean;
-      visibility_rules: { sourceOrderIndex: number; optionIndex: number }[] | null;
-      max_selections: number | null;
-      text_line_count: number | null;
-    } = {
+    const row: Record<string, unknown> = {
       survey_id: surveyId,
       order_index: i,
       prompt: q.prompt.trim(),
       question_type: q.type,
-      allow_skip: q.allowSkip,
+      allow_skip: q.type === "info_media" ? true : q.allowSkip,
       staff_only: q.staffOnly,
       visibility_rules: visibilityRules,
       max_selections: null,
       text_line_count: null,
+      info_body: null,
+      media_url: null,
+      media_path: null,
+      media_type: null,
     };
 
     if (q.type === "mc_multi") {
@@ -104,12 +119,47 @@ export async function persistSurveyQuestions(
     if (q.type === "text_multi") {
       row.text_line_count = q.textLineCount;
     }
+    if (q.type === "info_media") {
+      row.info_body = q.infoBody.trim() || null;
+      row.media_url = q.mediaUrl?.trim() || null;
+      row.media_path = q.mediaPath?.trim() || null;
+      row.media_type = q.mediaType;
+    }
 
-    const { data: qRow, error: qErr } = await admin
+    let { data: qRow, error: qErr } = await admin
       .from("survey_questions")
       .insert(row)
       .select("id")
       .single();
+
+    if (
+      qErr &&
+      (qErr.message.includes("info_body") ||
+        qErr.message.includes("media_url") ||
+        qErr.message.includes("media_path") ||
+        qErr.message.includes("media_type") ||
+        qErr.message.includes("info_media") ||
+        qErr.message.includes("contact_fields"))
+    ) {
+      if (q.type === "info_media" || q.type === "contact_fields") {
+        return (
+          "DB에 새 문항 유형 컬럼이 없습니다. " +
+          "supabase/migrations/20260408600000_survey_info_media_contact_fields.sql 을 실행하세요."
+        );
+      }
+      const legacyRow = { ...row };
+      delete legacyRow.info_body;
+      delete legacyRow.media_url;
+      delete legacyRow.media_path;
+      delete legacyRow.media_type;
+      const legacy = await admin
+        .from("survey_questions")
+        .insert(legacyRow)
+        .select("id")
+        .single();
+      qRow = legacy.data;
+      qErr = legacy.error;
+    }
 
     if (qErr || !qRow) {
       return qErr?.message ?? "문항 저장에 실패했습니다.";
@@ -118,13 +168,64 @@ export async function persistSurveyQuestions(
     const questionId = qRow.id as string;
 
     if (OPTION_TYPES.includes(q.type)) {
-      const labels = q.options.map((o) => o.trim()).filter(Boolean);
-      const opts = labels.map((label, order_index) => ({
-        question_id: questionId,
-        order_index,
-        label,
-      }));
-      const { error: oErr } = await admin.from("survey_question_options").insert(opts);
+      const paired = q.options
+        .map((label, order_index) => ({
+          label: label.trim(),
+          ends_survey:
+            (q.type === "mc_single" || q.type === "dropdown") &&
+            Boolean(q.optionEndsSurvey?.[order_index]),
+        }))
+        .filter((p) => p.label);
+      const labels = paired.map((p) => p.label);
+      const allowOther = q.type === "mc_single" || q.type === "mc_multi";
+      const withOther =
+        allowOther && q.otherOptionEnabled
+          ? [
+              ...paired.map((p, order_index) => ({
+                question_id: questionId,
+                order_index,
+                label: p.label,
+                is_other: false,
+                ends_survey: p.ends_survey,
+              })),
+              {
+                question_id: questionId,
+                order_index: labels.length,
+                label: q.otherOptionLabel.trim() || "기타",
+                is_other: true,
+                ends_survey: false,
+              },
+            ]
+          : paired.map((p, order_index) => ({
+              question_id: questionId,
+              order_index,
+              label: p.label,
+              is_other: false,
+              ends_survey: p.ends_survey,
+            }));
+
+      let { error: oErr } = await admin.from("survey_question_options").insert(withOther);
+      if (oErr?.message.includes("ends_survey")) {
+        return (
+          "DB에 ends_survey 컬럼이 없습니다. " +
+          "supabase/migrations/20260408700000_survey_question_options_ends_survey.sql 을 실행하세요."
+        );
+      }
+      if (oErr?.message.includes("is_other")) {
+        if (allowOther && q.otherOptionEnabled) {
+          return (
+            "DB에 is_other 컬럼이 없습니다. " +
+            "supabase/migrations/20260408500000_survey_question_options_is_other.sql 을 실행하세요."
+          );
+        }
+        const legacy = labels.map((label, order_index) => ({
+          question_id: questionId,
+          order_index,
+          label,
+        }));
+        const legacyResult = await admin.from("survey_question_options").insert(legacy);
+        oErr = legacyResult.error;
+      }
       if (oErr) {
         return oErr.message;
       }
