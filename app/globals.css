@@ -288,7 +288,12 @@
     --site-banner-max: var(--site-banner-resolution, 100%);
     --site-container-padding: clamp(1rem, 2.5vw, 1.75rem);
     --site-content-half: min(720px, 50vw - var(--site-container-padding));
-    --font-site-name: var(--font-site-display), "Source Serif 4", Georgia, serif;
+    /* 관리자에서 선택한 글꼴 (--font-site-ui). 기본: KoPub 바탕체 */
+    --font-site-ui: var(--font-kopub-batang), "KoPub Batang", Batang, serif;
+    --font-site-body: var(--font-site-ui);
+    --font-site-display: var(--font-site-ui);
+    --font-site-name: var(--font-site-ui);
+    font-family: var(--font-site-ui);
     font-size: 1.0625rem;
     line-height: 1.7;
     letter-spacing: -0.011em;
@@ -297,14 +302,18 @@
   }
 
   .site-public .site-name-font {
-    font-family: var(--font-site-name);
+    font-family: var(--font-site-ui);
   }
 
   .site-public :where(h1, h2, h3) {
-    font-family: var(--font-site-display), "Source Serif 4", Georgia, serif;
+    font-family: var(--font-site-ui);
     letter-spacing: -0.025em;
     line-height: 1.2;
     color: #0f172a;
+  }
+
+  .site-public :where(button, input, select, textarea, a, span, label, p, li, td, th, div) {
+    font-family: inherit;
   }
 
   .site-public :where(h1) {

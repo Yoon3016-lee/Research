@@ -33,8 +33,8 @@ export type QuestionType = (typeof QUESTION_TYPES)[number];
 export const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
   mc_single: "객관식 (단일 선택)",
   mc_multi: "객관식 (다중 선택)",
-  text_single: "주관식 (단일 응답)",
-  text_multi: "주관식 (다중 응답)",
+  text_single: "주관식 (텍스트)",
+  text_multi: "주관식 (다중)",
   likert_7: "리커트 척도 (1~7)",
   dropdown: "드롭다운",
   rank: "순위 선택",
@@ -49,7 +49,7 @@ export const QUESTION_TYPE_DESCRIPTIONS: Record<QuestionType, string> = {
   mc_single: "보기 중 하나만 선택합니다.",
   mc_multi: "보기 중 여러 개 선택 · 최대 개수를 지정합니다.",
   text_single: "짧은 서술·한 줄 답변을 받습니다.",
-  text_multi: "같은 질문에 여러 입력 칸을 둡니다.",
+  text_multi: "줄마다 주제(라벨)를 두고 각각 텍스트를 입력받습니다.",
   likert_7: "1(낮음)부터 7(높음)까지 하나를 고릅니다.",
   dropdown: "설정한 선택지를 드롭다운에서 고릅니다.",
   rank: "선택지를 누른 순서대로 1순위, 2순위…를 매깁니다.",
@@ -127,10 +127,15 @@ export function createDraftQuestion(type: QuestionType): DraftQuestion {
     type === "dropdown" ||
     type === "rank" ||
     type === "likert_multi" ||
-    type === "contact_fields"
+    type === "contact_fields" ||
+    type === "text_multi"
   ) {
     base.options =
-      type === "contact_fields" ? ["연락처", "이름", "소속 부서"] : ["", ""];
+      type === "contact_fields"
+        ? ["연락처", "이름", "소속 부서"]
+        : type === "text_multi"
+          ? ["항목 1", "항목 2"]
+          : ["", ""];
     base.optionEndsSurvey = base.options.map(() => false);
     base.maxSelections = type === "rank" ? 3 : 2;
   }
@@ -138,7 +143,7 @@ export function createDraftQuestion(type: QuestionType): DraftQuestion {
     base.textLineCount = 1;
   }
   if (type === "text_multi") {
-    base.textLineCount = 2;
+    base.textLineCount = base.options.filter((o) => o.trim()).length || 2;
   }
   if (type === "likert_7") {
     base.options = ["", ""];

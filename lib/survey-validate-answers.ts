@@ -75,14 +75,31 @@ function validateOneAnswer(
 
   if (q.type === "text_multi") {
     if (a.type !== "text_multi") return null;
-    const lines = (a.lines ?? []).map((l) => l.trim());
-    const filled = lines.filter(Boolean).length;
-    const required = q.textLineCount ?? 2;
-    if (filled === 0 && !q.allowSkip) {
-      return `문항 ${n}: 답변을 하나 이상 입력하세요.`;
-    }
-    if (!q.allowSkip && filled < required) {
-      return `문항 ${n}: ${required}개의 답변 칸을 채워 주세요.`;
+    const values = a.values ?? {};
+    if (q.options.length > 0) {
+      const filled = q.options.filter((o) => (values[o.id] ?? "").trim().length > 0);
+      if (filled.length === 0 && !q.allowSkip) {
+        return `문항 ${n}: 항목을 입력하세요.`;
+      }
+      if (!q.allowSkip && filled.length < q.options.length) {
+        return `문항 ${n}: ${q.options.length}개 항목을 모두 입력하세요.`;
+      }
+      for (const optionId of Object.keys(values)) {
+        if (!q.options.some((o) => o.id === optionId)) {
+          return `문항 ${n}: 잘못된 항목이 포함되어 있습니다.`;
+        }
+      }
+    } else {
+      const filled = Object.values(values).filter((v) => v.trim().length > 0).length;
+      const legacyLines = (a.lines ?? []).map((l) => l.trim()).filter(Boolean).length;
+      const filledCount = Math.max(filled, legacyLines);
+      const required = q.textLineCount ?? 2;
+      if (filledCount === 0 && !q.allowSkip) {
+        return `문항 ${n}: 항목을 입력하세요.`;
+      }
+      if (!q.allowSkip && filledCount < required) {
+        return `문항 ${n}: ${required}개의 답변 칸을 채워 주세요.`;
+      }
     }
   }
 

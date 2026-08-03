@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#e2e8f0"/>
+    </linearGradient>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.08"/>
+    </filter>
+    <marker id="arr" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 Z" fill="#64748b"/>
+    </marker>
+    <marker id="arrTeal" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 Z" fill="#0f766e"/>
+    </marker>
+    <marker id="arrAmber" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 Z" fill="#b45309"/>
+    </marker>
+    <style>
+  .title { font: 700 32px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #0f172a; }
+  .subtitle { font: 500 16px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #64748b; }
+  .h { font: 700 15px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #0f172a; }
+  .p { font: 500 13px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #334155; }
+  .small { font: 500 12px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #64748b; }
+  .layer { font: 700 13px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #fff; }
+  .arrow { font: 600 12px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #475569; }
+  .lane { font: 700 14px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #fff; }
+  .num { font: 700 13px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #fff; }
+  .foot { font: 500 12px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #64748b; }
+  .badge { font: 700 12px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #fff; }
+  .opt { font: 600 13px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #0f172a; }
+  .th { font: 700 13px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #fff; }
+  .ent { font: 700 13px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #0f172a; }
+  .col { font: 500 11px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #64748b; }
+  .sec { font: 700 12px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #fff; }
+</style>
+  </defs>
+
+<rect width="1600" height="900" fill="url(#bg)"/>
+
+  <text x="72" y="58" class="title">설문 분기 · 조사 종료 로직</text>
+  <text x="72" y="88" class="subtitle">표시 조건(visibility) + 보기별 조사 종료(ends_survey) · lib/survey-visibility.ts</text>
+
+  <g filter="url(#shadow)">
+    <rect x="680" y="120" width="240" height="56" rx="28" fill="#0f766e"/>
+    <text x="800" y="154" class="badge" text-anchor="middle" style="font-size:15px">설문 시작</text>
+  </g>
+  <line x1="800" y1="176" x2="800" y2="220" stroke="#64748b" stroke-width="2" marker-end="url(#arr)"/>
+
+  <g filter="url(#shadow)">
+    <rect x="620" y="220" width="360" height="100" rx="16" fill="#fff" stroke="#0f766e" stroke-width="2"/>
+    <text x="800" y="258" class="h" text-anchor="middle">스크리닝 문항 (Q1)</text>
+    <text x="800" y="284" class="p" text-anchor="middle">객관식 단일 · 드롭다운</text>
+    <text x="800" y="306" class="small" text-anchor="middle">분기 기준 유형만 허용</text>
+  </g>
+
+  <path d="M800 320 L800 360 L520 360 L520 400" fill="none" stroke="#0f766e" stroke-width="2.5" marker-end="url(#arrTeal)"/>
+  <path d="M800 320 L800 360 L1080 360 L1080 400" fill="none" stroke="#b45309" stroke-width="2.5" marker-end="url(#arrAmber)"/>
+
+  <g filter="url(#shadow)">
+    <rect x="400" y="400" width="240" height="70" rx="12" fill="#ecfdf5" stroke="#0f766e" stroke-width="2"/>
+    <text x="520" y="430" class="opt" text-anchor="middle">1. 예</text>
+    <text x="520" y="454" class="small" text-anchor="middle">본조사 계속</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="960" y="400" width="240" height="70" rx="12" fill="#fffbeb" stroke="#b45309" stroke-width="2"/>
+    <text x="1080" y="430" class="opt" text-anchor="middle">2. 아니오</text>
+    <text x="1080" y="454" class="small" text-anchor="middle">ends_survey = true</text>
+  </g>
+
+  <line x1="520" y1="470" x2="520" y2="520" stroke="#0f766e" stroke-width="2" marker-end="url(#arrTeal)"/>
+  <line x1="1080" y1="470" x2="1080" y2="560" stroke="#b45309" stroke-width="2" marker-end="url(#arrAmber)"/>
+
+  <g filter="url(#shadow)">
+    <rect x="380" y="520" width="280" height="90" rx="14" fill="#fff" stroke="#cbd5e1"/>
+    <text x="520" y="556" class="h" text-anchor="middle">후속 문항 Q2…Qn</text>
+    <text x="520" y="582" class="p" text-anchor="middle">표시 조건(선택)</text>
+    <text x="520" y="600" class="small" text-anchor="middle">또는 항상 표시</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="960" y="560" width="240" height="70" rx="14" fill="#b45309"/>
+    <text x="1080" y="592" class="badge" text-anchor="middle" style="font-size:14px">조사 종료</text>
+    <text x="1080" y="614" class="badge" text-anchor="middle" style="font-size:11px;font-weight:500">이후 문항 숨김 → 제출</text>
+  </g>
+
+  <line x1="520" y1="610" x2="520" y2="680" stroke="#64748b" stroke-width="2"/>
+  <path d="M520 680 H800" stroke="#64748b" stroke-width="2"/>
+  <path d="M1080 630 V680 H800" stroke="#64748b" stroke-width="2" marker-end="url(#arr)"/>
+
+  <g filter="url(#shadow)">
+    <rect x="680" y="700" width="240" height="56" rx="28" fill="#1e3a5f"/>
+    <text x="800" y="734" class="badge" text-anchor="middle" style="font-size:15px">응답 제출</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="72" y="220" width="300" height="360" rx="16" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="72" y="220" width="300" height="44" rx="16" fill="#0f172a"/>
+    <rect x="72" y="248" width="300" height="16" fill="#0f172a"/>
+    <text x="92" y="248" class="badge">문항이 보이는 조건</text>
+    <text x="96" y="300" class="h">1. staffOnly</text>
+    <text x="96" y="322" class="p">직원 전용이면 guest 숨김</text>
+    <text x="96" y="360" class="h">2. visibilityRules</text>
+    <text x="96" y="382" class="p">이전 보기 선택 시 표시</text>
+    <text x="96" y="402" class="small">여러 조건은 OR</text>
+    <text x="96" y="440" class="h">3. ends_survey</text>
+    <text x="96" y="462" class="p">앞 문항에서 종료 보기</text>
+    <text x="96" y="482" class="p">선택 시 이후 전부 숨김</text>
+    <rect x="96" y="510" width="252" height="48" rx="10" fill="#f0fdfa" stroke="#99f6e4"/>
+    <text x="112" y="540" class="small">isQuestionShownInSurvey()</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="1228" y="220" width="300" height="360" rx="16" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="1228" y="220" width="300" height="44" rx="16" fill="#9a3412"/>
+    <rect x="1228" y="248" width="300" height="16" fill="#9a3412"/>
+    <text x="1248" y="248" class="badge">기존 vs 개선</text>
+    <text x="1252" y="300" class="h">Before</text>
+    <text x="1252" y="324" class="p">후속 문항마다</text>
+    <text x="1252" y="344" class="p">「예」 표시 조건 반복</text>
+    <text x="1252" y="390" class="h">After</text>
+    <text x="1252" y="414" class="p">「아니오」에</text>
+    <text x="1252" y="434" class="p">조사 종료 체크만</text>
+    <rect x="1252" y="470" width="252" height="80" rx="10" fill="#fffbeb" stroke="#fcd34d"/>
+    <text x="1268" y="504" class="p">DB: options.ends_survey</text>
+    <text x="1268" y="528" class="p">편집 UI: 보기별 체크박스</text>
+  </g>
+
+  <text x="72" y="860" class="foot">research-a · 발표용 03/04 · 스크리닝 「아니오 → 조사종료」를 옵션 플래그로 처리</text>
+
+</svg>

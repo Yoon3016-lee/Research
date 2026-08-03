@@ -45,16 +45,12 @@ type Props = {
   onPause?: (payload: SurveyPausePayload) => Promise<{ ok: boolean; error?: string }>;
 };
 
-function emptyTextMulti(lineCount: number): string[] {
-  return Array.from({ length: lineCount }, () => "");
-}
-
 type HydratedState = {
   mcSingle: Record<string, string>;
   mcMulti: Record<string, string[]>;
   mcOtherText: Record<string, string>;
   textSingle: Record<string, string>;
-  textMulti: Record<string, string[]>;
+  textMulti: Record<string, Record<string, string>>;
   likert7: Record<string, number | null>;
   dropdown: Record<string, string>;
   rank: Record<string, string[]>;
@@ -87,7 +83,16 @@ function hydrateState(answers: SurveyAnswerInput[] | undefined): HydratedState {
     } else if (a.type === "text_single") {
       state.textSingle[a.questionId] = a.text;
     } else if (a.type === "text_multi") {
-      state.textMulti[a.questionId] = a.lines;
+      if (a.values && typeof a.values === "object") {
+        state.textMulti[a.questionId] = { ...a.values };
+      } else if (Array.isArray(a.lines)) {
+        // 구 초안: 줄 배열 → 임시 키 (표시 시 문항 options와 재매핑은 생략)
+        const mapped: Record<string, string> = {};
+        a.lines.forEach((line, i) => {
+          mapped[`legacy_${i}`] = line;
+        });
+        state.textMulti[a.questionId] = mapped;
+      }
     } else if (a.type === "likert_7") {
       state.likert7[a.questionId] = Number.isNaN(a.value) ? null : a.value;
     } else if (a.type === "dropdown") {
@@ -136,7 +141,9 @@ export function SurveyResponseForm({
     initialState.mcOtherText,
   );
   const [textSingle, setTextSingle] = useState<Record<string, string>>(initialState.textSingle);
-  const [textMulti, setTextMulti] = useState<Record<string, string[]>>(initialState.textMulti);
+  const [textMulti, setTextMulti] = useState<Record<string, Record<string, string>>>(
+    initialState.textMulti,
+  );
   const [likert7, setLikert7] = useState<Record<string, number | null>>(initialState.likert7);
   const [dropdown, setDropdown] = useState<Record<string, string>>(initialState.dropdown);
   const [rank, setRank] = useState<Record<string, string[]>>(initialState.rank);
@@ -274,18 +281,11 @@ export function SurveyResponseForm({
     });
   };
 
-  const setTextMultiLine = (
-    questionId: string,
-    index: number,
-    value: string,
-    lineCount: number,
-  ) => {
-    setTextMulti((prev) => {
-      const lines = [...(prev[questionId] ?? emptyTextMulti(lineCount))];
-      while (lines.length < lineCount) lines.push("");
-      lines[index] = value;
-      return { ...prev, [questionId]: lines };
-    });
+  const setTextMultiField = (questionId: string, optionId: string, value: string) => {
+    setTextMulti((prev) => ({
+      ...prev,
+      [questionId]: { ...(prev[questionId] ?? {}), [optionId]: value },
+    }));
   };
 
   const buildAnswers = (): SurveyAnswerInput[] => {
@@ -315,9 +315,11 @@ export function SurveyResponseForm({
       } else if (q.type === "text_single") {
         out.push({ questionId: q.id, type: "text_single", text: textSingle[q.id] ?? "" });
       } else if (q.type === "text_multi") {
-        const n = q.textLineCount ?? 2;
-        const lines = textMulti[q.id] ?? emptyTextMulti(n);
-        out.push({ questionId: q.id, type: "text_multi", lines });
+        out.push({
+          questionId: q.id,
+          type: "text_multi",
+          values: textMulti[q.id] ?? {},
+        });
       } else if (q.type === "likert_7") {
         const value = likert7[q.id];
         out.push({
@@ -492,7 +494,7 @@ export function SurveyResponseForm({
       onTextSingle={(questionId, value) =>
         setTextSingle((prev) => ({ ...prev, [questionId]: value }))
       }
-      onTextMultiLine={setTextMultiLine}
+      onTextMultiField={setTextMultiField}
       onLikert7={(questionId, value) =>
         setLikert7((prev) => ({ ...prev, [questionId]: value }))
       }

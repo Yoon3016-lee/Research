@@ -609,40 +609,59 @@ export function QuestionEditCard({
         )}
 
         {q.type === "text_multi" && (
-          <div className="rounded-xl border border-dashed border-indigo-200 bg-indigo-50/50 p-4">
-            <p className="text-sm font-medium text-zinc-900">답변 입력 줄</p>
-            <p className="mt-1 text-xs leading-relaxed text-zinc-600">
-              동일 질문에 대해 여러 칸으로 나누어 받을 때 사용합니다. 최소 2줄
-              이상입니다.
+          <div className="rounded-xl border border-sky-100 bg-sky-50/40 p-3">
+            <span className="text-sm font-medium text-zinc-800">답변 항목 (주제)</span>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              각 줄의 주제(라벨)와 응답자 입력란이 한 세트로 표시됩니다. 연락처 문항과 같은
+              방식입니다.
             </p>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <span className="text-sm tabular-nums text-zinc-800">
-                현재 <strong>{q.textLineCount}</strong>줄
-              </span>
-              <button
-                type="button"
-                onClick={() =>
-                  onChange({ textLineCount: q.textLineCount + 1 })
-                }
-                className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-indigo-700"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                줄 추가
-              </button>
-              {q.textLineCount > 2 && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    onChange({
-                      textLineCount: Math.max(2, q.textLineCount - 1),
-                    })
-                  }
-                  className="text-xs font-medium text-zinc-600 hover:text-zinc-900"
-                >
-                  한 줄 제거
-                </button>
-              )}
+            <div className="mt-3 space-y-2">
+              {q.options.map((opt, oi) => (
+                <div key={oi} className="flex items-center gap-2">
+                  <input
+                    value={opt}
+                    onChange={(e) => {
+                      const opts = [...q.options];
+                      opts[oi] = e.target.value;
+                      onChange({
+                        options: opts,
+                        textLineCount: opts.filter((x) => x.trim()).length || opts.length,
+                      });
+                    }}
+                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-500/15"
+                    placeholder={`항목 ${oi + 1} (예: 의견 1)`}
+                  />
+                  {q.options.length > 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const opts = q.options.filter((_, i) => i !== oi);
+                        onChange({
+                          options: opts,
+                          textLineCount: opts.filter((x) => x.trim()).length || 1,
+                        });
+                      }}
+                      className="shrink-0 rounded-lg border border-zinc-200 px-2 py-2 text-xs text-zinc-500 hover:bg-zinc-50"
+                      aria-label="항목 삭제"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  ) : null}
+                </div>
+              ))}
             </div>
+            <button
+              type="button"
+              onClick={() =>
+                onChange({
+                  options: [...q.options, ""],
+                  textLineCount: q.options.length + 1,
+                })
+              }
+              className="mt-2 text-xs font-medium text-sky-800 hover:text-sky-950"
+            >
+              + 항목 추가
+            </button>
           </div>
         )}
 

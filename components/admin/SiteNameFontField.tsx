@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import {
+  getSiteFontPreviewFamily,
   getSiteNameFontOption,
   parseSiteNameFontKey,
   SITE_NAME_FONT_OPTIONS,
@@ -14,10 +15,10 @@ type Props = {
   previewText: string;
 };
 
-function useGoogleFont(href: string | null) {
+function usePreviewStylesheet(href: string | null) {
   useEffect(() => {
     if (!href || typeof document === "undefined") return;
-    const id = `site-name-font-preview-${href}`;
+    const id = `site-font-preview-${encodeURIComponent(href)}`;
     if (document.getElementById(id)) return;
     const link = document.createElement("link");
     link.id = id;
@@ -29,14 +30,14 @@ function useGoogleFont(href: string | null) {
 
 export function SiteNameFontField({ fontKey, onFontChange, previewText }: Props) {
   const option = getSiteNameFontOption(fontKey);
-  useGoogleFont(option.googleHref);
+  usePreviewStylesheet(option.googleHref ?? option.previewHref);
 
   return (
     <div className="space-y-3">
       <input type="hidden" name="site_name_font" value={fontKey} />
 
       <label className="block text-sm">
-        <span className="font-medium text-zinc-700">홈페이지 이름 글꼴</span>
+        <span className="font-medium text-zinc-700">공개 사이트 글꼴</span>
         <select
           value={fontKey}
           onChange={(e) => onFontChange(parseSiteNameFontKey(e.target.value))}
@@ -49,7 +50,7 @@ export function SiteNameFontField({ fontKey, onFontChange, previewText }: Props)
           ))}
         </select>
         <span className="mt-1 block text-xs text-zinc-500">
-          로고가 없을 때 헤더·메인·푸터에 표시되는 이름에 적용됩니다.
+          홈페이지 본문·제목·메뉴·사이트명에 동일하게 적용됩니다.
         </span>
       </label>
 
@@ -57,9 +58,15 @@ export function SiteNameFontField({ fontKey, onFontChange, previewText }: Props)
         <p className="text-xs font-medium text-zinc-500">미리보기</p>
         <p
           className="mt-2 truncate text-xl font-semibold tracking-tight text-brand-900"
-          style={{ fontFamily: option.fontFamily }}
+          style={{ fontFamily: getSiteFontPreviewFamily(fontKey) }}
         >
           {previewText.trim() || "홈페이지 이름"}
+        </p>
+        <p
+          className="mt-2 text-sm leading-relaxed text-zinc-700"
+          style={{ fontFamily: getSiteFontPreviewFamily(fontKey) }}
+        >
+          본문 미리보기 — 설문 안내와 일반 문장도 같은 글꼴로 표시됩니다.
         </p>
       </div>
     </div>

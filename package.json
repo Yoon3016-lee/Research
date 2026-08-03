@@ -21,6 +21,7 @@
     "@google/generative-ai": "^0.24.1",
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.101.1",
+    "font-kopub": "^1.0.2",
     "lucide-react": "^1.7.0",
     "next": "^15.1.5",
     "openai": "^6.45.0",

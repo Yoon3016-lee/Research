@@ -40,7 +40,7 @@ function describeFieldsForType(type: QuestionType): string {
     case "text_single":
       return "options 불필요";
     case "text_multi":
-      return "textLineCount (number, 최소 2)";
+      return "options = 항목 주제 라벨 (string[], 1개 이상). 연락처 문항과 동일하게 줄마다 라벨+입력";
     case "likert_7":
       return "options [0]=1점 라벨, [1]=7점 라벨 (선택, 빈 문자열 가능)";
     case "likert_multi":

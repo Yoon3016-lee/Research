@@ -1,10 +1,9 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { Fragment, useCallback, useRef, useState } from "react";
 import { LIKERT_7_VALUES, isLikert7Value } from "@/lib/survey-types";
 
-const DOT = "h-6 w-6";
-const NUM_W = "w-6";
+const COL = "w-8 sm:w-9";
 
 export function likert7ValueFromClientX(
   clientX: number,
@@ -83,18 +82,19 @@ export function Likert7Track({
 
   return (
     <div role="radiogroup" aria-label={ariaLabel}>
-      <div className="flex items-center">
+      <div className="flex items-start justify-center">
         {showBracket ? (
           <span
-            className="pointer-events-none pr-1 text-base font-light leading-none text-zinc-400"
+            className="pointer-events-none mt-[0.35rem] pr-1 text-base font-light leading-none text-zinc-400"
             aria-hidden
           >
             [
           </span>
         ) : null}
+
         <div
           ref={trackRef}
-          className={`flex touch-none select-none items-center rounded-lg py-1 ${
+          className={`flex touch-none select-none items-start rounded-lg py-1 ${
             disabled
               ? "cursor-not-allowed opacity-60"
               : dragging
@@ -111,8 +111,8 @@ export function Likert7Track({
           {LIKERT_7_VALUES.map((n, index) => {
             const selected = value === n;
             return (
-              <span key={n} className="inline-flex items-center">
-                <label className="pointer-events-none flex flex-col items-center">
+              <Fragment key={n}>
+                <label className={`pointer-events-none flex ${COL} flex-col items-center`}>
                   <input
                     type="radio"
                     name={namePrefix}
@@ -124,7 +124,7 @@ export function Likert7Track({
                     className="sr-only"
                   />
                   <span
-                    className={`flex ${DOT} items-center justify-center rounded-full border transition ${
+                    className={`flex h-6 w-6 items-center justify-center rounded-full border transition ${
                       selected
                         ? "border-indigo-600 bg-indigo-600"
                         : "border-zinc-400 bg-white"
@@ -137,46 +137,37 @@ export function Likert7Track({
                       }`}
                     />
                   </span>
-                  <span className="sr-only">{n}점</span>
+                  {showNumberRow ? (
+                    <span className="mt-1.5 text-[11px] font-medium tabular-nums leading-none text-zinc-500">
+                      {n}
+                    </span>
+                  ) : (
+                    <span className="sr-only">{n}점</span>
+                  )}
+                  {showNumberRow ? <span className="sr-only">{n}점</span> : null}
                 </label>
                 {index < LIKERT_7_VALUES.length - 1 ? (
                   <span
-                    className="pointer-events-none mx-0.5 text-sm leading-none text-zinc-400 sm:mx-1"
+                    className="pointer-events-none mt-[0.35rem] shrink-0 px-0.5 text-sm leading-none text-zinc-400 sm:px-1"
                     aria-hidden
                   >
                     -
                   </span>
                 ) : null}
-              </span>
+              </Fragment>
             );
           })}
         </div>
+
         {showBracket ? (
           <span
-            className="pointer-events-none pl-1 text-base font-light leading-none text-zinc-400"
+            className="pointer-events-none mt-[0.35rem] pl-1 text-base font-light leading-none text-zinc-400"
             aria-hidden
           >
             ]
           </span>
         ) : null}
       </div>
-
-      {showNumberRow ? (
-        <div
-          className={`pointer-events-none mt-1 flex items-center justify-center gap-0 tabular-nums text-[10px] font-medium text-zinc-500 ${
-            showBracket ? "px-5" : ""
-          }`}
-        >
-          {LIKERT_7_VALUES.map((n, index) => (
-            <span key={`num-${n}`} className="inline-flex items-center">
-              <span className={`flex ${NUM_W} justify-center`}>{n}</span>
-              {index < LIKERT_7_VALUES.length - 1 ? (
-                <span className="mx-0.5 w-3 sm:mx-1" aria-hidden />
-              ) : null}
-            </span>
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 }

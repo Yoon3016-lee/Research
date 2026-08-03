@@ -49,7 +49,7 @@ export type SurveyAnswerInput =
   | { questionId: string; type: "mc_single"; optionId: string; otherText?: string }
   | { questionId: string; type: "mc_multi"; optionIds: string[]; otherText?: string }
   | { questionId: string; type: "text_single"; text: string }
-  | { questionId: string; type: "text_multi"; lines: string[] }
+  | { questionId: string; type: "text_multi"; values: Record<string, string>; lines?: string[] }
   | { questionId: string; type: "likert_7"; value: number }
   | { questionId: string; type: "dropdown"; optionId: string }
   | { questionId: string; type: "rank"; rankedOptionIds: string[] }

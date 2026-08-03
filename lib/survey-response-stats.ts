@@ -204,6 +204,14 @@ function parseLikert7(answer: unknown): number | null {
 
 function parseTextMulti(answer: unknown): string | null {
   if (!answer || typeof answer !== "object") return null;
+  const values = (answer as { values?: Record<string, string> }).values;
+  if (values && typeof values === "object") {
+    const filled = Object.values(values)
+      .map((v) => String(v ?? "").trim())
+      .filter(Boolean);
+    if (filled.length === 0) return null;
+    return filled.join(" · ");
+  }
   const lines = (answer as { lines?: string[] }).lines;
   if (!Array.isArray(lines)) return null;
   const filled = lines.map((l) => l?.trim() ?? "").filter(Boolean);

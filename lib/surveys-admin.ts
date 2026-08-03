@@ -235,10 +235,16 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
               type === "dropdown" ||
               type === "rank" ||
               type === "likert_multi" ||
-              type === "contact_fields"
+              type === "contact_fields" ||
+              type === "text_multi"
             ? type === "contact_fields"
               ? ["연락처", "이름", "소속 부서"]
-              : ["", ""]
+              : type === "text_multi"
+                ? Array.from(
+                    { length: Math.max(2, q.text_line_count ?? 2) },
+                    (_, i) => `항목 ${i + 1}`,
+                  )
+                : ["", ""]
             : [];
     return {
       clientId: q.id,
@@ -255,7 +261,10 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
         type === "rank"
           ? (q.max_selections ?? Math.min(3, opts.length || 3))
           : (q.max_selections ?? Math.min(2, optionCountForMax || 2)),
-      textLineCount: q.text_line_count ?? (type === "text_multi" ? 2 : 1),
+      textLineCount:
+        type === "text_multi"
+          ? Math.max(1, resolvedOptions.filter((o) => o.trim()).length || q.text_line_count || 2)
+          : (q.text_line_count ?? 1),
       infoBody: q.info_body ?? "",
       mediaUrl: q.media_url ?? null,
       mediaPath: q.media_path ?? null,

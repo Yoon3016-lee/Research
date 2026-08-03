@@ -38,6 +38,15 @@ function normalizeRawQuestion(raw: SurveyAiRawQuestion, index: number): DraftQue
       : q.options.map((o) => /조사\s*종료/.test(o));
   }
 
+  if (raw.type === "text_multi" && q.options.length === 0) {
+    const n =
+      typeof raw.textLineCount === "number" && Number.isFinite(raw.textLineCount)
+        ? Math.max(2, Math.floor(raw.textLineCount))
+        : 2;
+    q.options = Array.from({ length: n }, (_, i) => `항목 ${i + 1}`);
+    q.optionEndsSurvey = q.options.map(() => false);
+  }
+
   if (typeof raw.maxSelections === "number" && Number.isFinite(raw.maxSelections)) {
     q.maxSelections = Math.max(1, Math.floor(raw.maxSelections));
   }

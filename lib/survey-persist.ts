@@ -11,6 +11,7 @@ const OPTION_TYPES: QuestionType[] = [
   "rank",
   "likert_multi",
   "contact_fields",
+  "text_multi",
 ];
 
 export function validateQuestion(
@@ -59,8 +60,9 @@ export function validateQuestion(
     }
   }
   if (q.type === "text_multi") {
-    if (q.textLineCount < 2) {
-      return `문항 ${index + 1}: 주관식 다중 응답은 답변 줄을 2개 이상으로 하세요.`;
+    const rows = q.options.map((o) => o.trim()).filter(Boolean);
+    if (rows.length < 1) {
+      return `문항 ${index + 1}: 주관식(다중) 항목(주제)을 1개 이상 입력하세요.`;
     }
   }
   if (q.type === "info_media") {
@@ -117,7 +119,8 @@ export async function persistSurveyQuestions(
       row.max_selections = q.maxSelections;
     }
     if (q.type === "text_multi") {
-      row.text_line_count = q.textLineCount;
+      const n = q.options.map((o) => o.trim()).filter(Boolean).length;
+      row.text_line_count = Math.max(1, n);
     }
     if (q.type === "info_media") {
       row.info_body = q.infoBody.trim() || null;

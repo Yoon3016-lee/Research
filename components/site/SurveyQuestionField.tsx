@@ -12,7 +12,7 @@ export type SurveyQuestionFieldState = {
   mcMulti: Record<string, string[]>;
   mcOtherText: Record<string, string>;
   textSingle: Record<string, string>;
-  textMulti: Record<string, string[]>;
+  textMulti: Record<string, Record<string, string>>;
   likert7: Record<string, number | null>;
   dropdown: Record<string, string>;
   rank: Record<string, string[]>;
@@ -31,7 +31,7 @@ type Props = {
   onMcMultiToggle: (questionId: string, optionId: string, max: number) => void;
   onMcOtherText: (questionId: string, value: string) => void;
   onTextSingle: (questionId: string, value: string) => void;
-  onTextMultiLine: (questionId: string, index: number, value: string, lineCount: number) => void;
+  onTextMultiField: (questionId: string, optionId: string, value: string) => void;
   onLikert7: (questionId: string, value: number | null) => void;
   onDropdown: (questionId: string, optionId: string) => void;
   onRank: (questionId: string, rankedOptionIds: string[]) => void;
@@ -39,10 +39,6 @@ type Props = {
   onStarRating: (questionId: string, value: number | null) => void;
   onContactField: (questionId: string, optionId: string, value: string) => void;
 };
-
-function emptyTextMulti(lineCount: number): string[] {
-  return Array.from({ length: lineCount }, () => "");
-}
 
 export function SurveyQuestionField({
   question: q,
@@ -53,7 +49,7 @@ export function SurveyQuestionField({
   onMcMultiToggle,
   onMcOtherText,
   onTextSingle,
-  onTextMultiLine,
+  onTextMultiField,
   onLikert7,
   onDropdown,
   onRank,
@@ -157,27 +153,45 @@ export function SurveyQuestionField({
         />
       )}
 
-      {q.type === "text_multi" && (
-        <ul className="mt-4 space-y-2">
-          {Array.from({ length: q.textLineCount ?? 2 }, (_, i) => (
-            <li key={i}>
-              <label className="sr-only">
-                {q.prompt} — 답변 {i + 1}
+      {q.type === "text_multi" &&
+        (q.options.length > 0 ? (
+          <div className="mt-4 space-y-3">
+            {q.options.map((opt) => (
+              <label key={opt.id} className="block">
+                <span className="text-sm font-medium text-zinc-800">{opt.label}</span>
+                <input
+                  type="text"
+                  value={state.textMulti[q.id]?.[opt.id] ?? ""}
+                  disabled={pending}
+                  onChange={(e) => onTextMultiField(q.id, opt.id, e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none ring-indigo-500/30 focus:ring-2 disabled:opacity-60"
+                  placeholder={`${opt.label} 입력`}
+                />
               </label>
-              <input
-                type="text"
-                value={(state.textMulti[q.id] ?? emptyTextMulti(q.textLineCount ?? 2))[i] ?? ""}
-                disabled={pending}
-                onChange={(e) =>
-                  onTextMultiLine(q.id, i, e.target.value, q.textLineCount ?? 2)
-                }
-                className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none ring-indigo-500/30 focus:ring-2 disabled:opacity-60"
-                placeholder={`답변 ${i + 1}`}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
+            ))}
+          </div>
+        ) : (
+          <ul className="mt-4 space-y-2">
+            {Array.from({ length: q.textLineCount ?? 2 }, (_, i) => {
+              const key = `legacy_${i}`;
+              return (
+                <li key={key}>
+                  <label className="sr-only">
+                    {q.prompt} — 답변 {i + 1}
+                  </label>
+                  <input
+                    type="text"
+                    value={state.textMulti[q.id]?.[key] ?? ""}
+                    disabled={pending}
+                    onChange={(e) => onTextMultiField(q.id, key, e.target.value)}
+                    className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none ring-indigo-500/30 focus:ring-2 disabled:opacity-60"
+                    placeholder={`답변 ${i + 1}`}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        ))}
 
       {q.type === "likert_7" && (
         <Likert7Input

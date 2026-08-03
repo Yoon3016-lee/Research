@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#e2e8f0"/>
+    </linearGradient>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.08"/>
+    </filter>
+    <marker id="arr" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 Z" fill="#64748b"/>
+    </marker>
+    <marker id="arrTeal" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 Z" fill="#0f766e"/>
+    </marker>
+    <marker id="arrAmber" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 Z" fill="#b45309"/>
+    </marker>
+    <style>
+  .title { font: 700 32px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #0f172a; }
+  .subtitle { font: 500 16px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #64748b; }
+  .h { font: 700 15px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #0f172a; }
+  .p { font: 500 13px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #334155; }
+  .small { font: 500 12px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #64748b; }
+  .layer { font: 700 13px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #fff; }
+  .arrow { font: 600 12px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #475569; }
+  .lane { font: 700 14px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #fff; }
+  .num { font: 700 13px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #fff; }
+  .foot { font: 500 12px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #64748b; }
+  .badge { font: 700 12px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #fff; }
+  .opt { font: 600 13px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #0f172a; }
+  .th { font: 700 13px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #fff; }
+  .ent { font: 700 13px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #0f172a; }
+  .col { font: 500 11px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #64748b; }
+  .sec { font: 700 12px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #fff; }
+</style>
+  </defs>
+
+<rect width="1600" height="900" fill="url(#bg)"/>
+
+  <text x="72" y="58" class="title">핵심 업무 흐름</text>
+  <text x="72" y="88" class="subtitle">설문 설계 → 배포 → 응답 → 집계 · 관리자 · 응답자 · 면접원</text>
+
+  <rect x="72" y="120" width="1456" height="220" rx="18" fill="#fff" stroke="#cbd5e1" filter="url(#shadow)"/>
+  <rect x="72" y="120" width="56" height="220" rx="18" fill="#0f766e"/>
+  <rect x="100" y="120" width="28" height="220" fill="#0f766e"/>
+  <text transform="translate(100 230) rotate(-90)" class="lane" text-anchor="middle">관리자</text>
+  <circle cx="200" cy="180" r="16" fill="#0f766e"/><text x="200" y="185" class="num" text-anchor="middle">1</text>
+  <text x="228" y="178" class="h">조사 설계</text>
+  <text x="228" y="198" class="p">수작업 빌더 또는 AI 생성</text>
+  <line x1="430" y1="180" x2="490" y2="180" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr)"/>
+  <circle cx="530" cy="180" r="16" fill="#0f766e"/><text x="530" y="185" class="num" text-anchor="middle">2</text>
+  <text x="558" y="178" class="h">문항 · 로직 설정</text>
+  <text x="558" y="198" class="p">표시 조건 · 조사 종료 보기</text>
+  <line x1="780" y1="180" x2="840" y2="180" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr)"/>
+  <circle cx="880" cy="180" r="16" fill="#0f766e"/><text x="880" y="185" class="num" text-anchor="middle">3</text>
+  <text x="908" y="178" class="h">저장 · 배포</text>
+  <text x="908" y="198" class="p">기간 · 공개 여부 · 배분</text>
+  <line x1="1120" y1="180" x2="1180" y2="180" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr)"/>
+  <circle cx="1220" cy="180" r="16" fill="#0f766e"/><text x="1220" y="185" class="num" text-anchor="middle">4</text>
+  <text x="1248" y="178" class="h">표본 · CATI</text>
+  <text x="1248" y="198" class="p">xlsx 업로드 · 배치</text>
+  <rect x="168" y="240" width="1280" height="72" rx="12" fill="#f0fdfa" stroke="#99f6e4"/>
+  <text x="188" y="270" class="h">주요 경로</text>
+  <text x="188" y="294" class="p">/admin/surveys → new · edit · ai-generate · logic · samples · distribute · Server Actions → DB</text>
+
+  <rect x="72" y="360" width="1456" height="220" rx="18" fill="#fff" stroke="#cbd5e1" filter="url(#shadow)"/>
+  <rect x="72" y="360" width="56" height="220" rx="18" fill="#1e3a5f"/>
+  <rect x="100" y="360" width="28" height="220" fill="#1e3a5f"/>
+  <text transform="translate(100 470) rotate(-90)" class="lane" text-anchor="middle">응답자</text>
+  <circle cx="200" cy="420" r="16" fill="#1e3a5f"/><text x="200" y="425" class="num" text-anchor="middle">1</text>
+  <text x="228" y="418" class="h">설문 진입</text>
+  <text x="228" y="438" class="p">/survey/[slug]</text>
+  <line x1="430" y1="420" x2="490" y2="420" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr)"/>
+  <circle cx="530" cy="420" r="16" fill="#1e3a5f"/><text x="530" y="425" class="num" text-anchor="middle">2</text>
+  <text x="558" y="418" class="h">조건부 진행</text>
+  <text x="558" y="438" class="p">보이는 문항만 표시</text>
+  <line x1="780" y1="420" x2="840" y2="420" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr)"/>
+  <circle cx="880" cy="420" r="16" fill="#1e3a5f"/><text x="880" y="425" class="num" text-anchor="middle">3</text>
+  <text x="908" y="418" class="h">답변 입력</text>
+  <text x="908" y="438" class="p">페이지 / 스크롤 모드</text>
+  <line x1="1120" y1="420" x2="1180" y2="420" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr)"/>
+  <circle cx="1220" cy="420" r="16" fill="#1e3a5f"/><text x="1220" y="425" class="num" text-anchor="middle">4</text>
+  <text x="1248" y="418" class="h">제출</text>
+  <text x="1248" y="438" class="p">responses + answers</text>
+  <rect x="168" y="480" width="1280" height="72" rx="12" fill="#eff6ff" stroke="#bfdbfe"/>
+  <text x="188" y="510" class="h">서버 검증</text>
+  <text x="188" y="534" class="p">loadSurvey → SurveyResponseForm → submitSurveyResponseAction (보이는 문항만 · Service Role)</text>
+
+  <rect x="72" y="600" width="1456" height="200" rx="18" fill="#fff" stroke="#cbd5e1" filter="url(#shadow)"/>
+  <rect x="72" y="600" width="56" height="200" rx="18" fill="#9a3412"/>
+  <rect x="100" y="600" width="28" height="200" fill="#9a3412"/>
+  <text transform="translate(100 700) rotate(-90)" class="lane" text-anchor="middle">면접원</text>
+  <circle cx="200" cy="660" r="16" fill="#9a3412"/><text x="200" y="665" class="num" text-anchor="middle">1</text>
+  <text x="228" y="658" class="h">표본 수신</text>
+  <text x="228" y="678" class="p">배치된 연락처</text>
+  <line x1="430" y1="660" x2="490" y2="660" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr)"/>
+  <circle cx="530" cy="660" r="16" fill="#9a3412"/><text x="530" y="665" class="num" text-anchor="middle">2</text>
+  <text x="558" y="658" class="h">통화 · 스크립트</text>
+  <text x="558" y="678" class="p">멘트 · 주의사항</text>
+  <line x1="780" y1="660" x2="840" y2="660" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr)"/>
+  <circle cx="880" cy="660" r="16" fill="#9a3412"/><text x="880" y="665" class="num" text-anchor="middle">3</text>
+  <text x="908" y="658" class="h">응답 / 초안</text>
+  <text x="908" y="678" class="p">중도 저장 · 재개</text>
+  <line x1="1120" y1="660" x2="1180" y2="660" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr)"/>
+  <circle cx="1220" cy="660" r="16" fill="#9a3412"/><text x="1220" y="665" class="num" text-anchor="middle">4</text>
+  <text x="1248" y="658" class="h">컨택 결과</text>
+  <text x="1248" y="678" class="p">완료 · 콜백 · 제외 등</text>
+  <rect x="168" y="720" width="1280" height="56" rx="12" fill="#fff7ed" stroke="#fed7aa"/>
+  <text x="188" y="754" class="p">CatiInterviewerWorkflow · samples / drafts / contact_options · 진행 현황 모니터링</text>
+
+  <text x="72" y="860" class="foot">research-a · 발표용 02/04 · 세 역할이 동일 설문 데이터를 공유하고 진입 UI만 분리</text>
+
+</svg>

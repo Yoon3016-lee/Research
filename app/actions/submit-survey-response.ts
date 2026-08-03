@@ -44,6 +44,15 @@ function toAnswerJson(
     return { text };
   }
   if (qType === "text_multi" && a.type === "text_multi") {
+    if (a.values && typeof a.values === "object") {
+      const values: Record<string, string> = {};
+      for (const [k, v] of Object.entries(a.values)) {
+        const t = String(v ?? "").trim();
+        if (t) values[k] = t;
+      }
+      if (Object.keys(values).length === 0) return null;
+      return { values };
+    }
     const lines = (a.lines ?? []).map((l) => l.trim()).filter(Boolean);
     if (lines.length === 0) return null;
     return { lines };
