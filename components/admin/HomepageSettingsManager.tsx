@@ -387,7 +387,9 @@ function NavItemCreateForm({
               placeholder="about-us"
             />
             <span className="mt-1 block text-xs text-zinc-500">
-              공개 주소 예: https://사이트주소/p/about-us — 비워 두면 메뉴 이름에서 자동 생성됩니다.
+              공개 주소 예: /p/service-guide — 비워 두면 메뉴 이름에서 자동 생성됩니다.
+              이미 있는 주소와 겹치면 저장되지 않으니, 다른 영문 주소를 쓰거나 「기존 경로로
+              연결」에서 /p/기존주소 를 연결하세요.
             </span>
           </label>
           <div className="block text-sm">

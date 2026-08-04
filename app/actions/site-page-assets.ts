@@ -36,9 +36,10 @@ export async function uploadSitePageAssetAction(
   }
 
   const label = file.name.replace(/[/\\?%*:|"<>]/g, "-").trim() || "file";
+  const imageHref = String(formData.get("image_href") ?? "").trim();
   const snippet =
     uploaded.data.mediaType === "image"
-      ? buildImageEmbed(uploaded.data.url, label)
+      ? buildImageEmbed(uploaded.data.url, label, imageHref || null)
       : buildPdfEmbed(uploaded.data.url, label);
 
   return { url: uploaded.data.url, snippet };

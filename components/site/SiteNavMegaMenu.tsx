@@ -168,7 +168,7 @@ export function SiteNavMegaMenu({ groups }: Props) {
               <button
                 type="button"
                 onFocus={() => openGroup(group.key)}
-                className={`whitespace-nowrap rounded-t-md border-b-[3px] px-3 py-2.5 text-left text-[1.25rem] font-bold tracking-tight transition sm:px-5 ${
+                className={`whitespace-nowrap rounded-t-md border-b-[3px] px-3 py-2.5 text-left text-[1.5rem] font-bold tracking-tight transition sm:px-5 sm:text-[1.625rem] ${
                   active
                     ? "border-brand-900 text-brand-900"
                     : isActiveKey

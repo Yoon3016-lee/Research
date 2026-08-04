@@ -60,6 +60,30 @@ function normalizePageSlug(raw: string): string | null {
   return slug;
 }
 
+async function allocateUniquePageSlug(
+  admin: ReturnType<typeof createSupabaseServiceRoleClient>,
+  base: string,
+): Promise<string> {
+  for (let n = 0; n < 50; n++) {
+    const candidate = n === 0 ? base : `${base}-${n + 1}`;
+    const { data } = await admin
+      .from("site_pages")
+      .select("id")
+      .eq("slug", candidate)
+      .maybeSingle();
+    if (!data) return candidate;
+  }
+  return `${base}-${Date.now()}`;
+}
+
+function isUniqueSlugViolation(message: string): boolean {
+  return (
+    message.includes("site_pages_slug_key") ||
+    message.includes("duplicate key") ||
+    message.includes("unique constraint")
+  );
+}
+
 export async function updateSiteNameAction(
   _prev: SiteHomepageActionState,
   formData: FormData,
@@ -225,11 +249,32 @@ export async function createNavItemAction(
   let pageId: string | null = null;
 
   if (createPage) {
-    const slug = normalizePageSlug(pageSlugRaw || label);
+    const explicitSlug = Boolean(pageSlugRaw.trim());
+    const baseSlug = normalizePageSlug(pageSlugRaw || label);
     const title = pageTitle || label;
-    if (!slug) {
-      return { error: "페이지 주소는 영문 소문자·숫자·하이픈만 사용할 수 있습니다." };
+    if (!baseSlug) {
+      return {
+        error:
+          "페이지 주소는 영문 소문자·숫자·하이픈만 사용할 수 있습니다. 예: service-guide (한글 메뉴 이름만으로는 주소를 만들 수 없습니다.)",
+      };
     }
+
+    let slug = baseSlug;
+    if (explicitSlug) {
+      const { data: existing } = await admin
+        .from("site_pages")
+        .select("id, slug")
+        .eq("slug", baseSlug)
+        .maybeSingle();
+      if (existing) {
+        return {
+          error: `페이지 주소 「${baseSlug}」는 이미 사용 중입니다. 다른 영문 주소를 입력하거나, 연결 방식에서 「기존 경로로 연결」을 선택한 뒤 /p/${baseSlug} 를 입력하세요.`,
+        };
+      }
+    } else {
+      slug = await allocateUniquePageSlug(admin, baseSlug);
+    }
+
     const { data: page, error: pageError } = await admin
       .from("site_pages")
       .insert({ slug, title, body: pageBody })
@@ -237,6 +282,11 @@ export async function createNavItemAction(
       .single();
 
     if (pageError) {
+      if (isUniqueSlugViolation(pageError.message)) {
+        return {
+          error: `페이지 주소 「${slug}」는 이미 사용 중입니다. 다른 영문 주소를 입력하세요.`,
+        };
+      }
       return { error: pageError.message };
     }
     pageId = page.id as string;

@@ -56,7 +56,7 @@ export function SiteHeader({ homepage, adminLink, participant }: SiteHeaderProps
     <header className="site-header relative sticky top-0 z-[60] overflow-visible backdrop-blur-md">
       <Link
         href="/"
-        className="absolute left-4 top-1/2 z-[2] flex min-w-0 max-w-[min(45vw,14rem)] -translate-y-1/2 items-center sm:left-6 sm:max-w-[16rem] lg:left-8"
+        className="absolute left-4 top-1/2 z-[2] flex min-w-0 max-w-[min(55vw,28rem)] -translate-y-1/2 items-center overflow-visible sm:left-6 sm:max-w-[32rem] lg:left-8"
       >
         {homepage.logoUrl ? (
           <>
@@ -64,11 +64,11 @@ export function SiteHeader({ homepage, adminLink, participant }: SiteHeaderProps
             <img
               src={homepage.logoUrl}
               alt={homepage.siteName}
-              className="h-8 w-auto max-w-full object-contain object-left sm:h-9"
+              className="h-12 w-auto max-w-none origin-left object-contain object-left sm:h-[3.375rem] [transform:scaleX(1.333)]"
             />
           </>
         ) : (
-          <span className="site-name-font text-lg font-semibold tracking-tight text-brand-900 sm:text-xl">
+          <span className="site-name-font origin-left text-[1.6875rem] font-semibold tracking-tight text-brand-900 sm:text-[1.875rem] [transform:scaleX(1.333)]">
             {homepage.siteName}
           </span>
         )}
