@@ -2,13 +2,13 @@
 
 import { useActionState, useEffect } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
-import { submitSiteInquiryAction } from "@/app/actions/site-inquiries";
+import { submitSiteInquiryAction, type SiteInquiryActionState } from "@/app/actions/site-inquiries";
 import {
   SITE_INQUIRY_TYPE_LABELS,
   type SiteInquiryType,
 } from "@/lib/site-inquiry-types";
 
-const initial = {};
+const initial: SiteInquiryActionState = {};
 
 type Props = {
   defaultType: SiteInquiryType;

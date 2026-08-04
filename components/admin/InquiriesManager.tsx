@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
-import { updateSiteInquiryAction } from "@/app/actions/site-inquiries";
+import { updateSiteInquiryAction, type SiteInquiryActionState } from "@/app/actions/site-inquiries";
 import {
   SITE_INQUIRY_STATUS_LABELS,
   SITE_INQUIRY_STATUSES,
@@ -12,7 +12,7 @@ import {
   type SiteInquiryType,
 } from "@/lib/site-inquiry-types";
 
-const initial = {};
+const initial: SiteInquiryActionState = {};
 
 function formatDate(iso: string): string {
   try {
