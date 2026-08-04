@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#e2e8f0"/>
+    </linearGradient>
+    <filter id="shadow" x="-4%" y="-4%" width="108%" height="116%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.08"/>
+    </filter>
+    <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#64748b"/>
+    </marker>
+    <style>
+  .title { font: 700 30px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #0f172a; }
+  .subtitle { font: 500 14px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #64748b; }
+  .domain { font: 700 12px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #fff; }
+  .tbl { font: 700 12px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #fff; }
+  .col { font: 500 11px 'Consolas', 'Malgun Gothic', monospace; fill: #334155; }
+  .pk { font: 600 11px 'Consolas', 'Malgun Gothic', monospace; fill: #1e3a5f; }
+  .fk { font: 500 11px 'Consolas', 'Malgun Gothic', monospace; fill: #0f766e; }
+  .note { font: 500 11px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #64748b; }
+  .rel { font: 600 11px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #475569; }
+  .foot { font: 500 11px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #64748b; }
+</style>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#bg)"/>
+  
+  <text x="56" y="48" class="title">데이터베이스 구조 — 설문 코어</text>
+  <text x="56" y="74" class="subtitle">surveys · questions · options · responses · CATI samples  ·  Supabase Postgres</text>
+
+  
+  <g filter="url(#shadow)">
+    <rect x="56" y="110" width="260" height="210" rx="10" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="56" y="110" width="260" height="30" rx="10" fill="#1e3a5f"/>
+    <rect x="56" y="130" width="260" height="10" fill="#1e3a5f"/>
+    <text x="68" y="130" class="tbl">surveys</text>
+    <text x="68" y="158" class="pk">PK id uuid</text>
+<text x="68" y="174" class="col">slug (unique)</text>
+<text x="68" y="190" class="col">title · summary</text>
+<text x="68" y="206" class="col">status 진행중|예정|종료</text>
+<text x="68" y="222" class="col">period_start / period_end</text>
+<text x="68" y="238" class="col">listed_public</text>
+<text x="68" y="254" class="col">response_script</text>
+<text x="68" y="270" class="col">target_count · response_count</text>
+  </g>
+
+  
+  <g filter="url(#shadow)">
+    <rect x="400" y="110" width="280" height="230" rx="10" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="400" y="110" width="280" height="30" rx="10" fill="#0f766e"/>
+    <rect x="400" y="130" width="280" height="10" fill="#0f766e"/>
+    <text x="412" y="130" class="tbl">survey_questions</text>
+    <text x="412" y="158" class="pk">PK id</text>
+<text x="412" y="174" class="fk">FK survey_id → surveys</text>
+<text x="412" y="190" class="col">order_index · prompt</text>
+<text x="412" y="206" class="col">question_type (11종)</text>
+<text x="412" y="222" class="col">allow_skip · staff_only</text>
+<text x="412" y="238" class="col">visibility_rules jsonb</text>
+<text x="412" y="254" class="col">max_selections · text_line_count</text>
+<text x="412" y="270" class="col">info_body · media_url/path/type</text>
+  </g>
+
+  
+  <g filter="url(#shadow)">
+    <rect x="760" y="110" width="280" height="180" rx="10" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="760" y="110" width="280" height="30" rx="10" fill="#b45309"/>
+    <rect x="760" y="130" width="280" height="10" fill="#b45309"/>
+    <text x="772" y="130" class="tbl">survey_question_options</text>
+    <text x="772" y="158" class="pk">PK id</text>
+<text x="772" y="174" class="fk">FK question_id → questions</text>
+<text x="772" y="190" class="col">order_index · label</text>
+<text x="772" y="206" class="col">is_other</text>
+<text x="772" y="222" class="col">ends_survey ★</text>
+  </g>
+
+  
+  <g filter="url(#shadow)">
+    <rect x="1120" y="110" width="420" height="150" rx="10" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="1120" y="110" width="420" height="30" rx="10" fill="#475569"/>
+    <rect x="1120" y="130" width="420" height="10" fill="#475569"/>
+    <text x="1132" y="130" class="tbl">question_type CHECK</text>
+    <text x="1132" y="158" class="col">mc_single · mc_multi · dropdown · rank</text>
+<text x="1132" y="174" class="col">text_single · text_multi</text>
+<text x="1132" y="190" class="col">likert_7 · likert_multi · star_rating</text>
+<text x="1132" y="206" class="col">info_media · contact_fields</text>
+  </g>
+
+  <line x1="316" y1="200" x2="400" y2="200" stroke="#64748b" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="340" y="190" class="rel">1:N</text>
+  <line x1="680" y1="200" x2="760" y2="200" stroke="#64748b" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="700" y="190" class="rel">1:N</text>
+
+  
+  <g filter="url(#shadow)">
+    <rect x="56" y="380" width="280" height="170" rx="10" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="56" y="380" width="280" height="30" rx="10" fill="#5b21b6"/>
+    <rect x="56" y="400" width="280" height="10" fill="#5b21b6"/>
+    <text x="68" y="400" class="tbl">survey_responses</text>
+    <text x="68" y="428" class="pk">PK id</text>
+<text x="68" y="444" class="fk">FK survey_id → surveys</text>
+<text x="68" y="460" class="fk">FK respondent_user_id</text>
+<text x="68" y="476" class="col">respondent_kind staff|guest</text>
+<text x="68" y="492" class="fk">FK sample_id (nullable)</text>
+<text x="68" y="508" class="col">submitted_at</text>
+  </g>
+
+  
+  <g filter="url(#shadow)">
+    <rect x="420" y="380" width="300" height="150" rx="10" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="420" y="380" width="300" height="30" rx="10" fill="#6b21a8"/>
+    <rect x="420" y="400" width="300" height="10" fill="#6b21a8"/>
+    <text x="432" y="400" class="tbl">survey_response_answers</text>
+    <text x="432" y="428" class="pk">PK id</text>
+<text x="432" y="444" class="fk">FK response_id → responses</text>
+<text x="432" y="460" class="fk">FK question_id → questions</text>
+<text x="432" y="476" class="col">UNIQUE (response_id, question_id)</text>
+<text x="432" y="492" class="col">answer jsonb</text>
+  </g>
+
+  <line x1="196" y1="320" x2="196" y2="380" stroke="#64748b" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="208" y="355" class="rel">1:N</text>
+  <line x1="336" y1="450" x2="420" y2="450" stroke="#64748b" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="360" y="440" class="rel">1:N</text>
+  <path d="M540 340 V360 H570 V380" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <text x="580" y="365" class="note">question_id</text>
+
+  
+  <g filter="url(#shadow)">
+    <rect x="800" y="380" width="300" height="170" rx="10" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="800" y="380" width="300" height="30" rx="10" fill="#9a3412"/>
+    <rect x="800" y="400" width="300" height="10" fill="#9a3412"/>
+    <text x="812" y="400" class="tbl">survey_sample_batches</text>
+    <text x="812" y="428" class="pk">PK id</text>
+<text x="812" y="444" class="fk">FK survey_id → surveys</text>
+<text x="812" y="460" class="col">version_number (unique/survey)</text>
+<text x="812" y="476" class="col">column_headers jsonb</text>
+<text x="812" y="492" class="col">status uploading|ready|failed</text>
+<text x="812" y="508" class="col">is_active · uploaded_by</text>
+  </g>
+
+  
+  <g filter="url(#shadow)">
+    <rect x="1180" y="380" width="360" height="190" rx="10" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="1180" y="380" width="360" height="30" rx="10" fill="#c2410c"/>
+    <rect x="1180" y="400" width="360" height="10" fill="#c2410c"/>
+    <text x="1192" y="400" class="tbl">survey_samples</text>
+    <text x="1192" y="428" class="pk">PK id</text>
+<text x="1192" y="444" class="fk">FK batch_id → batches</text>
+<text x="1192" y="460" class="fk">FK survey_id → surveys</text>
+<text x="1192" y="476" class="col">uid (unique/batch)</text>
+<text x="1192" y="492" class="col">row_data jsonb</text>
+<text x="1192" y="508" class="col">outcome_* (통화 결과)</text>
+<text x="1192" y="524" class="col">outcome_updated_by → profiles</text>
+  </g>
+
+  <line x1="316" y1="280" x2="800" y2="420" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+  <line x1="1100" y1="450" x2="1180" y2="450" stroke="#64748b" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="1120" y="440" class="rel">1:N</text>
+  <line x1="196" y1="550" x2="196" y2="600" stroke="#94a3b8" stroke-width="1.5"/>
+  <path d="M196 600 H1360 V570" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <text x="900" y="595" class="note">sample_id (optional)</text>
+
+  
+  <g filter="url(#shadow)">
+    <rect x="56" y="620" width="300" height="150" rx="10" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="56" y="620" width="300" height="30" rx="10" fill="#7c2d12"/>
+    <rect x="56" y="640" width="300" height="10" fill="#7c2d12"/>
+    <text x="68" y="640" class="tbl">survey_response_drafts</text>
+    <text x="68" y="668" class="pk">PK id</text>
+<text x="68" y="684" class="fk">FK survey_id · sample_id</text>
+<text x="68" y="700" class="col">UNIQUE (sample_id)</text>
+<text x="68" y="716" class="col">answers jsonb</text>
+<text x="68" y="732" class="col">active_question_id</text>
+<text x="68" y="748" class="col">updated_by → profiles</text>
+  </g>
+
+  
+  <g filter="url(#shadow)">
+    <rect x="420" y="620" width="280" height="130" rx="10" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="420" y="620" width="280" height="30" rx="10" fill="#9a3412"/>
+    <rect x="420" y="640" width="280" height="10" fill="#9a3412"/>
+    <text x="432" y="640" class="tbl">survey_contact_options</text>
+    <text x="432" y="668" class="pk">PK id</text>
+<text x="432" y="684" class="fk">FK survey_id → surveys</text>
+<text x="432" y="700" class="col">position (unique/survey)</text>
+<text x="432" y="716" class="col">label · is_success · is_active</text>
+  </g>
+
+  
+  <g filter="url(#shadow)">
+    <rect x="760" y="620" width="280" height="130" rx="10" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="760" y="620" width="280" height="30" rx="10" fill="#475569"/>
+    <rect x="760" y="640" width="280" height="10" fill="#475569"/>
+    <text x="772" y="640" class="tbl">shared_response_scripts</text>
+    <text x="772" y="668" class="pk">PK id</text>
+<text x="772" y="684" class="col">title · body</text>
+<text x="772" y="700" class="col">sort_order</text>
+<text x="772" y="716" class="col">(설문 FK 없음)</text>
+  </g>
+
+  <rect x="1120" y="620" width="420" height="150" rx="12" fill="#fff" stroke="#cbd5e1" filter="url(#shadow)"/>
+  <rect x="1120" y="620" width="420" height="36" rx="12" fill="#0f172a"/>
+  <rect x="1120" y="644" width="420" height="12" fill="#0f172a"/>
+  <text x="1136" y="644" class="domain">핵심 관계 요약</text>
+  <text x="1136" y="680" class="col">surveys 1—N questions 1—N options</text>
+  <text x="1136" y="700" class="col">surveys 1—N responses 1—N answers</text>
+  <text x="1136" y="720" class="col">surveys 1—N batches 1—N samples</text>
+  <text x="1136" y="740" class="col">samples 1—0..1 drafts · 0..N responses</text>
+
+  <text x="56" y="860" class="note">jsonb: visibility_rules · answer · drafts.answers · column_headers · row_data</text>
+  <text x="56" y="882" class="note">★ ends_survey: 보기 선택 시 조사 종료  ·  is_other: 기타 보기</text>
+  <text x="56" y="960" class="foot">research-a · DB ER 01/02  ·  migrations 기준 · Postgres ENUM 없음 (text + CHECK)</text>
+
+</svg>

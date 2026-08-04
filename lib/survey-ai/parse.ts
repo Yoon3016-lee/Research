@@ -33,6 +33,7 @@ function normalizeRawQuestion(raw: SurveyAiRawQuestion, index: number): DraftQue
 
   if (Array.isArray(raw.options)) {
     q.options = raw.options.map((o) => (typeof o === "string" ? o : String(o)));
+    q.optionIds = q.options.map(() => null);
     q.optionEndsSurvey = Array.isArray(raw.optionEndsSurvey)
       ? q.options.map((_, i) => Boolean(raw.optionEndsSurvey?.[i]))
       : q.options.map((o) => /조사\s*종료/.test(o));
@@ -44,6 +45,7 @@ function normalizeRawQuestion(raw: SurveyAiRawQuestion, index: number): DraftQue
         ? Math.max(2, Math.floor(raw.textLineCount))
         : 2;
     q.options = Array.from({ length: n }, (_, i) => `항목 ${i + 1}`);
+    q.optionIds = q.options.map(() => null);
     q.optionEndsSurvey = q.options.map(() => false);
   }
 

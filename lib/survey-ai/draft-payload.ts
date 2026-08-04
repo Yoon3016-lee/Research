@@ -25,6 +25,11 @@ export function rehydrateDraftQuestion(raw: Partial<DraftQuestion> & { type?: st
     staffOnly: Boolean(raw.staffOnly),
     visibilityRules: Array.isArray(raw.visibilityRules) ? raw.visibilityRules : [],
     options: Array.isArray(raw.options) ? raw.options.map((o) => String(o)) : base.options,
+    optionIds: Array.isArray(raw.optionIds)
+      ? (raw.options ?? base.options).map((_, i) =>
+          typeof raw.optionIds?.[i] === "string" ? raw.optionIds[i] : null,
+        )
+      : (Array.isArray(raw.options) ? raw.options : base.options).map(() => null),
     optionEndsSurvey: Array.isArray(raw.optionEndsSurvey)
       ? (raw.options ?? base.options).map((_, i) => Boolean(raw.optionEndsSurvey?.[i]))
       : Array.isArray(raw.options)
@@ -37,6 +42,10 @@ export function rehydrateDraftQuestion(raw: Partial<DraftQuestion> & { type?: st
       typeof raw.otherOptionLabel === "string" && raw.otherOptionLabel.trim()
         ? raw.otherOptionLabel.trim()
         : base.otherOptionLabel,
+    otherOptionId:
+      typeof raw.otherOptionId === "string" && raw.otherOptionId.trim()
+        ? raw.otherOptionId.trim()
+        : null,
     infoBody: typeof raw.infoBody === "string" ? raw.infoBody : base.infoBody,
     mediaUrl: typeof raw.mediaUrl === "string" ? raw.mediaUrl : (raw.mediaUrl ?? base.mediaUrl),
     mediaPath:

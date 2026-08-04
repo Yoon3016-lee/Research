@@ -251,3 +251,43 @@ export async function getSitePageBySlug(slug: string): Promise<SitePage | null> 
     body: (data.body as string) ?? "",
   };
 }
+
+export type SiteNavTrail = {
+  groupLabel: string;
+  itemLabel: string;
+};
+
+function normalizeNavPath(href: string): string {
+  try {
+    if (href.startsWith("http://") || href.startsWith("https://")) {
+      return new URL(href).pathname.replace(/\/+$/, "") || "/";
+    }
+  } catch {
+    /* ignore */
+  }
+  const path = href.split("?")[0]?.split("#")[0] ?? href;
+  return path.replace(/\/+$/, "") || "/";
+}
+
+/** 현재 CMS 페이지에 연결된 상단 탭·하단 메뉴 라벨을 찾습니다. */
+export function findSiteNavTrailForPage(
+  groups: SiteNavGroup[],
+  page: Pick<SitePage, "id" | "slug">,
+): SiteNavTrail | null {
+  const pagePath = `/p/${page.slug}`;
+
+  for (const group of groups) {
+    for (const item of group.items) {
+      const byPageId = item.pageId != null && item.pageId === page.id;
+      const byHref = normalizeNavPath(item.href) === pagePath;
+      if (byPageId || byHref) {
+        return {
+          groupLabel: group.label.trim() || group.key,
+          itemLabel: item.label.trim() || page.slug,
+        };
+      }
+    }
+  }
+
+  return null;
+}

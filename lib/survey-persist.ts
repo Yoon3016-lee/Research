@@ -14,6 +14,9 @@ const OPTION_TYPES: QuestionType[] = [
   "text_multi",
 ];
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export function validateQuestion(
   q: DraftQuestion,
   index: number,
@@ -81,6 +84,428 @@ export function validateQuestion(
   return null;
 }
 
+function buildQuestionRow(
+  surveyId: string,
+  orderIndex: number,
+  q: DraftQuestion,
+): Record<string, unknown> {
+  const visibilityRules =
+    q.visibilityRules.length > 0
+      ? q.visibilityRules.map((r) => ({
+          sourceOrderIndex: r.sourceOrderIndex,
+          optionIndex: r.optionIndex,
+        }))
+      : null;
+
+  const row: Record<string, unknown> = {
+    survey_id: surveyId,
+    order_index: orderIndex,
+    prompt: q.prompt.trim(),
+    question_type: q.type,
+    allow_skip: q.type === "info_media" ? true : q.allowSkip,
+    staff_only: q.staffOnly,
+    visibility_rules: visibilityRules,
+    max_selections: null,
+    text_line_count: null,
+    info_body: null,
+    media_url: null,
+    media_path: null,
+    media_type: null,
+  };
+
+  if (q.type === "mc_multi") {
+    row.max_selections = q.maxSelections;
+  }
+  if (q.type === "rank") {
+    row.max_selections = q.maxSelections;
+  }
+  if (q.type === "text_multi") {
+    const n = q.options.map((o) => o.trim()).filter(Boolean).length;
+    row.text_line_count = Math.max(1, n);
+  }
+  if (q.type === "info_media") {
+    row.info_body = q.infoBody.trim() || null;
+    row.media_url = q.mediaUrl?.trim() || null;
+    row.media_path = q.mediaPath?.trim() || null;
+    row.media_type = q.mediaType;
+  }
+
+  return row;
+}
+
+function stripMediaColumns(row: Record<string, unknown>): Record<string, unknown> {
+  const legacyRow = { ...row };
+  delete legacyRow.info_body;
+  delete legacyRow.media_url;
+  delete legacyRow.media_path;
+  delete legacyRow.media_type;
+  return legacyRow;
+}
+
+function isMediaColumnError(message: string): boolean {
+  return (
+    message.includes("info_body") ||
+    message.includes("media_url") ||
+    message.includes("media_path") ||
+    message.includes("media_type") ||
+    message.includes("info_media") ||
+    message.includes("contact_fields")
+  );
+}
+
+type ExistingOption = {
+  id: string;
+  order_index: number;
+  label: string;
+  is_other: boolean | null;
+  ends_survey?: boolean | null;
+};
+
+async function insertOptionsForNewQuestion(
+  admin: SupabaseClient,
+  questionId: string,
+  q: DraftQuestion,
+): Promise<string | null> {
+  if (OPTION_TYPES.includes(q.type)) {
+    const paired = q.options
+      .map((label, order_index) => ({
+        label: label.trim(),
+        ends_survey:
+          (q.type === "mc_single" || q.type === "dropdown") &&
+          Boolean(q.optionEndsSurvey?.[order_index]),
+      }))
+      .filter((p) => p.label);
+    const labels = paired.map((p) => p.label);
+    const allowOther = q.type === "mc_single" || q.type === "mc_multi";
+    const withOther =
+      allowOther && q.otherOptionEnabled
+        ? [
+            ...paired.map((p, order_index) => ({
+              question_id: questionId,
+              order_index,
+              label: p.label,
+              is_other: false,
+              ends_survey: p.ends_survey,
+            })),
+            {
+              question_id: questionId,
+              order_index: labels.length,
+              label: q.otherOptionLabel.trim() || "기타",
+              is_other: true,
+              ends_survey: false,
+            },
+          ]
+        : paired.map((p, order_index) => ({
+            question_id: questionId,
+            order_index,
+            label: p.label,
+            is_other: false,
+            ends_survey: p.ends_survey,
+          }));
+
+    let { error: oErr } = await admin.from("survey_question_options").insert(withOther);
+    if (oErr?.message.includes("ends_survey")) {
+      return (
+        "DB에 ends_survey 컬럼이 없습니다. " +
+        "supabase/migrations/20260408700000_survey_question_options_ends_survey.sql 을 실행하세요."
+      );
+    }
+    if (oErr?.message.includes("is_other")) {
+      if (allowOther && q.otherOptionEnabled) {
+        return (
+          "DB에 is_other 컬럼이 없습니다. " +
+          "supabase/migrations/20260408500000_survey_question_options_is_other.sql 을 실행하세요."
+        );
+      }
+      const legacy = labels.map((label, order_index) => ({
+        question_id: questionId,
+        order_index,
+        label,
+      }));
+      const legacyResult = await admin.from("survey_question_options").insert(legacy);
+      oErr = legacyResult.error;
+    }
+    if (oErr) {
+      return oErr.message;
+    }
+  }
+
+  if (q.type === "likert_7") {
+    const min = q.options[0]?.trim() ?? "";
+    const max = q.options[1]?.trim() ?? "";
+    const opts: { question_id: string; order_index: number; label: string }[] = [];
+    if (min) opts.push({ question_id: questionId, order_index: 0, label: min });
+    if (max) opts.push({ question_id: questionId, order_index: 1, label: max });
+    if (opts.length > 0) {
+      const { error: oErr } = await admin.from("survey_question_options").insert(opts);
+      if (oErr) {
+        return oErr.message;
+      }
+    }
+  }
+
+  return null;
+}
+
+async function syncOptionsPreservingIds(
+  admin: SupabaseClient,
+  questionId: string,
+  q: DraftQuestion,
+): Promise<string | null> {
+  if (!OPTION_TYPES.includes(q.type) && q.type !== "likert_7") {
+    const { error } = await admin
+      .from("survey_question_options")
+      .delete()
+      .eq("question_id", questionId);
+    return error?.message ?? null;
+  }
+
+  const { data: existingRaw, error: loadErr } = await admin
+    .from("survey_question_options")
+    .select("id, order_index, label, is_other, ends_survey")
+    .eq("question_id", questionId)
+    .order("order_index", { ascending: true });
+
+  if (loadErr?.message.includes("ends_survey")) {
+    const fallback = await admin
+      .from("survey_question_options")
+      .select("id, order_index, label, is_other")
+      .eq("question_id", questionId)
+      .order("order_index", { ascending: true });
+    if (fallback.error) return fallback.error.message;
+    return syncOptionsPreservingIdsWithRows(
+      admin,
+      questionId,
+      q,
+      (fallback.data ?? []) as ExistingOption[],
+    );
+  }
+  if (loadErr) return loadErr.message;
+
+  return syncOptionsPreservingIdsWithRows(
+    admin,
+    questionId,
+    q,
+    (existingRaw ?? []) as ExistingOption[],
+  );
+}
+
+async function syncOptionsPreservingIdsWithRows(
+  admin: SupabaseClient,
+  questionId: string,
+  q: DraftQuestion,
+  existing: ExistingOption[],
+): Promise<string | null> {
+  const keepIds = new Set<string>();
+  const usedExisting = new Set<string>();
+
+  if (q.type === "likert_7") {
+    const endpoints = [
+      { order_index: 0, label: q.options[0]?.trim() ?? "", preferredId: q.optionIds?.[0] ?? null },
+      { order_index: 1, label: q.options[1]?.trim() ?? "", preferredId: q.optionIds?.[1] ?? null },
+    ].filter((e) => e.label);
+
+    for (const ep of endpoints) {
+      const byId =
+        ep.preferredId && !usedExisting.has(ep.preferredId)
+          ? existing.find((o) => o.id === ep.preferredId)
+          : undefined;
+      const byOrder =
+        !byId
+          ? existing.find(
+              (o) => !o.is_other && !usedExisting.has(o.id) && o.order_index === ep.order_index,
+            )
+          : undefined;
+      const match = byId ?? byOrder;
+      if (match) {
+        usedExisting.add(match.id);
+        keepIds.add(match.id);
+        const { error } = await admin
+          .from("survey_question_options")
+          .update({
+            label: ep.label,
+            order_index: ep.order_index,
+            is_other: false,
+          })
+          .eq("id", match.id);
+        if (error) return error.message;
+      } else {
+        const { data, error } = await admin
+          .from("survey_question_options")
+          .insert({
+            question_id: questionId,
+            order_index: ep.order_index,
+            label: ep.label,
+            is_other: false,
+          })
+          .select("id")
+          .single();
+        if (error) return error.message;
+        if (data?.id) keepIds.add(data.id as string);
+      }
+    }
+  } else {
+    const paired = q.options
+      .map((label, order_index) => ({
+        label: label.trim(),
+        preferredId: q.optionIds?.[order_index] ?? null,
+        ends_survey:
+          (q.type === "mc_single" || q.type === "dropdown") &&
+          Boolean(q.optionEndsSurvey?.[order_index]),
+      }))
+      .filter((p) => p.label);
+
+    const nonOther = existing.filter((o) => !o.is_other);
+
+    for (let order_index = 0; order_index < paired.length; order_index++) {
+      const p = paired[order_index];
+      const byId =
+        p.preferredId && !usedExisting.has(p.preferredId)
+          ? nonOther.find((o) => o.id === p.preferredId)
+          : undefined;
+      const byOrder =
+        !byId
+          ? nonOther.find((o) => !usedExisting.has(o.id) && o.order_index === order_index)
+          : undefined;
+      const match = byId ?? byOrder;
+
+      if (match) {
+        usedExisting.add(match.id);
+        keepIds.add(match.id);
+        const updateRow: Record<string, unknown> = {
+          label: p.label,
+          order_index,
+          is_other: false,
+        };
+        if (q.type === "mc_single" || q.type === "dropdown") {
+          updateRow.ends_survey = p.ends_survey;
+        }
+        let { error } = await admin
+          .from("survey_question_options")
+          .update(updateRow)
+          .eq("id", match.id);
+        if (error?.message.includes("ends_survey")) {
+          delete updateRow.ends_survey;
+          const retry = await admin
+            .from("survey_question_options")
+            .update(updateRow)
+            .eq("id", match.id);
+          error = retry.error;
+        }
+        if (error) return error.message;
+      } else {
+        const insertRow: Record<string, unknown> = {
+          question_id: questionId,
+          order_index,
+          label: p.label,
+          is_other: false,
+          ends_survey: p.ends_survey,
+        };
+        let { data, error } = await admin
+          .from("survey_question_options")
+          .insert(insertRow)
+          .select("id")
+          .single();
+        if (error?.message.includes("ends_survey")) {
+          delete insertRow.ends_survey;
+          const retry = await admin
+            .from("survey_question_options")
+            .insert(insertRow)
+            .select("id")
+            .single();
+          data = retry.data;
+          error = retry.error;
+        }
+        if (error?.message.includes("is_other")) {
+          delete insertRow.is_other;
+          delete insertRow.ends_survey;
+          const retry = await admin
+            .from("survey_question_options")
+            .insert(insertRow)
+            .select("id")
+            .single();
+          data = retry.data;
+          error = retry.error;
+        }
+        if (error) return error.message;
+        if (data?.id) keepIds.add(data.id as string);
+      }
+    }
+
+    const allowOther = q.type === "mc_single" || q.type === "mc_multi";
+    if (allowOther && q.otherOptionEnabled) {
+      const otherLabel = q.otherOptionLabel.trim() || "기타";
+      const order_index = paired.length;
+      const existingOther = existing.find((o) => o.is_other);
+      const preferredOther =
+        q.otherOptionId && existing.find((o) => o.id === q.otherOptionId);
+      const match = preferredOther ?? existingOther;
+
+      if (match) {
+        keepIds.add(match.id);
+        const { error } = await admin
+          .from("survey_question_options")
+          .update({
+            label: otherLabel,
+            order_index,
+            is_other: true,
+            ends_survey: false,
+          })
+          .eq("id", match.id);
+        if (error?.message.includes("ends_survey")) {
+          const retry = await admin
+            .from("survey_question_options")
+            .update({ label: otherLabel, order_index, is_other: true })
+            .eq("id", match.id);
+          if (retry.error) return retry.error.message;
+        } else if (error) {
+          return error.message;
+        }
+      } else {
+        const insertRow: Record<string, unknown> = {
+          question_id: questionId,
+          order_index,
+          label: otherLabel,
+          is_other: true,
+          ends_survey: false,
+        };
+        let { data, error } = await admin
+          .from("survey_question_options")
+          .insert(insertRow)
+          .select("id")
+          .single();
+        if (error?.message.includes("ends_survey")) {
+          delete insertRow.ends_survey;
+          const retry = await admin
+            .from("survey_question_options")
+            .insert(insertRow)
+            .select("id")
+            .single();
+          data = retry.data;
+          error = retry.error;
+        }
+        if (error?.message.includes("is_other")) {
+          return (
+            "DB에 is_other 컬럼이 없습니다. " +
+            "supabase/migrations/20260408500000_survey_question_options_is_other.sql 을 실행하세요."
+          );
+        }
+        if (error) return error.message;
+        if (data?.id) keepIds.add(data.id as string);
+      }
+    }
+  }
+
+  const toDelete = existing.filter((o) => !keepIds.has(o.id)).map((o) => o.id);
+  if (toDelete.length > 0) {
+    const { error } = await admin.from("survey_question_options").delete().in("id", toDelete);
+    if (error) return error.message;
+  }
+
+  return null;
+}
+
+/** 신규 설문: 문항·보기를 모두 insert */
 export async function persistSurveyQuestions(
   admin: SupabaseClient,
   surveyId: string,
@@ -88,46 +513,7 @@ export async function persistSurveyQuestions(
 ): Promise<string | null> {
   for (let i = 0; i < questions.length; i++) {
     const q = questions[i];
-    const visibilityRules =
-      q.visibilityRules.length > 0
-        ? q.visibilityRules.map((r) => ({
-            sourceOrderIndex: r.sourceOrderIndex,
-            optionIndex: r.optionIndex,
-          }))
-        : null;
-
-    const row: Record<string, unknown> = {
-      survey_id: surveyId,
-      order_index: i,
-      prompt: q.prompt.trim(),
-      question_type: q.type,
-      allow_skip: q.type === "info_media" ? true : q.allowSkip,
-      staff_only: q.staffOnly,
-      visibility_rules: visibilityRules,
-      max_selections: null,
-      text_line_count: null,
-      info_body: null,
-      media_url: null,
-      media_path: null,
-      media_type: null,
-    };
-
-    if (q.type === "mc_multi") {
-      row.max_selections = q.maxSelections;
-    }
-    if (q.type === "rank") {
-      row.max_selections = q.maxSelections;
-    }
-    if (q.type === "text_multi") {
-      const n = q.options.map((o) => o.trim()).filter(Boolean).length;
-      row.text_line_count = Math.max(1, n);
-    }
-    if (q.type === "info_media") {
-      row.info_body = q.infoBody.trim() || null;
-      row.media_url = q.mediaUrl?.trim() || null;
-      row.media_path = q.mediaPath?.trim() || null;
-      row.media_type = q.mediaType;
-    }
+    const row = buildQuestionRow(surveyId, i, q);
 
     let { data: qRow, error: qErr } = await admin
       .from("survey_questions")
@@ -135,29 +521,16 @@ export async function persistSurveyQuestions(
       .select("id")
       .single();
 
-    if (
-      qErr &&
-      (qErr.message.includes("info_body") ||
-        qErr.message.includes("media_url") ||
-        qErr.message.includes("media_path") ||
-        qErr.message.includes("media_type") ||
-        qErr.message.includes("info_media") ||
-        qErr.message.includes("contact_fields"))
-    ) {
+    if (qErr && isMediaColumnError(qErr.message)) {
       if (q.type === "info_media" || q.type === "contact_fields") {
         return (
           "DB에 새 문항 유형 컬럼이 없습니다. " +
           "supabase/migrations/20260408600000_survey_info_media_contact_fields.sql 을 실행하세요."
         );
       }
-      const legacyRow = { ...row };
-      delete legacyRow.info_body;
-      delete legacyRow.media_url;
-      delete legacyRow.media_path;
-      delete legacyRow.media_type;
       const legacy = await admin
         .from("survey_questions")
-        .insert(legacyRow)
+        .insert(stripMediaColumns(row))
         .select("id")
         .single();
       qRow = legacy.data;
@@ -169,84 +542,134 @@ export async function persistSurveyQuestions(
     }
 
     const questionId = qRow.id as string;
+    const optErr = await insertOptionsForNewQuestion(admin, questionId, q);
+    if (optErr) return optErr;
+  }
 
-    if (OPTION_TYPES.includes(q.type)) {
-      const paired = q.options
-        .map((label, order_index) => ({
-          label: label.trim(),
-          ends_survey:
-            (q.type === "mc_single" || q.type === "dropdown") &&
-            Boolean(q.optionEndsSurvey?.[order_index]),
-        }))
-        .filter((p) => p.label);
-      const labels = paired.map((p) => p.label);
-      const allowOther = q.type === "mc_single" || q.type === "mc_multi";
-      const withOther =
-        allowOther && q.otherOptionEnabled
-          ? [
-              ...paired.map((p, order_index) => ({
-                question_id: questionId,
-                order_index,
-                label: p.label,
-                is_other: false,
-                ends_survey: p.ends_survey,
-              })),
-              {
-                question_id: questionId,
-                order_index: labels.length,
-                label: q.otherOptionLabel.trim() || "기타",
-                is_other: true,
-                ends_survey: false,
-              },
-            ]
-          : paired.map((p, order_index) => ({
-              question_id: questionId,
-              order_index,
-              label: p.label,
-              is_other: false,
-              ends_survey: p.ends_survey,
-            }));
+  return null;
+}
 
-      let { error: oErr } = await admin.from("survey_question_options").insert(withOther);
-      if (oErr?.message.includes("ends_survey")) {
+/**
+ * 설문 수정: 기존 문항·보기 UUID를 유지해 응답 답변이 CASCADE로 사라지지 않게 합니다.
+ * 삭제된 문항에 답변이 남아 있으면 저장을 거부합니다.
+ */
+export async function persistSurveyQuestionsUpdate(
+  admin: SupabaseClient,
+  surveyId: string,
+  questions: DraftQuestion[],
+): Promise<string | null> {
+  const { data: existingQs, error: loadErr } = await admin
+    .from("survey_questions")
+    .select("id")
+    .eq("survey_id", surveyId);
+
+  if (loadErr) return loadErr.message;
+
+  const existingIds = new Set((existingQs ?? []).map((r) => r.id as string));
+  const keepIds = new Set(
+    questions.map((q) => q.clientId).filter((id) => existingIds.has(id)),
+  );
+  const toDelete = [...existingIds].filter((id) => !keepIds.has(id));
+
+  if (toDelete.length > 0) {
+    const { count, error: countErr } = await admin
+      .from("survey_response_answers")
+      .select("*", { count: "exact", head: true })
+      .in("question_id", toDelete);
+
+    if (countErr) return countErr.message;
+    if ((count ?? 0) > 0) {
+      return (
+        "이미 응답이 저장된 문항은 삭제할 수 없습니다. " +
+        "해당 문항을 유지하거나, 응답을 삭제한 뒤 설문을 수정하세요."
+      );
+    }
+
+    const { error: delErr } = await admin.from("survey_questions").delete().in("id", toDelete);
+    if (delErr) {
+      if (
+        delErr.message.includes("foreign key") ||
+        delErr.message.includes("restrict") ||
+        delErr.code === "23503"
+      ) {
         return (
-          "DB에 ends_survey 컬럼이 없습니다. " +
-          "supabase/migrations/20260408700000_survey_question_options_ends_survey.sql 을 실행하세요."
+          "이미 응답이 저장된 문항은 삭제할 수 없습니다. " +
+          "해당 문항을 유지하거나, 응답을 삭제한 뒤 설문을 수정하세요."
         );
       }
-      if (oErr?.message.includes("is_other")) {
-        if (allowOther && q.otherOptionEnabled) {
+      return delErr.message;
+    }
+  }
+
+  for (let i = 0; i < questions.length; i++) {
+    const q = questions[i];
+    const row = buildQuestionRow(surveyId, i, q);
+    const isExisting = existingIds.has(q.clientId);
+    let questionId: string;
+
+    if (isExisting) {
+      let { error: uErr } = await admin
+        .from("survey_questions")
+        .update(row)
+        .eq("id", q.clientId)
+        .eq("survey_id", surveyId);
+
+      if (uErr && isMediaColumnError(uErr.message)) {
+        if (q.type === "info_media" || q.type === "contact_fields") {
           return (
-            "DB에 is_other 컬럼이 없습니다. " +
-            "supabase/migrations/20260408500000_survey_question_options_is_other.sql 을 실행하세요."
+            "DB에 새 문항 유형 컬럼이 없습니다. " +
+            "supabase/migrations/20260408600000_survey_info_media_contact_fields.sql 을 실행하세요."
           );
         }
-        const legacy = labels.map((label, order_index) => ({
-          question_id: questionId,
-          order_index,
-          label,
-        }));
-        const legacyResult = await admin.from("survey_question_options").insert(legacy);
-        oErr = legacyResult.error;
+        const retry = await admin
+          .from("survey_questions")
+          .update(stripMediaColumns(row))
+          .eq("id", q.clientId)
+          .eq("survey_id", surveyId);
+        uErr = retry.error;
       }
-      if (oErr) {
-        return oErr.message;
+      if (uErr) return uErr.message;
+      questionId = q.clientId;
+    } else {
+      const insertPayload =
+        UUID_RE.test(q.clientId) ? { id: q.clientId, ...row } : row;
+
+      let { data: qRow, error: qErr } = await admin
+        .from("survey_questions")
+        .insert(insertPayload)
+        .select("id")
+        .single();
+
+      if (qErr && isMediaColumnError(qErr.message)) {
+        if (q.type === "info_media" || q.type === "contact_fields") {
+          return (
+            "DB에 새 문항 유형 컬럼이 없습니다. " +
+            "supabase/migrations/20260408600000_survey_info_media_contact_fields.sql 을 실행하세요."
+          );
+        }
+        const legacy = await admin
+          .from("survey_questions")
+          .insert(
+            UUID_RE.test(q.clientId)
+              ? { id: q.clientId, ...stripMediaColumns(row) }
+              : stripMediaColumns(row),
+          )
+          .select("id")
+          .single();
+        qRow = legacy.data;
+        qErr = legacy.error;
       }
+
+      if (qErr || !qRow) {
+        return qErr?.message ?? "문항 저장에 실패했습니다.";
+      }
+      questionId = qRow.id as string;
     }
 
-    if (q.type === "likert_7") {
-      const min = q.options[0]?.trim() ?? "";
-      const max = q.options[1]?.trim() ?? "";
-      const opts: { question_id: string; order_index: number; label: string }[] = [];
-      if (min) opts.push({ question_id: questionId, order_index: 0, label: min });
-      if (max) opts.push({ question_id: questionId, order_index: 1, label: max });
-      if (opts.length > 0) {
-        const { error: oErr } = await admin.from("survey_question_options").insert(opts);
-        if (oErr) {
-          return oErr.message;
-        }
-      }
-    }
+    const optErr = isExisting
+      ? await syncOptionsPreservingIds(admin, questionId, q)
+      : await insertOptionsForNewQuestion(admin, questionId, q);
+    if (optErr) return optErr;
   }
 
   return null;

@@ -9,6 +9,8 @@ const widthClass = {
   survey: "max-w-4xl",
   /** 완료·안내 등 좁은 화면 */
   narrow: "max-w-2xl",
+  /** 좌우 여백·최대폭 없이 화면 전체 */
+  full: "max-w-none",
 } as const;
 
 type Width = keyof typeof widthClass;

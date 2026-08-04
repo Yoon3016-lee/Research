@@ -3,7 +3,10 @@
 import { Plus, Trash2, ChevronUp, ChevronDown, ChevronRight, GripVertical } from "lucide-react";
 import {
   QUESTION_TYPE_LABELS,
+  appendDraftOption,
   labelSuggestsSurveyEnd,
+  patchDraftOptions,
+  removeDraftOptionAt,
   syncOptionEndsSurvey,
   type DraftQuestion,
   type QuestionType,
@@ -373,7 +376,7 @@ export function QuestionEditCard({
                         if (canEnd && labelSuggestsSurveyEnd(e.target.value)) {
                           endsArr[oi] = true;
                         }
-                        onChange({ options: opts, optionEndsSurvey: endsArr });
+                        onChange(patchDraftOptions(q, opts, { optionEndsSurvey: endsArr }));
                       }}
                       className="min-w-0 flex-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/15"
                       placeholder={`보기 ${oi + 1}`}
@@ -398,15 +401,7 @@ export function QuestionEditCard({
             </div>
             <button
               type="button"
-              onClick={() =>
-                onChange({
-                  options: [...q.options, ""],
-                  optionEndsSurvey: [
-                    ...syncOptionEndsSurvey(q.options, q.optionEndsSurvey),
-                    false,
-                  ],
-                })
-              }
+              onClick={() => onChange(appendDraftOption(q))}
               className="mt-2 text-xs font-medium text-indigo-700 hover:text-indigo-900"
             >
               + 보기 추가
@@ -493,7 +488,7 @@ export function QuestionEditCard({
                   onChange={(e) => {
                     const opts = [...q.options];
                     opts[oi] = e.target.value;
-                    onChange({ options: opts });
+                    onChange(patchDraftOptions(q, opts));
                   }}
                   className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/15"
                   placeholder={`선택지 ${oi + 1}`}
@@ -502,7 +497,7 @@ export function QuestionEditCard({
             </div>
             <button
               type="button"
-              onClick={() => onChange({ options: [...q.options, ""] })}
+              onClick={() => onChange(appendDraftOption(q))}
               className="mt-2 text-xs font-medium text-indigo-700 hover:text-indigo-900"
             >
               + 선택지 추가
@@ -543,7 +538,7 @@ export function QuestionEditCard({
                   onChange={(e) => {
                     const opts = [...q.options];
                     opts[oi] = e.target.value;
-                    onChange({ options: opts });
+                    onChange(patchDraftOptions(q, opts));
                   }}
                   className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/15"
                   placeholder={`항목 ${oi + 1}`}
@@ -552,7 +547,7 @@ export function QuestionEditCard({
             </div>
             <button
               type="button"
-              onClick={() => onChange({ options: [...q.options, ""] })}
+              onClick={() => onChange(appendDraftOption(q))}
               className="mt-2 text-xs font-medium text-indigo-700 hover:text-indigo-900"
             >
               + 항목 추가
@@ -585,7 +580,7 @@ export function QuestionEditCard({
                   onChange={(e) => {
                     const opts = [...(q.options.length >= 2 ? q.options : ["", ""])];
                     opts[0] = e.target.value;
-                    onChange({ options: opts });
+                    onChange(patchDraftOptions(q, opts));
                   }}
                   className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
                   placeholder="예: 전혀 그렇지 않다"
@@ -598,7 +593,7 @@ export function QuestionEditCard({
                   onChange={(e) => {
                     const opts = [...(q.options.length >= 2 ? q.options : ["", ""])];
                     opts[1] = e.target.value;
-                    onChange({ options: opts });
+                    onChange(patchDraftOptions(q, opts));
                   }}
                   className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
                   placeholder="예: 매우 그렇다"
@@ -623,10 +618,11 @@ export function QuestionEditCard({
                     onChange={(e) => {
                       const opts = [...q.options];
                       opts[oi] = e.target.value;
-                      onChange({
-                        options: opts,
-                        textLineCount: opts.filter((x) => x.trim()).length || opts.length,
-                      });
+                      onChange(
+                        patchDraftOptions(q, opts, {
+                          textLineCount: opts.filter((x) => x.trim()).length || opts.length,
+                        }),
+                      );
                     }}
                     className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-500/15"
                     placeholder={`항목 ${oi + 1} (예: 의견 1)`}
@@ -635,9 +631,10 @@ export function QuestionEditCard({
                     <button
                       type="button"
                       onClick={() => {
-                        const opts = q.options.filter((_, i) => i !== oi);
+                        const patch = removeDraftOptionAt(q, oi);
+                        const opts = patch.options ?? [];
                         onChange({
-                          options: opts,
+                          ...patch,
                           textLineCount: opts.filter((x) => x.trim()).length || 1,
                         });
                       }}
@@ -654,7 +651,7 @@ export function QuestionEditCard({
               type="button"
               onClick={() =>
                 onChange({
-                  options: [...q.options, ""],
+                  ...appendDraftOption(q),
                   textLineCount: q.options.length + 1,
                 })
               }
@@ -681,7 +678,7 @@ export function QuestionEditCard({
                     onChange={(e) => {
                       const opts = [...q.options];
                       opts[oi] = e.target.value;
-                      onChange({ options: opts });
+                      onChange(patchDraftOptions(q, opts));
                     }}
                     className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-teal-300 focus:ring-2 focus:ring-teal-500/15"
                     placeholder={`항목 ${oi + 1} (예: 연락처)`}
@@ -689,11 +686,7 @@ export function QuestionEditCard({
                   {q.options.length > 1 ? (
                     <button
                       type="button"
-                      onClick={() =>
-                        onChange({
-                          options: q.options.filter((_, i) => i !== oi),
-                        })
-                      }
+                      onClick={() => onChange(removeDraftOptionAt(q, oi))}
                       className="shrink-0 rounded-lg border border-zinc-200 px-2 py-2 text-xs text-zinc-500 hover:bg-zinc-50"
                       aria-label="항목 삭제"
                     >
@@ -705,7 +698,7 @@ export function QuestionEditCard({
             </div>
             <button
               type="button"
-              onClick={() => onChange({ options: [...q.options, ""] })}
+              onClick={() => onChange(appendDraftOption(q))}
               className="mt-2 text-xs font-medium text-teal-800 hover:text-teal-950"
             >
               + 항목 추가

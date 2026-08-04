@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#e2e8f0"/>
+    </linearGradient>
+    <filter id="shadow" x="-4%" y="-4%" width="108%" height="116%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.08"/>
+    </filter>
+    <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#64748b"/>
+    </marker>
+    <style>
+  .title { font: 700 30px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #0f172a; }
+  .subtitle { font: 500 14px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #64748b; }
+  .domain { font: 700 12px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #fff; }
+  .tbl { font: 700 12px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #fff; }
+  .col { font: 500 11px 'Consolas', 'Malgun Gothic', monospace; fill: #334155; }
+  .pk { font: 600 11px 'Consolas', 'Malgun Gothic', monospace; fill: #1e3a5f; }
+  .fk { font: 500 11px 'Consolas', 'Malgun Gothic', monospace; fill: #0f766e; }
+  .note { font: 500 11px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #64748b; }
+  .rel { font: 600 11px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #475569; }
+  .foot { font: 500 11px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; fill: #64748b; }
+</style>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#bg)"/>
+  
+  <text x="56" y="48" class="title">데이터베이스 구조 — 플랫폼 · CMS · KSIC</text>
+  <text x="56" y="74" class="subtitle">auth/profiles · site CMS · CATI global · KSIC · Storage</text>
+
+  <rect x="56" y="100" width="720" height="36" rx="8" fill="#1e3a5f"/>
+  <text x="72" y="124" class="domain">Auth / 조직</text>
+
+  
+  <g filter="url(#shadow)">
+    <rect x="56" y="150" width="300" height="150" rx="10" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="56" y="150" width="300" height="30" rx="10" fill="#1e40af"/>
+    <rect x="56" y="170" width="300" height="10" fill="#1e40af"/>
+    <text x="68" y="170" class="tbl">profiles</text>
+    <text x="68" y="198" class="pk">PK id → auth.users</text>
+<text x="68" y="214" class="col">role: super_admin|sub_admin</text>
+<text x="68" y="230" class="col">       team_lead|employee|guest</text>
+<text x="68" y="246" class="col">survey_view_mode paged|scroll</text>
+  </g>
+
+  
+  <g filter="url(#shadow)">
+    <rect x="400" y="150" width="280" height="120" rx="10" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="400" y="150" width="280" height="30" rx="10" fill="#1e3a5f"/>
+    <rect x="400" y="170" width="280" height="10" fill="#1e3a5f"/>
+    <text x="412" y="170" class="tbl">admin_settings</text>
+    <text x="412" y="198" class="pk">PK id (=1 singleton)</text>
+<text x="412" y="214" class="col">signup_key</text>
+  </g>
+
+  <text x="56" y="340" class="note">auth.users (Supabase Auth) 1 — 1 profiles</text>
+
+  <rect x="800" y="100" width="744" height="36" rx="8" fill="#0f766e"/>
+  <text x="816" y="124" class="domain">Site CMS</text>
+
+  
+  <g filter="url(#shadow)">
+    <rect x="800" y="150" width="280" height="140" rx="10" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="800" y="150" width="280" height="30" rx="10" fill="#0f766e"/>
+    <rect x="800" y="170" width="280" height="10" fill="#0f766e"/>
+    <text x="812" y="170" class="tbl">site_settings</text>
+    <text x="812" y="198" class="pk">PK id (=1)</text>
+<text x="812" y="214" class="col">site_name</text>
+<text x="812" y="230" class="col">logo_url · logo_path</text>
+<text x="812" y="246" class="col">site_name_font</text>
+  </g>
+
+  
+  <g filter="url(#shadow)">
+    <rect x="1120" y="150" width="200" height="110" rx="10" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="1120" y="150" width="200" height="30" rx="10" fill="#134e4a"/>
+    <rect x="1120" y="170" width="200" height="10" fill="#134e4a"/>
+    <text x="1132" y="170" class="tbl">site_nav_groups</text>
+    <text x="1132" y="198" class="pk">PK key text</text>
+<text x="1132" y="214" class="col">label · sort_order</text>
+<text x="1132" y="230" class="col">guide_* media</text>
+  </g>
+
+  
+  <g filter="url(#shadow)">
+    <rect x="800" y="320" width="260" height="130" rx="10" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="800" y="320" width="260" height="30" rx="10" fill="#0f766e"/>
+    <rect x="800" y="340" width="260" height="10" fill="#0f766e"/>
+    <text x="812" y="340" class="tbl">site_nav_items</text>
+    <text x="812" y="368" class="pk">PK id</text>
+<text x="812" y="384" class="fk">FK group_key → groups</text>
+<text x="812" y="400" class="fk">FK page_id → pages</text>
+<text x="812" y="416" class="col">label · href · sort_order</text>
+  </g>
+
+  
+  <g filter="url(#shadow)">
+    <rect x="1100" y="320" width="220" height="110" rx="10" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="1100" y="320" width="220" height="30" rx="10" fill="#115e59"/>
+    <rect x="1100" y="340" width="220" height="10" fill="#115e59"/>
+    <text x="1112" y="340" class="tbl">site_pages</text>
+    <text x="1112" y="368" class="pk">PK id</text>
+<text x="1112" y="384" class="col">slug (unique)</text>
+<text x="1112" y="400" class="col">title · body</text>
+  </g>
+
+  
+  <g filter="url(#shadow)">
+    <rect x="1360" y="320" width="184" height="130" rx="10" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="1360" y="320" width="184" height="30" rx="10" fill="#134e4a"/>
+    <rect x="1360" y="340" width="184" height="10" fill="#134e4a"/>
+    <text x="1372" y="340" class="tbl">site_banners</text>
+    <text x="1372" y="368" class="pk">PK id</text>
+<text x="1372" y="384" class="col">media_type image|pdf</text>
+<text x="1372" y="400" class="col">placement popup|top</text>
+<text x="1372" y="416" class="col">is_active · file_*</text>
+  </g>
+
+  <line x1="1320" y1="200" x2="1320" y2="280" stroke="#64748b" stroke-width="1.5"/>
+  <line x1="930" y1="280" x2="930" y2="320" stroke="#64748b" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="942" y="305" class="rel">1:N</text>
+  <line x1="1060" y1="380" x2="1100" y2="380" stroke="#64748b" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="1068" y="370" class="rel">N:0..1</text>
+
+  <rect x="56" y="480" width="720" height="36" rx="8" fill="#9a3412"/>
+  <text x="72" y="504" class="domain">CATI 공통 · 표본 연계 (코어의 samples와 연결)</text>
+
+  
+  <g filter="url(#shadow)">
+    <rect x="56" y="530" width="320" height="130" rx="10" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="56" y="530" width="320" height="30" rx="10" fill="#9a3412"/>
+    <rect x="56" y="550" width="320" height="10" fill="#9a3412"/>
+    <text x="68" y="550" class="tbl">cati_contact_options_global</text>
+    <text x="68" y="578" class="pk">PK id</text>
+<text x="68" y="594" class="col">position (unique)</text>
+<text x="68" y="610" class="col">label · is_success · is_active</text>
+<text x="68" y="626" class="col">(설문 FK 없음 — 전역 기본)</text>
+  </g>
+
+  <rect x="400" y="530" width="360" height="130" rx="12" fill="#fff7ed" stroke="#fdba74" filter="url(#shadow)"/>
+  <text x="416" y="568" class="pk">설문별 옵션</text>
+  <text x="416" y="592" class="col">survey_contact_options</text>
+  <text x="416" y="612" class="note">survey_id FK · 코어 ER 01 참고</text>
+  <text x="416" y="636" class="note">batches / samples / drafts도 01</text>
+
+  <rect x="800" y="480" width="744" height="36" rx="8" fill="#5b21b6"/>
+  <text x="816" y="504" class="domain">KSIC 산업분류</text>
+
+  
+  <g filter="url(#shadow)">
+    <rect x="800" y="530" width="300" height="170" rx="10" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="800" y="530" width="300" height="30" rx="10" fill="#5b21b6"/>
+    <rect x="800" y="550" width="300" height="10" fill="#5b21b6"/>
+    <text x="812" y="550" class="tbl">ksic_codes</text>
+    <text x="812" y="578" class="pk">PK (revision, code)</text>
+<text x="812" y="594" class="fk">FK (revision, parent_code)</text>
+<text x="812" y="610" class="col">name · path · level</text>
+<text x="812" y="626" class="col">AI context fields</text>
+  </g>
+
+  
+  <g filter="url(#shadow)">
+    <rect x="1140" y="530" width="380" height="120" rx="10" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="1140" y="530" width="380" height="30" rx="10" fill="#6b21a8"/>
+    <rect x="1140" y="550" width="380" height="10" fill="#6b21a8"/>
+    <text x="1152" y="550" class="tbl">ksic_detail_ai</text>
+    <text x="1152" y="578" class="pk">PK (revision, detail_code)</text>
+<text x="1152" y="594" class="fk">FK → ksic_codes</text>
+<text x="1152" y="610" class="col">survey AI context texts</text>
+  </g>
+
+  
+  <g filter="url(#shadow)">
+    <rect x="800" y="730" width="300" height="120" rx="10" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="800" y="730" width="300" height="30" rx="10" fill="#4c1d95"/>
+    <rect x="800" y="750" width="300" height="10" fill="#4c1d95"/>
+    <text x="812" y="750" class="tbl">ksic_external_sync_runs</text>
+    <text x="812" y="778" class="pk">PK id</text>
+<text x="812" y="794" class="col">source · status</text>
+<text x="812" y="810" class="col">diff_summary jsonb</text>
+  </g>
+
+  
+  <g filter="url(#shadow)">
+    <rect x="1140" y="730" width="380" height="120" rx="10" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="1140" y="730" width="380" height="30" rx="10" fill="#5b21b6"/>
+    <rect x="1140" y="750" width="380" height="10" fill="#5b21b6"/>
+    <text x="1152" y="750" class="tbl">ksic_external_codes</text>
+    <text x="1152" y="778" class="pk">PK (revision, source, code)</text>
+<text x="1152" y="794" class="fk">FK sync_run_id → runs</text>
+<text x="1152" y="810" class="col">raw jsonb</text>
+  </g>
+
+  <line x1="1100" y1="600" x2="1140" y2="580" stroke="#64748b" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="1100" y1="780" x2="1140" y2="780" stroke="#64748b" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="1108" y="770" class="rel">1:N</text>
+
+  <rect x="56" y="700" width="700" height="150" rx="12" fill="#fff" stroke="#cbd5e1" filter="url(#shadow)"/>
+  <rect x="56" y="700" width="700" height="36" rx="12" fill="#0f172a"/>
+  <rect x="56" y="724" width="700" height="12" fill="#0f172a"/>
+  <text x="72" y="724" class="domain">Storage buckets</text>
+  <text x="72" y="768" class="col">site-page-assets — 공개 · 10MB · 이미지/PDF (CMS)</text>
+  <text x="72" y="792" class="col">survey-question-media — 공개 · 50MB · 이미지/영상 (문항)</text>
+  <text x="72" y="820" class="note">업로드는 Service Role · SELECT는 public 정책</text>
+
+  <text x="56" y="960" class="foot">research-a · DB ER 02/02  ·  public 테이블 25개 · Storage 버킷 2개</text>
+
+</svg>

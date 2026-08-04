@@ -47,6 +47,7 @@ type QuestionRow = {
 };
 
 type OptionRow = {
+  id?: string;
   question_id: string;
   order_index: number;
   label: string;
@@ -151,7 +152,7 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
   if (questionIds.length > 0) {
     const { data: opts, error: oError } = await admin
       .from("survey_question_options")
-      .select("question_id, order_index, label, is_other, ends_survey")
+      .select("id, question_id, order_index, label, is_other, ends_survey")
       .in("question_id", questionIds)
       .order("order_index", { ascending: true });
 
@@ -159,13 +160,13 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
       if (oError.message.includes("ends_survey")) {
         const withoutEnds = await admin
           .from("survey_question_options")
-          .select("question_id, order_index, label, is_other")
+          .select("id, question_id, order_index, label, is_other")
           .in("question_id", questionIds)
           .order("order_index", { ascending: true });
         if (withoutEnds.error?.message.includes("is_other")) {
           const fallback = await admin
             .from("survey_question_options")
-            .select("question_id, order_index, label")
+            .select("id, question_id, order_index, label")
             .in("question_id", questionIds)
             .order("order_index", { ascending: true });
           if (fallback.error) {
@@ -181,7 +182,7 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
       } else if (oError.message.includes("is_other")) {
         const fallback = await admin
           .from("survey_question_options")
-          .select("question_id, order_index, label")
+          .select("id, question_id, order_index, label")
           .in("question_id", questionIds)
           .order("order_index", { ascending: true });
         if (fallback.error) {
@@ -199,19 +200,29 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
 
   const optionsByQuestion = new Map<
     string,
-    { labels: string[]; ends: boolean[]; otherLabel: string | null }
+    {
+      labels: string[];
+      ends: boolean[];
+      ids: (string | null)[];
+      otherLabel: string | null;
+      otherId: string | null;
+    }
   >();
   for (const o of optionRows) {
     const entry = optionsByQuestion.get(o.question_id) ?? {
       labels: [],
       ends: [],
+      ids: [],
       otherLabel: null,
+      otherId: null,
     };
     if (o.is_other) {
       entry.otherLabel = o.label;
+      entry.otherId = o.id ?? null;
     } else {
       entry.labels.push(o.label);
       entry.ends.push(Boolean(o.ends_survey));
+      entry.ids.push(o.id ?? null);
     }
     optionsByQuestion.set(o.question_id, entry);
   }
@@ -221,6 +232,7 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
     const entry = optionsByQuestion.get(q.id);
     const opts = entry?.labels ?? [];
     const ends = entry?.ends ?? [];
+    const ids = entry?.ids ?? [];
     const otherLabel = entry?.otherLabel ?? null;
     const otherEnabled =
       (type === "mc_single" || type === "mc_multi") && Boolean(otherLabel);
@@ -246,6 +258,12 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
                   )
                 : ["", ""]
             : [];
+    const resolvedIds =
+      type === "likert_7"
+        ? [ids[0] ?? null, ids[1] ?? null]
+        : opts.length > 0
+          ? resolvedOptions.map((_, i) => ids[i] ?? null)
+          : resolvedOptions.map(() => null);
     return {
       clientId: q.id,
       type,
@@ -254,9 +272,11 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
       staffOnly: q.staff_only ?? false,
       visibilityRules: parseStoredVisibilityRules(q.visibility_rules),
       options: resolvedOptions,
+      optionIds: resolvedIds,
       optionEndsSurvey: resolvedOptions.map((_, i) => Boolean(ends[i])),
       otherOptionEnabled: otherEnabled,
       otherOptionLabel: otherLabel?.trim() || "기타",
+      otherOptionId: otherEnabled ? (entry?.otherId ?? null) : null,
       maxSelections:
         type === "rank"
           ? (q.max_selections ?? Math.min(3, opts.length || 3))

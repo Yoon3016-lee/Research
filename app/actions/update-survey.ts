@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { CreateSurveyPayload } from "@/lib/survey-types";
 import { buildSurveyPeriodPersist } from "@/lib/survey-period";
 import { normalizeSurveyRef } from "@/lib/survey-slug";
-import { persistSurveyQuestions, validateQuestion } from "@/lib/survey-persist";
+import { persistSurveyQuestionsUpdate, validateQuestion } from "@/lib/survey-persist";
 import { requireAdminPanelAccess } from "@/lib/require-admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -87,16 +87,13 @@ export async function updateSurveyAction(
     return { error: updateError.message };
   }
 
-  const { error: deleteError } = await admin
-    .from("survey_questions")
-    .delete()
-    .eq("survey_id", surveyId);
-
-  if (deleteError) {
-    return { error: deleteError.message };
-  }
-
-  const persistError = await persistSurveyQuestions(admin, surveyId, payload.questions);
+  // 문항을 통째로 지우면 ON DELETE CASCADE로 응답 답변이 함께 사라집니다.
+  // 기존 문항·보기 UUID를 유지하는 upsert로 저장합니다.
+  const persistError = await persistSurveyQuestionsUpdate(
+    admin,
+    surveyId,
+    payload.questions,
+  );
   if (persistError) {
     return { error: persistError };
   }

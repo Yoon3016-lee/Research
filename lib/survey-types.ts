@@ -74,6 +74,11 @@ export type DraftQuestion = {
   /** 객관식·드롭다운·순위·척도(다중)·연락처 항목 라벨 */
   options: string[];
   /**
+   * options와 같은 길이. 기존 DB 보기 id(수정 시 보존). 신규은 null.
+   * 설문 저장 시 보기 UUID를 유지해야 기존 응답 코드가 깨지지 않습니다.
+   */
+  optionIds: (string | null)[];
+  /**
    * options와 같은 길이. mc_single·dropdown에서 true면 해당 보기 선택 시 조사 종료.
    * (빈 라벨 보기는 저장 시 함께 제거)
    */
@@ -82,6 +87,8 @@ export type DraftQuestion = {
   otherOptionEnabled: boolean;
   /** 기타 보기 라벨 (기본: 기타) */
   otherOptionLabel: string;
+  /** 기타 보기의 DB id (수정 시 보존) */
+  otherOptionId: string | null;
   /** mc_multi: 최대 선택 · rank: 순위 개수 */
   maxSelections: number;
   /** 주관식 다중: 답변 줄(입력 칸) 개수, 최소 2 */
@@ -110,9 +117,11 @@ export function createDraftQuestion(type: QuestionType): DraftQuestion {
     staffOnly: false,
     visibilityRules: [],
     options: [],
+    optionIds: [],
     optionEndsSurvey: [],
     otherOptionEnabled: false,
     otherOptionLabel: "기타",
+    otherOptionId: null,
     maxSelections: 2,
     textLineCount: 2,
     infoBody: "",
@@ -136,6 +145,7 @@ export function createDraftQuestion(type: QuestionType): DraftQuestion {
         : type === "text_multi"
           ? ["항목 1", "항목 2"]
           : ["", ""];
+    base.optionIds = base.options.map(() => null);
     base.optionEndsSurvey = base.options.map(() => false);
     base.maxSelections = type === "rank" ? 3 : 2;
   }
@@ -147,6 +157,7 @@ export function createDraftQuestion(type: QuestionType): DraftQuestion {
   }
   if (type === "likert_7") {
     base.options = ["", ""];
+    base.optionIds = [null, null];
     base.optionEndsSurvey = [false, false];
   }
   if (type === "info_media") {
@@ -163,6 +174,52 @@ export function syncOptionEndsSurvey(
   ends: boolean[] | undefined,
 ): boolean[] {
   return options.map((_, i) => Boolean(ends?.[i]));
+}
+
+/** options 길이에 맞춰 optionIds 배열 보정 (부족분은 null) */
+export function syncOptionIds(
+  options: string[],
+  ids: (string | null)[] | undefined,
+): (string | null)[] {
+  return options.map((_, i) => ids?.[i] ?? null);
+}
+
+/** 보기 배열 교체 시 ends·ids를 함께 맞춤 */
+export function patchDraftOptions(
+  q: DraftQuestion,
+  nextOptions: string[],
+  extra?: Partial<DraftQuestion>,
+): Partial<DraftQuestion> {
+  return {
+    options: nextOptions,
+    optionEndsSurvey: syncOptionEndsSurvey(nextOptions, q.optionEndsSurvey),
+    optionIds: syncOptionIds(nextOptions, q.optionIds),
+    ...extra,
+  };
+}
+
+/** 보기 한 줄 삭제(중간 삭제 시 id 대응 유지) */
+export function removeDraftOptionAt(
+  q: DraftQuestion,
+  index: number,
+): Partial<DraftQuestion> {
+  const options = q.options.filter((_, i) => i !== index);
+  const ends = (q.optionEndsSurvey ?? []).filter((_, i) => i !== index);
+  const ids = (q.optionIds ?? []).filter((_, i) => i !== index);
+  return {
+    options,
+    optionEndsSurvey: syncOptionEndsSurvey(options, ends),
+    optionIds: syncOptionIds(options, ids),
+  };
+}
+
+/** 보기 한 줄 추가 */
+export function appendDraftOption(q: DraftQuestion): Partial<DraftQuestion> {
+  return {
+    options: [...q.options, ""],
+    optionEndsSurvey: [...syncOptionEndsSurvey(q.options, q.optionEndsSurvey), false],
+    optionIds: [...syncOptionIds(q.options, q.optionIds), null],
+  };
 }
 
 /** 라벨에 「조사종료」가 있으면 종료 보기로 제안 */
