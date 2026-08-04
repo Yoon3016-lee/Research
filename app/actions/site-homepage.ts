@@ -84,6 +84,15 @@ function isUniqueSlugViolation(message: string): boolean {
   );
 }
 
+/** /p/영문주소 형식 href에서 site_pages.slug 추출 */
+function extractPageSlugFromHref(href: string): string | null {
+  const path = (href.split("?")[0]?.split("#")[0] ?? href).replace(/\/+$/, "");
+  if (!path.toLowerCase().startsWith("/p/")) return null;
+  const raw = path.slice(3);
+  if (!raw) return null;
+  return normalizePageSlug(raw);
+}
+
 export async function updateSiteNameAction(
   _prev: SiteHomepageActionState,
   formData: FormData,
@@ -344,11 +353,80 @@ export async function updateNavItemAction(
 
   const admin = createSupabaseServiceRoleClient();
 
+  const { data: existing, error: findError } = await admin
+    .from("site_nav_items")
+    .select("id, page_id")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (findError) return { error: findError.message };
+  if (!existing) return { error: "메뉴를 찾을 수 없습니다." };
+
+  let finalHref = href;
+  let oldSlug: string | null = null;
+  let newSlug: string | null = null;
+
+  const pageId = existing.page_id as string | null;
+  if (pageId) {
+    const slugFromHref = extractPageSlugFromHref(href);
+    if (slugFromHref) {
+      const { data: pageRow, error: pageLoadError } = await admin
+        .from("site_pages")
+        .select("slug")
+        .eq("id", pageId)
+        .maybeSingle();
+
+      if (pageLoadError) return { error: pageLoadError.message };
+      if (pageRow) {
+        oldSlug = pageRow.slug as string;
+        if (slugFromHref !== oldSlug) {
+          const { data: conflict } = await admin
+            .from("site_pages")
+            .select("id")
+            .eq("slug", slugFromHref)
+            .neq("id", pageId)
+            .maybeSingle();
+
+          if (conflict) {
+            return {
+              error: `페이지 주소 「${slugFromHref}」는 이미 사용 중입니다. 다른 경로를 입력하세요.`,
+            };
+          }
+
+          const { error: slugError } = await admin
+            .from("site_pages")
+            .update({
+              slug: slugFromHref,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", pageId);
+
+          if (slugError) {
+            if (isUniqueSlugViolation(slugError.message)) {
+              return {
+                error: `페이지 주소 「${slugFromHref}」는 이미 사용 중입니다. 다른 경로를 입력하세요.`,
+              };
+            }
+            return { error: slugError.message };
+          }
+
+          newSlug = slugFromHref;
+          finalHref = `/p/${slugFromHref}`;
+        }
+      }
+    } else if (href.toLowerCase().startsWith("/p/")) {
+      return {
+        error:
+          "CMS 페이지 링크는 /p/영문주소 형식이어야 합니다. (영문 소문자·숫자·하이픈)",
+      };
+    }
+  }
+
   const { error } = await admin
     .from("site_nav_items")
     .update({
       label,
-      href,
+      href: finalHref,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);
@@ -357,7 +435,25 @@ export async function updateNavItemAction(
     return { error: error.message };
   }
 
+  if (newSlug && pageId) {
+    await admin
+      .from("site_nav_items")
+      .update({
+        href: finalHref,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("page_id", pageId)
+      .neq("id", id);
+  }
+
   revalidateSite();
+  if (oldSlug) revalidatePath(`/p/${oldSlug}`);
+  if (newSlug) revalidatePath(`/p/${newSlug}`);
+  else {
+    const slug = extractPageSlugFromHref(finalHref);
+    if (slug) revalidatePath(`/p/${slug}`);
+  }
+
   return { ok: true };
 }
 

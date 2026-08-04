@@ -472,6 +472,11 @@ function NavItemEditForm({
           defaultValue={initialHref}
           className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
         />
+        {initialHref.startsWith("/p/") ? (
+          <span className="mt-1 block text-xs text-zinc-500">
+            CMS 페이지는 경로를 바꾸면 「페이지 본문」의 공개 URL(/p/주소)도 함께 변경됩니다.
+          </span>
+        ) : null}
       </label>
       <ActionMessage state={state} />
       <div className="flex gap-2">
