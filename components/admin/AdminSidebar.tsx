@@ -8,6 +8,7 @@ import {
   Globe,
   LayoutDashboard,
   LogOut,
+  MessageSquare,
   ShieldCheck,
   Users,
 } from "lucide-react";
@@ -45,6 +46,7 @@ const colorStyles: Record<
 const items = [
   { href: "/admin", label: "대시보드", icon: LayoutDashboard, exact: true, color: "indigo" },
   { href: "/admin/surveys", label: "설문 관리", icon: ClipboardList, exact: false, color: "emerald" },
+  { href: "/admin/inquiries", label: "문의 관리", icon: MessageSquare, exact: false, color: "rose" },
   { href: "/admin/permissions", label: "권한 관리", icon: ShieldCheck, exact: false, color: "amber" },
   { href: "/admin/progress", label: "진행·업무 현황", icon: Users, exact: false, color: "sky" },
 ] as const;
