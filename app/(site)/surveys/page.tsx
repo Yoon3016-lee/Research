@@ -67,9 +67,10 @@ export default async function SurveysPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className={statusBadgeClass(s.status)}>{s.status}</span>
-                        <span className="text-xs text-brand-700/70">ID · {s.id}</span>
                       </div>
-                      <h2 className="mt-2 text-xl font-semibold">{s.title}</h2>
+                      <h2 className="mt-2.5 text-2xl font-semibold tracking-tight text-brand-900 sm:text-3xl">
+                        {s.title}
+                      </h2>
                       <p className="mt-1 text-brand-700">{s.summary}</p>
                       <div className="mt-3 flex flex-wrap gap-4 text-brand-700/80">
                         <span className="inline-flex items-center gap-1.5">
