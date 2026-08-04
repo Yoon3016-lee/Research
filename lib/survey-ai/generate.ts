@@ -43,7 +43,7 @@ function parseSurveyAiResponse(content: string): SurveyAiGenerateResult {
     if (!isClarificationArray(clarifications) || clarifications.length === 0) {
       return {
         status: "error",
-        error: "AI가 보완 질문 형식을 올바르게 반환하지 않았습니다.",
+        error: "AI가 보완 요청 형식을 올바르게 반환하지 않았습니다.",
       };
     }
     return {

@@ -161,7 +161,7 @@ export function SurveyAiGenerator() {
     e.preventDefault();
     for (const c of clarifications) {
       if (!brief.clarificationAnswers[c.id]?.trim()) {
-        setError(`「${c.question}」에 답변해 주세요.`);
+        setError(`「${c.question}」에 대한 보완 내용을 입력해 주세요.`);
         return;
       }
     }
@@ -200,16 +200,18 @@ export function SurveyAiGenerator() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <div className="rounded-2xl border border-accent-500/25 bg-gradient-to-br from-accent-500/12 to-transparent px-5 py-4">
+      <div className="rounded-2xl border border-sky-300/80 bg-gradient-to-br from-sky-100 via-sky-50 to-cyan-50 px-5 py-5 shadow-sm sm:px-6 sm:py-6">
         <div className="flex items-start gap-3">
-          <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-accent-600" aria-hidden />
-          <div className="text-sm text-brand-900">
-            <p className="font-medium">KSIC 기반 AI 설문 생성</p>
-            <p className="mt-1 text-brand-700">
+          <Sparkles className="mt-1 h-6 w-6 shrink-0 text-sky-600" aria-hidden />
+          <div className="text-brand-900">
+            <p className="text-lg font-semibold tracking-tight sm:text-xl">
+              KSIC 기반 AI 설문 생성
+            </p>
+            <p className="mt-2 text-base leading-relaxed text-sky-950/85 sm:text-[1.0625rem]">
               산업 분류·조사 목적을 입력하면 AI가 설문안 {proposalCount}개와 CATI 조사원
               스크립트·추천 근거를 제안합니다. 정보가 부족하면 보완 질문을 드립니다.
               {aiProviderLabel ? (
-                <span className="mt-1 block text-xs text-brand-700/80">
+                <span className="mt-2 block text-sm text-sky-900/70">
                   사용 중인 AI: {aiProviderLabel}
                 </span>
               ) : null}
@@ -250,7 +252,7 @@ export function SurveyAiGenerator() {
                 />
               </label>
               <label className="block">
-                <span className="admin-label">응답 대상 *</span>
+                <span className="admin-label">조사 대상 *</span>
                 <input
                   required
                   value={brief.targetRespondent}
@@ -317,7 +319,7 @@ export function SurveyAiGenerator() {
           <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-6">
             <h2 className="text-base font-semibold text-amber-950">보완 정보가 필요합니다</h2>
             <p className="mt-1 text-sm text-amber-900/90">
-              아래 질문에 답변해 주시면 더 적합한 설문안을 생성할 수 있습니다.
+              아래 보완 요청 항목을 채워 주시면 더 적합한 설문안을 생성할 수 있습니다.
             </p>
           </section>
 
