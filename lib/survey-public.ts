@@ -302,23 +302,30 @@ export async function loadSurveyForParticipation(
     const selectBasic =
       "id, slug, title, summary, period_label, period_start, period_end, status, listed_public";
 
-    let { data: row, error } = await admin
+    let row: SurveyRow | null = null;
+    let error: { message: string } | null = null;
+
+    const primary = await admin
       .from("surveys")
       .select(selectWithKsic)
       .eq("slug", normalized)
       .maybeSingle();
 
     if (
-      error &&
-      (error.message.includes("ksic_code") || error.message.includes("ksic_name"))
+      primary.error &&
+      (primary.error.message.includes("ksic_code") ||
+        primary.error.message.includes("ksic_name"))
     ) {
       const fallback = await admin
         .from("surveys")
         .select(selectBasic)
         .eq("slug", normalized)
         .maybeSingle();
-      row = fallback.data;
+      row = (fallback.data as SurveyRow | null) ?? null;
       error = fallback.error;
+    } else {
+      row = (primary.data as SurveyRow | null) ?? null;
+      error = primary.error;
     }
 
     if (error) {
@@ -327,7 +334,7 @@ export async function loadSurveyForParticipation(
     }
     if (!row) return { ok: false, reason: "not_found" };
 
-    const s = row as SurveyRow;
+    const s = row;
     const status = effectiveSurveyStatus(s);
     if (status !== "진행중" || !s.listed_public) {
       return {
@@ -352,7 +359,10 @@ export async function loadSurveyForParticipation(
   const selectBasic =
     "id, slug, title, summary, period_label, period_start, period_end, status, listed_public";
 
-  let { data: row, error } = await supabase
+  let row: SurveyRow | null = null;
+  let error: { message: string } | null = null;
+
+  const primary = await supabase
     .from("surveys")
     .select(selectWithKsic)
     .eq("slug", normalized)
@@ -360,8 +370,9 @@ export async function loadSurveyForParticipation(
     .maybeSingle();
 
   if (
-    error &&
-    (error.message.includes("ksic_code") || error.message.includes("ksic_name"))
+    primary.error &&
+    (primary.error.message.includes("ksic_code") ||
+      primary.error.message.includes("ksic_name"))
   ) {
     const fallback = await supabase
       .from("surveys")
@@ -369,8 +380,11 @@ export async function loadSurveyForParticipation(
       .eq("slug", normalized)
       .eq("listed_public", true)
       .maybeSingle();
-    row = fallback.data;
+    row = (fallback.data as SurveyRow | null) ?? null;
     error = fallback.error;
+  } else {
+    row = (primary.data as SurveyRow | null) ?? null;
+    error = primary.error;
   }
 
   if (error) {
@@ -379,7 +393,7 @@ export async function loadSurveyForParticipation(
   }
   if (!row) return { ok: false, reason: "not_found" };
 
-  const s = row as SurveyRow;
+  const s = row;
   const status = effectiveSurveyStatus(s);
   if (status !== "진행중") {
     return {

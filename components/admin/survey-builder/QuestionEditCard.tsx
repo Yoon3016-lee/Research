@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Trash2, ChevronUp, ChevronDown, ChevronRight, GripVertical } from "lucide-react";
+import { Trash2, ChevronUp, ChevronDown, ChevronRight, GripVertical } from "lucide-react";
 import {
   QUESTION_TYPE_LABELS,
   appendDraftOption,
