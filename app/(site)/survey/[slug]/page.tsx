@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AxiFloatingLauncher } from "@/components/site/AxiFloatingLauncher";
 import { CatiStaffSurveySection } from "@/components/site/CatiStaffSurveySection";
 import { SurveyParticipantPanel } from "@/components/site/SurveyParticipantPanel";
 import { SiteContainer } from "@/components/site/SiteContainer";
@@ -7,6 +8,9 @@ import { SurveyScriptCheckButton } from "@/components/site/SurveyScriptCheckButt
 import { hasActiveCatiBatch } from "@/lib/cati-samples";
 import { listActiveCatiContactOptions } from "@/lib/cati-contact-options";
 import { getSurveyParticipant } from "@/lib/participant";
+import { canViewResponseScript } from "@/lib/roles";
+import { getSiteHomepageConfig } from "@/lib/site-homepage";
+import { loadSurveyResponseScript } from "@/lib/survey-script";
 import { getSurveyViewModeForUser } from "@/lib/user-preferences";
 import { loadSurveyForParticipation } from "@/lib/survey-public";
 
@@ -81,6 +85,40 @@ export default async function SurveyParticipatePage({ params }: Props) {
     participant.mode === "anonymous" ? null : participant.userId,
   );
 
+  const showAxi =
+    participant.mode === "staff" && canViewResponseScript(participant.role);
+  let axiIconUrl: string | null = null;
+  let axiScriptContext = "";
+  if (showAxi) {
+    const [homepage, scriptLoad] = await Promise.all([
+      getSiteHomepageConfig(),
+      loadSurveyResponseScript(survey.slug),
+    ]);
+    axiIconUrl = homepage.axiIconUrl;
+    if (scriptLoad.ok) {
+      const shared = scriptLoad.sharedScripts
+        .map((s) => `▸ ${s.title}\n${s.body.trim()}`)
+        .join("\n\n");
+      axiScriptContext = [
+        scriptLoad.responseScript.trim()
+          ? `【이 설문 스크립트】\n${scriptLoad.responseScript.trim()}`
+          : "",
+        shared ? `【공용 스크립트】\n${shared}` : "",
+        survey.questions.length > 0
+          ? `【문항】\n${survey.questions
+              .map((q, i) => `${i + 1}. ${q.prompt}`)
+              .join("\n")}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+    } else {
+      axiScriptContext = survey.questions
+        .map((q, i) => `${i + 1}. ${q.prompt}`)
+        .join("\n");
+    }
+  }
+
   return (
     <SiteContainer as="main" width="survey" className="py-10 sm:py-12">
       <p>
@@ -127,6 +165,14 @@ export default async function SurveyParticipatePage({ params }: Props) {
           />
         </div>
       )}
+
+      {showAxi ? (
+        <AxiFloatingLauncher
+          surveyTitle={survey.title}
+          scriptContext={axiScriptContext}
+          axiIconUrl={axiIconUrl}
+        />
+      ) : null}
     </SiteContainer>
   );
 }

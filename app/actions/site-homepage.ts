@@ -236,6 +236,119 @@ export async function deleteSiteLogoAction(
   return { ok: true };
 }
 
+export async function updateSiteAxiIconAction(
+  _prev: SiteHomepageActionState,
+  formData: FormData,
+): Promise<SiteHomepageActionState> {
+  await requireSuperAdmin();
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "AXI 아이콘 이미지 파일을 선택하세요." };
+  }
+
+  const uploaded = await uploadSiteMediaFile(file, "axi-icon");
+  if (!uploaded.ok) {
+    return { error: uploaded.error };
+  }
+  if (uploaded.data.mediaType !== "image") {
+    await deleteSiteMediaFile(uploaded.data.storagePath);
+    return { error: "AXI 아이콘은 JPG, PNG, GIF, WEBP 이미지만 사용할 수 있습니다." };
+  }
+
+  const admin = createSupabaseServiceRoleClient();
+  const { data: current, error: readError } = await admin
+    .from("site_settings")
+    .select("axi_icon_storage_path")
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (readError) {
+    await deleteSiteMediaFile(uploaded.data.storagePath);
+    if (readError.message.includes("axi_icon")) {
+      return {
+        error:
+          "DB에 axi_icon 컬럼이 없습니다. supabase/migrations/20260409200000_site_settings_axi_icon.sql 을 실행하세요.",
+      };
+    }
+    return { error: readError.message };
+  }
+
+  const { error } = await admin
+    .from("site_settings")
+    .update({
+      axi_icon_url: uploaded.data.url,
+      axi_icon_storage_path: uploaded.data.storagePath,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", 1);
+
+  if (error) {
+    await deleteSiteMediaFile(uploaded.data.storagePath);
+    if (error.message.includes("axi_icon") || error.message.includes("site_settings")) {
+      return {
+        error:
+          "DB에 axi_icon 컬럼이 없습니다. supabase/migrations/20260409200000_site_settings_axi_icon.sql 을 실행하세요.",
+      };
+    }
+    return { error: error.message };
+  }
+
+  await deleteSiteMediaFile(current?.axi_icon_storage_path as string | undefined);
+
+  revalidateSite();
+  return { ok: true };
+}
+
+export async function deleteSiteAxiIconAction(
+  _prev: SiteHomepageActionState,
+  formData: FormData,
+): Promise<SiteHomepageActionState> {
+  void formData;
+  await requireSuperAdmin();
+
+  const admin = createSupabaseServiceRoleClient();
+  const { data: current, error: readError } = await admin
+    .from("site_settings")
+    .select("axi_icon_storage_path")
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (readError) {
+    if (readError.message.includes("axi_icon")) {
+      return {
+        error:
+          "DB에 axi_icon 컬럼이 없습니다. supabase/migrations/20260409200000_site_settings_axi_icon.sql 을 실행하세요.",
+      };
+    }
+    return { error: readError.message };
+  }
+
+  const { error } = await admin
+    .from("site_settings")
+    .update({
+      axi_icon_url: null,
+      axi_icon_storage_path: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", 1);
+
+  if (error) {
+    if (error.message.includes("axi_icon") || error.message.includes("site_settings")) {
+      return {
+        error:
+          "DB에 axi_icon 컬럼이 없습니다. supabase/migrations/20260409200000_site_settings_axi_icon.sql 을 실행하세요.",
+      };
+    }
+    return { error: error.message };
+  }
+
+  await deleteSiteMediaFile(current?.axi_icon_storage_path as string | undefined);
+
+  revalidateSite();
+  return { ok: true };
+}
+
 export async function createNavItemAction(
   _prev: SiteHomepageActionState,
   formData: FormData,
@@ -568,6 +681,7 @@ export async function createNavGroupAction(
     key,
     label,
     sort_order: sortOrder,
+    href: String(formData.get("href") ?? "").trim(),
     guide_pdf_url: guidePdfUrl,
     guide_pdf_path: guidePdfPath,
     guide_media_type: guideMediaType,
@@ -579,6 +693,12 @@ export async function createNavGroupAction(
       return {
         error:
           "site_nav_groups 테이블이 없습니다. supabase/migrations/20260407220000_site_homepage_cms.sql 을 실행하세요.",
+      };
+    }
+    if (error.message.includes("href")) {
+      return {
+        error:
+          "DB에 site_nav_groups.href 컬럼이 없습니다. supabase/migrations/20260409100000_site_nav_groups_href.sql 을 실행하세요.",
       };
     }
     return { error: error.message };
@@ -611,7 +731,10 @@ export async function updateNavGroupAction(
     .maybeSingle();
   const currentGuidePath = (existing?.guide_pdf_path as string | null) ?? null;
 
-  const update: Record<string, unknown> = { label };
+  const update: Record<string, unknown> = {
+    label,
+    href: String(formData.get("href") ?? "").trim(),
+  };
   let pathToDelete: string | null = null;
 
   if (guideFile instanceof File && guideFile.size > 0) {
@@ -636,6 +759,12 @@ export async function updateNavGroupAction(
     .maybeSingle();
 
   if (error) {
+    if (error.message.includes("href")) {
+      return {
+        error:
+          "DB에 site_nav_groups.href 컬럼이 없습니다. supabase/migrations/20260409100000_site_nav_groups_href.sql 을 실행하세요.",
+      };
+    }
     return { error: error.message };
   }
   if (!data) {

@@ -9,7 +9,12 @@ type Props = {
 };
 
 export function SiteFooter({ siteName, groups }: Props) {
-  const flatItems = groups.flatMap((g) => g.items);
+  const flatItems = [
+    ...groups
+      .filter((g) => g.href.trim())
+      .map((g) => ({ id: `group-${g.key}`, label: g.label, href: g.href.trim() })),
+    ...groups.flatMap((g) => g.items),
+  ];
   const displayName = siteName.replace(/^\[|\]$/g, "").trim() || siteName;
 
   return (

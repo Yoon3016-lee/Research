@@ -14,9 +14,16 @@ type Props = {
   surveyTitle: string;
   scriptContext: string;
   onClose: () => void;
+  /** 플로팅 패널 등 부모 높이 채움 */
+  embedded?: boolean;
 };
 
-export function AxiGuidePanel({ surveyTitle, scriptContext, onClose }: Props) {
+export function AxiGuidePanel({
+  surveyTitle,
+  scriptContext,
+  onClose,
+  embedded = false,
+}: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "welcome",
@@ -77,7 +84,11 @@ export function AxiGuidePanel({ surveyTitle, scriptContext, onClose }: Props) {
 
   return (
     <aside
-      className="flex h-full w-[min(100%,20rem)] shrink-0 flex-col border-l border-zinc-200 bg-white"
+      className={
+        embedded
+          ? "flex h-full min-h-0 w-full flex-col bg-white"
+          : "flex h-full w-[min(100%,20rem)] shrink-0 flex-col border-l border-zinc-200 bg-white"
+      }
       aria-label="AXI 가이드"
     >
       <div className="flex shrink-0 items-start justify-between gap-2 border-b border-zinc-200 px-3 py-2.5">

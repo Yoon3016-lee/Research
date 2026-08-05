@@ -78,12 +78,22 @@ export function NavGroupsManager({ groups, embedded = false }: Props) {
                       <span className="ml-2 text-xs text-zinc-400">
                         하위 메뉴 {group.items.length}개
                       </span>
+                      {group.href.trim() ? (
+                        <span className="ml-2 inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800">
+                          직접 링크
+                        </span>
+                      ) : null}
                       {group.guidePdfUrl ? (
                         <span className="ml-2 inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
                           안내 배너
                         </span>
                       ) : null}
                     </p>
+                    {group.href.trim() ? (
+                      <p className="mt-1 truncate text-xs text-zinc-500">
+                        → <code className="rounded bg-zinc-50 px-1">{group.href}</code>
+                      </p>
+                    ) : null}
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
                     <button
@@ -109,6 +119,7 @@ export function NavGroupsManager({ groups, embedded = false }: Props) {
                   <NavGroupEditForm
                     groupKey={group.key}
                     initialLabel={group.label}
+                    initialHref={group.href}
                     initialGuidePdfUrl={group.guidePdfUrl}
                     initialGuideMediaType={group.guideMediaType}
                     onDone={() => setEditingKey(null)}
@@ -165,6 +176,19 @@ function NavGroupCreateForm({ onDone }: { onDone: () => void }) {
           이름은 ID를 직접 입력하세요)
         </span>
       </label>
+      <label className="block text-sm">
+        <span className="font-medium text-zinc-700">직접 링크 (선택)</span>
+        <input
+          name="href"
+          className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+          placeholder="/inquiry?type=survey"
+          defaultValue=""
+        />
+        <span className="mt-1 block text-xs text-zinc-500">
+          입력하면 하위 드롭다운 없이 탭 클릭 시 해당 주소로 이동합니다. 예:{" "}
+          <code className="rounded bg-white px-1">/inquiry?type=survey</code>
+        </span>
+      </label>
       <GuideFileField />
       <ActionMessage state={state} />
       <div className="flex gap-2">
@@ -190,12 +214,14 @@ function NavGroupCreateForm({ onDone }: { onDone: () => void }) {
 function NavGroupEditForm({
   groupKey,
   initialLabel,
+  initialHref,
   initialGuidePdfUrl,
   initialGuideMediaType,
   onDone,
 }: {
   groupKey: string;
   initialLabel: string;
+  initialHref: string;
   initialGuidePdfUrl: string | null;
   initialGuideMediaType: SiteNavGuideMediaType | null;
   onDone: () => void;
@@ -225,6 +251,19 @@ function NavGroupEditForm({
           defaultValue={initialLabel}
           className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
         />
+      </label>
+      <label className="block text-sm">
+        <span className="font-medium text-zinc-700">직접 링크 (선택)</span>
+        <input
+          name="href"
+          defaultValue={initialHref}
+          className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+          placeholder="/inquiry?type=survey"
+        />
+        <span className="mt-1 block text-xs text-zinc-500">
+          비우면 하위 메뉴 드롭다운을 사용합니다. 문의하기 예:{" "}
+          <code className="rounded bg-white px-1">/inquiry?type=survey</code>
+        </span>
       </label>
       <GuideFileField
         currentUrl={initialGuidePdfUrl}

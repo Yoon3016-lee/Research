@@ -28,6 +28,8 @@ export type SiteNavGroup = {
   items: SiteNavItem[];
   guidePdfUrl: string | null;
   guideMediaType: SiteNavGuideMediaType | null;
+  /** 설정 시 상단 탭이 드롭다운 대신 이 경로로 바로 이동 */
+  href: string;
 };
 
 export type SiteHomepageConfig = {
@@ -35,6 +37,8 @@ export type SiteHomepageConfig = {
   siteNameFont: SiteNameFontKey;
   siteNameFontFamily: string;
   logoUrl: string | null;
+  /** 설문 화면 AXI 플로팅 아이콘 */
+  axiIconUrl: string | null;
   groups: SiteNavGroup[];
 };
 
@@ -50,10 +54,11 @@ const DEFAULT_CONFIG: SiteHomepageConfig = {
   siteNameFont: DEFAULT_SITE_NAME_FONT,
   siteNameFontFamily: getSiteNameFontOption(DEFAULT_SITE_NAME_FONT).fontFamily,
   logoUrl: null,
+  axiIconUrl: null,
   groups: [
-    { key: "intro", label: "회사 소개", sortOrder: 0, items: [], guidePdfUrl: null, guideMediaType: null },
-    { key: "survey", label: "설문 조사", sortOrder: 1, items: [], guidePdfUrl: null, guideMediaType: null },
-    { key: "service", label: "서비스", sortOrder: 2, items: [], guidePdfUrl: null, guideMediaType: null },
+    { key: "intro", label: "회사 소개", sortOrder: 0, items: [], guidePdfUrl: null, guideMediaType: null, href: "" },
+    { key: "survey", label: "설문 조사", sortOrder: 1, items: [], guidePdfUrl: null, guideMediaType: null, href: "" },
+    { key: "service", label: "서비스", sortOrder: 2, items: [], guidePdfUrl: null, guideMediaType: null, href: "" },
   ],
 };
 
@@ -64,51 +69,67 @@ export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
 
   const admin = createSupabaseServiceRoleClient();
 
-  let settings: { site_name?: string; logo_url?: string; site_name_font?: string } | null = null;
+  let settings: {
+    site_name?: string;
+    logo_url?: string;
+    site_name_font?: string;
+    axi_icon_url?: string | null;
+  } | null = null;
   let settingsError: { message: string } | null = null;
 
-  const settingsWithFont = await admin
+  const settingsWithAxi = await admin
     .from("site_settings")
-    .select("site_name, logo_url, site_name_font")
+    .select("site_name, logo_url, site_name_font, axi_icon_url")
     .eq("id", 1)
     .maybeSingle();
 
-  if (settingsWithFont.error?.message.includes("site_name_font")) {
-    const settingsWithLogo = await admin
+  if (settingsWithAxi.error?.message.includes("axi_icon_url")) {
+    const settingsWithFont = await admin
       .from("site_settings")
-      .select("site_name, logo_url")
+      .select("site_name, logo_url, site_name_font")
       .eq("id", 1)
       .maybeSingle();
 
-    if (settingsWithLogo.error?.message.includes("logo_url")) {
+    if (settingsWithFont.error?.message.includes("site_name_font")) {
+      const settingsWithLogo = await admin
+        .from("site_settings")
+        .select("site_name, logo_url")
+        .eq("id", 1)
+        .maybeSingle();
+
+      if (settingsWithLogo.error?.message.includes("logo_url")) {
+        const fallback = await admin
+          .from("site_settings")
+          .select("site_name")
+          .eq("id", 1)
+          .maybeSingle();
+        settings = fallback.data;
+        settingsError = fallback.error;
+      } else {
+        settings = settingsWithLogo.data;
+        settingsError = settingsWithLogo.error;
+      }
+    } else if (settingsWithFont.error?.message.includes("logo_url")) {
       const fallback = await admin
         .from("site_settings")
-        .select("site_name")
+        .select("site_name, site_name_font")
         .eq("id", 1)
         .maybeSingle();
       settings = fallback.data;
       settingsError = fallback.error;
     } else {
-      settings = settingsWithLogo.data;
-      settingsError = settingsWithLogo.error;
+      settings = settingsWithFont.data;
+      settingsError = settingsWithFont.error;
     }
-  } else if (settingsWithFont.error?.message.includes("logo_url")) {
-    const fallback = await admin
-      .from("site_settings")
-      .select("site_name, site_name_font")
-      .eq("id", 1)
-      .maybeSingle();
-    settings = fallback.data;
-    settingsError = fallback.error;
   } else {
-    settings = settingsWithFont.data;
-    settingsError = settingsWithFont.error;
+    settings = settingsWithAxi.data;
+    settingsError = settingsWithAxi.error;
   }
 
   const [groupsResult, { data: items, error: itemsError }] = await Promise.all([
     admin
       .from("site_nav_groups")
-      .select("key, label, sort_order, guide_pdf_url, guide_media_type")
+      .select("key, label, sort_order, guide_pdf_url, guide_media_type, href")
       .order("sort_order"),
     admin
       .from("site_nav_items")
@@ -123,19 +144,33 @@ export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
     sort_order: number;
     guide_pdf_url?: string | null;
     guide_media_type?: string | null;
+    href?: string | null;
   }[];
 
-  // guide_* 마이그레이션 전이면 컬럼 없이 재조회
+  // guide_* / href 마이그레이션 전이면 컬럼 없이 재조회
   if (
     groupsError?.message.includes("guide_pdf_url") ||
-    groupsError?.message.includes("guide_media_type")
+    groupsError?.message.includes("guide_media_type") ||
+    groupsError?.message.includes("href")
   ) {
     const fallback = await admin
       .from("site_nav_groups")
-      .select("key, label, sort_order")
+      .select("key, label, sort_order, guide_pdf_url, guide_media_type")
       .order("sort_order");
-    groupRows = fallback.data ?? [];
-    groupsError = fallback.error;
+    if (
+      fallback.error?.message.includes("guide_pdf_url") ||
+      fallback.error?.message.includes("guide_media_type")
+    ) {
+      const basic = await admin
+        .from("site_nav_groups")
+        .select("key, label, sort_order")
+        .order("sort_order");
+      groupRows = basic.data ?? [];
+      groupsError = basic.error;
+    } else {
+      groupRows = fallback.data ?? [];
+      groupsError = fallback.error;
+    }
   } else {
     groupRows = groupsResult.data ?? [];
   }
@@ -156,6 +191,8 @@ export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
   const siteNameFontFamily = getSiteNameFontOption(siteNameFont).fontFamily;
   const logoRaw = (settings?.logo_url as string | undefined)?.trim();
   const logoUrl = logoRaw || null;
+  const axiIconRaw = (settings?.axi_icon_url as string | undefined)?.trim();
+  const axiIconUrl = axiIconRaw || null;
 
   const itemRows = (items ?? []) as {
     id: string;
@@ -197,10 +234,11 @@ export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
               : g.guide_pdf_url
                 ? "pdf"
                 : null,
+          href: typeof g.href === "string" ? g.href.trim() : "",
         }))
       : DEFAULT_CONFIG.groups;
 
-  return { siteName, siteNameFont, siteNameFontFamily, logoUrl, groups: builtGroups };
+  return { siteName, siteNameFont, siteNameFontFamily, logoUrl, axiIconUrl, groups: builtGroups };
 }
 
 export async function getSitePagesByIds(ids: string[]): Promise<Record<string, SitePage>> {

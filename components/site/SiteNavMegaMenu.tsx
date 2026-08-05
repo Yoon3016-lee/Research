@@ -18,6 +18,16 @@ type DropdownPos = {
 
 const CLOSE_DELAY_MS = 150;
 
+function hrefPathname(href: string): string {
+  const path = href.trim().split(/[?#]/)[0];
+  return path || "/";
+}
+
+function isHrefActive(pathname: string, href: string): boolean {
+  const path = hrefPathname(href);
+  return pathname === path || pathname.startsWith(`${path}/`);
+}
+
 export function SiteNavMegaMenu({ groups }: Props) {
   const pathname = usePathname();
   const navRef = useRef<HTMLDivElement>(null);
@@ -26,10 +36,10 @@ export function SiteNavMegaMenu({ groups }: Props) {
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [dropdownPos, setDropdownPos] = useState<DropdownPos | null>(null);
 
-  const isGroupActive = (group: SiteNavGroup) =>
-    group.items.some(
-      (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
-    );
+  const isGroupActive = (group: SiteNavGroup) => {
+    if (group.href.trim() && isHrefActive(pathname, group.href)) return true;
+    return group.items.some((item) => isHrefActive(pathname, item.href));
+  };
 
   const computeDropdown = useCallback((key: string) => {
     const header = navRef.current?.closest("header");
@@ -100,9 +110,10 @@ export function SiteNavMegaMenu({ groups }: Props) {
   const activeGroup = activeKey
     ? (groups.find((g) => g.key === activeKey) ?? null)
     : null;
+  const activeIsDirectLink = Boolean(activeGroup?.href.trim());
 
   const panel =
-    activeGroup && dropdownPos ? (
+    activeGroup && dropdownPos && !activeIsDirectLink ? (
       <div
         id="site-nav-mega-panel"
         role="navigation"
@@ -122,8 +133,7 @@ export function SiteNavMegaMenu({ groups }: Props) {
           ) : (
             <ul className="space-y-0.5">
               {activeGroup.items.map((item) => {
-                const itemActive =
-                  pathname === item.href || pathname.startsWith(`${item.href}/`);
+                const itemActive = isHrefActive(pathname, item.href);
                 return (
                   <li key={item.id}>
                     <Link
@@ -146,6 +156,15 @@ export function SiteNavMegaMenu({ groups }: Props) {
       </div>
     ) : null;
 
+  const tabClass = (active: boolean, isActiveKey: boolean) =>
+    `whitespace-nowrap rounded-t-md border-b-[3px] px-3 py-2.5 text-left text-[1.35rem] font-bold tracking-tight transition sm:px-5 sm:text-[1.4rem] ${
+      active
+        ? "border-brand-900 text-brand-900"
+        : isActiveKey
+          ? "border-brand-900/40 text-brand-900"
+          : "border-transparent text-brand-800 hover:border-brand-900/30 hover:text-brand-900"
+    }`;
+
   return (
     <>
       <div
@@ -159,6 +178,28 @@ export function SiteNavMegaMenu({ groups }: Props) {
         {groups.map((group) => {
           const active = isGroupActive(group);
           const isActiveKey = activeKey === group.key;
+          const directHref = group.href.trim();
+
+          if (directHref) {
+            return (
+              <div
+                key={group.key}
+                ref={(el) => setColumnRef(group.key, el)}
+                onMouseEnter={() => {
+                  cancelClose();
+                  setActiveKey(null);
+                }}
+              >
+                <Link
+                  href={directHref}
+                  className={`block ${tabClass(active, false)}`}
+                >
+                  {group.label}
+                </Link>
+              </div>
+            );
+          }
+
           return (
             <div
               key={group.key}
@@ -168,13 +209,7 @@ export function SiteNavMegaMenu({ groups }: Props) {
               <button
                 type="button"
                 onFocus={() => openGroup(group.key)}
-                className={`whitespace-nowrap rounded-t-md border-b-[3px] px-3 py-2.5 text-left text-[1.35rem] font-bold tracking-tight transition sm:px-5 sm:text-[1.4rem] ${
-                  active
-                    ? "border-brand-900 text-brand-900"
-                    : isActiveKey
-                      ? "border-brand-900/40 text-brand-900"
-                      : "border-transparent text-brand-800 hover:border-brand-900/30 hover:text-brand-900"
-                }`}
+                className={tabClass(active, isActiveKey)}
                 aria-expanded={isActiveKey}
                 aria-controls="site-nav-mega-panel"
               >
