@@ -44,12 +44,16 @@ type Props = {
   surveyTitle: string;
   scriptContext: string;
   axiIconUrl: string | null;
+  ksicCode?: string;
+  ksicName?: string;
 };
 
 export function AxiFloatingLauncher({
   surveyTitle,
   scriptContext,
   axiIconUrl,
+  ksicCode = "",
+  ksicName = "",
 }: Props) {
   const [pos, setPos] = useState<Pos>(defaultPos);
   const [open, setOpen] = useState(false);
@@ -175,6 +179,8 @@ export function AxiFloatingLauncher({
           <AxiGuidePanel
             surveyTitle={surveyTitle}
             scriptContext={scriptContext}
+            ksicCode={ksicCode}
+            ksicName={ksicName}
             onClose={() => setOpen(false)}
             embedded
           />

@@ -12,6 +12,8 @@ export async function askAxiAction(input: {
   question: string;
   surveyTitle: string;
   scriptContext: string;
+  ksicCode?: string;
+  ksicName?: string;
 }): Promise<AskAxiActionResult> {
   const participant = await getSurveyParticipant();
   if (participant.mode !== "staff" || !canViewResponseScript(participant.role)) {
@@ -22,5 +24,7 @@ export async function askAxiAction(input: {
     question: input.question ?? "",
     surveyTitle: input.surveyTitle ?? "",
     scriptContext: input.scriptContext ?? "",
+    ksicCode: input.ksicCode ?? "",
+    ksicName: input.ksicName ?? "",
   });
 }

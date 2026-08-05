@@ -42,6 +42,8 @@ export type PublicSurveyDetail = {
   title: string;
   summary: string;
   periodLabel: string;
+  ksicCode: string;
+  ksicName: string;
   questions: PublicSurveyQuestion[];
 };
 
@@ -78,6 +80,8 @@ type SurveyRow = {
   period_end: string | null;
   status: string;
   listed_public: boolean;
+  ksic_code?: string | null;
+  ksic_name?: string | null;
 };
 
 function effectiveSurveyStatus(row: SurveyRow): string {
@@ -272,6 +276,8 @@ async function buildSurveyDetail(
     title: row.title,
     summary: row.summary,
     periodLabel: row.period_label,
+    ksicCode: (row.ksic_code ?? "").trim(),
+    ksicName: (row.ksic_name ?? "").trim(),
     questions: mapQuestions(qRows, optionRows),
   };
 }
@@ -291,13 +297,29 @@ export async function loadSurveyForParticipation(
     const admin = createSupabaseServiceRoleClient();
     await syncSurveyPeriodStatuses(admin);
 
-    const { data: row, error } = await admin
+    const selectWithKsic =
+      "id, slug, title, summary, period_label, period_start, period_end, status, listed_public, ksic_code, ksic_name";
+    const selectBasic =
+      "id, slug, title, summary, period_label, period_start, period_end, status, listed_public";
+
+    let { data: row, error } = await admin
       .from("surveys")
-      .select(
-        "id, slug, title, summary, period_label, period_start, period_end, status, listed_public",
-      )
+      .select(selectWithKsic)
       .eq("slug", normalized)
       .maybeSingle();
+
+    if (
+      error &&
+      (error.message.includes("ksic_code") || error.message.includes("ksic_name"))
+    ) {
+      const fallback = await admin
+        .from("surveys")
+        .select(selectBasic)
+        .eq("slug", normalized)
+        .maybeSingle();
+      row = fallback.data;
+      error = fallback.error;
+    }
 
     if (error) {
       console.error("[loadSurveyForParticipation]", error.message);
@@ -325,14 +347,31 @@ export async function loadSurveyForParticipation(
   }
 
   const supabase = await createSupabaseServerClient();
-  const { data: row, error } = await supabase
+  const selectWithKsic =
+    "id, slug, title, summary, period_label, period_start, period_end, status, listed_public, ksic_code, ksic_name";
+  const selectBasic =
+    "id, slug, title, summary, period_label, period_start, period_end, status, listed_public";
+
+  let { data: row, error } = await supabase
     .from("surveys")
-    .select(
-      "id, slug, title, summary, period_label, period_start, period_end, status, listed_public",
-    )
+    .select(selectWithKsic)
     .eq("slug", normalized)
     .eq("listed_public", true)
     .maybeSingle();
+
+  if (
+    error &&
+    (error.message.includes("ksic_code") || error.message.includes("ksic_name"))
+  ) {
+    const fallback = await supabase
+      .from("surveys")
+      .select(selectBasic)
+      .eq("slug", normalized)
+      .eq("listed_public", true)
+      .maybeSingle();
+    row = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) {
     console.error("[loadSurveyForParticipation] anon", error.message);

@@ -4,6 +4,7 @@ import {
   completeSurveyAiText,
   resolveSurveyAiLlm,
 } from "@/lib/survey-ai/llm";
+import { formatKsicContext } from "@/lib/survey-ai/ksic";
 
 const AXI_SYSTEM_PROMPT = `당신은 AXI입니다. 전화·설문 조사 직원을 돕는 짧은 가이드 AI입니다.
 
@@ -11,12 +12,14 @@ const AXI_SYSTEM_PROMPT = `당신은 AXI입니다. 전화·설문 조사 직원�
 - 단어·용어의 뜻 설명
 - 설문 보기(선택지) 해석
 - 스크립트에 나온 표현의 의미 안내
+- 설문의 KSIC(한국표준산업분류) 코드·업종 특성을 반영한 해석
 
 규칙 (필수):
 - 한국어로만 답변
 - 반드시 완전한 1~2문장만 출력 (의미 전달에 필요한 길이, 대략 40~120자)
 - 답을 중간에 끊지 말 것. 한 단어만 출력 금지
 - 목록·번호·불릿·마크다운·서론·맺음말 금지
+- KSIC·업종 정보가 있으면 그 산업 맥락에 맞게 설명 (일반론만 나열하지 말 것)
 - 설문 설계·법무·의료·개인정보 처리 요청은 "해당 문의는 AXI 안내 범위를 벗어납니다." 한 문장으로만 답함
 - 모르는 내용은 추측하지 말고 짧게 모른다고 안내`;
 
@@ -77,6 +80,8 @@ export async function askAxiGuide(params: {
   question: string;
   surveyTitle: string;
   scriptContext: string;
+  ksicCode?: string;
+  ksicName?: string;
 }): Promise<AxiAskResult> {
   const question = params.question.trim();
   if (!question) {
@@ -91,16 +96,42 @@ export async function askAxiGuide(params: {
     return { ok: false, error: llm.error };
   }
 
+  const ksicCode = (params.ksicCode ?? "").trim();
+  const ksicName = (params.ksicName ?? "").trim();
+
+  let ksicBlock = "";
+  if (ksicCode || ksicName) {
+    try {
+      if (ksicCode) {
+        ksicBlock = await formatKsicContext(ksicCode, ksicName);
+      } else {
+        ksicBlock = `업종명: ${ksicName}`;
+      }
+    } catch {
+      ksicBlock = [
+        ksicCode ? `KSIC 코드: ${ksicCode}` : "",
+        ksicName ? `업종명: ${ksicName}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+    }
+  }
+
   const userPrompt = [
     `설문 제목: ${params.surveyTitle.trim() || "(없음)"}`,
     "",
-    "## 참고 스크립트 (일부, 질문과 관련될 때만 활용)",
+    "## 설문 KSIC·업종 (답변 시 우선 참고)",
+    ksicBlock || "(이 설문에 KSIC가 등록되지 않음)",
+    "",
+    "## 참고 스크립트·문항 (일부, 질문과 관련될 때만 활용)",
     clip(params.scriptContext, MAX_CONTEXT_LEN) || "(스크립트 없음)",
     "",
     "## 직원 질문",
     question,
     "",
-    "완전한 문장 1~2개로만 답하세요. 한 단어만 쓰지 마세요.",
+    ksicBlock
+      ? "KSIC·업종 맥락을 반영해 완전한 문장 1~2개로만 답하세요. 한 단어만 쓰지 마세요."
+      : "완전한 문장 1~2개로만 답하세요. 한 단어만 쓰지 마세요.",
   ].join("\n");
 
   try {

@@ -16,6 +16,8 @@ type Props = {
   onClose: () => void;
   /** 플로팅 패널 등 부모 높이 채움 */
   embedded?: boolean;
+  ksicCode?: string;
+  ksicName?: string;
 };
 
 export function AxiGuidePanel({
@@ -23,6 +25,8 @@ export function AxiGuidePanel({
   scriptContext,
   onClose,
   embedded = false,
+  ksicCode = "",
+  ksicName = "",
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -62,6 +66,8 @@ export function AxiGuidePanel({
         question,
         surveyTitle,
         scriptContext,
+        ksicCode,
+        ksicName,
       });
       if (!result.ok) {
         setError(result.error);

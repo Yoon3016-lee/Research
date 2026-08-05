@@ -171,6 +171,8 @@ export default async function SurveyParticipatePage({ params }: Props) {
           surveyTitle={survey.title}
           scriptContext={axiScriptContext}
           axiIconUrl={axiIconUrl}
+          ksicCode={survey.ksicCode}
+          ksicName={survey.ksicName}
         />
       ) : null}
     </SiteContainer>
