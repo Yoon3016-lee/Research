@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Globe, Pencil, Plus, Trash2 } from "lucide-react";
+import { Download, Globe, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   createNavItemAction,
   deleteNavItemAction,
@@ -253,16 +253,50 @@ function SiteBrandingSection({
                 className="h-10 max-w-[12rem] object-contain object-left sm:h-12"
               />
             </div>
-            <form action={deleteLogoFormAction}>
-              <ActionMessage state={deleteLogoState} />
+            <div className="flex flex-wrap gap-2">
               <button
-                type="submit"
-                disabled={deleteLogoPending}
-                className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+                type="button"
+                onClick={async () => {
+                  try {
+                    const res = await fetch(initialLogoUrl);
+                    if (!res.ok) throw new Error("download failed");
+                    const blob = await res.blob();
+                    const ext =
+                      blob.type === "image/png"
+                        ? "png"
+                        : blob.type === "image/jpeg"
+                          ? "jpg"
+                          : blob.type === "image/gif"
+                            ? "gif"
+                            : blob.type === "image/webp"
+                              ? "webp"
+                              : "png";
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `site-logo.${ext}`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  } catch {
+                    window.open(initialLogoUrl, "_blank", "noopener,noreferrer");
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
               >
-                {deleteLogoPending ? "삭제 중…" : "로고 삭제"}
+                <Download className="h-3.5 w-3.5" aria-hidden />
+                로고 다운로드
               </button>
-            </form>
+              <form action={deleteLogoFormAction}>
+                <ActionMessage state={deleteLogoState} />
+                <button
+                  type="submit"
+                  disabled={deleteLogoPending}
+                  className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+                >
+                  {deleteLogoPending ? "삭제 중…" : "로고 삭제"}
+                </button>
+              </form>
+            </div>
           </div>
         ) : (
           <p className="mt-3 text-sm text-zinc-500">등록된 로고가 없습니다.</p>

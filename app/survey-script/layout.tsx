@@ -4,6 +4,8 @@ export default function SurveyScriptPopupLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900 antialiased">{children}</div>
+    <div className="h-dvh max-h-dvh overflow-hidden bg-zinc-50 text-zinc-900 antialiased">
+      {children}
+    </div>
   );
 }

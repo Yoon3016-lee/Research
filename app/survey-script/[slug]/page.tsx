@@ -2,7 +2,7 @@ import { PopupCloseButton } from "@/components/site/PopupWindowActions";
 import { SurveyScriptViewer } from "@/components/site/SurveyScriptViewer";
 import { loadSurveyResponseScript } from "@/lib/survey-script";
 
-export const metadata = { title: "스크립트 확인" };
+export const metadata = { title: "Advisor Agent" };
 
 export const dynamic = "force-dynamic";
 

@@ -66,6 +66,8 @@ export function SurveyBuilderForm({
   const [targetCount, setTargetCount] = useState(initial?.targetCount ?? 100);
   const [listedPublic, setListedPublic] = useState(initial?.listedPublic ?? true);
   const [responseScript, setResponseScript] = useState(initial?.responseScript ?? "");
+  const [ksicCode, setKsicCode] = useState(initial?.ksicCode ?? "");
+  const [ksicName, setKsicName] = useState(initial?.ksicName ?? "");
   const [questions, setQuestions] = useState<DraftQuestion[]>(
     templateFrom?.questions ?? initial?.questions ?? [],
   );
@@ -137,6 +139,8 @@ export function SurveyBuilderForm({
     targetCount: Number.isFinite(targetCount) ? Math.max(0, Math.floor(targetCount)) : 0,
     listedPublic,
     responseScript,
+    ksicCode,
+    ksicName,
     questions: questions.map((q) => ({ ...q })),
   });
 
@@ -224,6 +228,24 @@ export function SurveyBuilderForm({
             />
           </label>
           <label className="block">
+            <span className="admin-label">KSIC 코드</span>
+            <input
+              value={ksicCode}
+              onChange={(e) => setKsicCode(e.target.value)}
+              className="admin-input mt-1.5 font-mono"
+              placeholder="예: 62010"
+            />
+          </label>
+          <label className="block">
+            <span className="admin-label">KSIC 분류명</span>
+            <input
+              value={ksicName}
+              onChange={(e) => setKsicName(e.target.value)}
+              className="admin-input mt-1.5"
+              placeholder="예: 컴퓨터 프로그래밍 서비스업"
+            />
+          </label>
+          <label className="block">
             <span className="admin-label">시작일 *</span>
             <input
               type="date"
@@ -294,10 +316,10 @@ export function SurveyBuilderForm({
 
       <div className="admin-card p-6">
         <h2 className="text-base font-semibold tracking-tight text-brand-900">
-          응답 스크립트 (직원용)
+          Advisor Agent (직원용 스크립트)
         </h2>
         <p className="mt-1 text-sm text-brand-700/80">
-          직원이 설문 입력·전화 조사 시 「스크립트 확인」 팝업에서 볼 내용입니다.
+          직원이 설문 입력·전화 조사 시 「Advisor Agent」 팝업에서 볼 내용입니다.
         </p>
         <label className="mt-5 block">
           <span className="admin-label">스크립트 본문</span>

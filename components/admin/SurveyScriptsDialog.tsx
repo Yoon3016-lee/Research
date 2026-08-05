@@ -200,7 +200,7 @@ function SurveyScriptsEditor({ surveys }: { surveys: SurveyScriptAdminRow[] }) {
             </Link>
           </div>
           <p className="mt-3 text-xs text-brand-700/80">
-            직원이 이 설문에서 「스크립트 확인」 시 보이는 설문 전용 스크립트입니다.
+            직원이 이 설문에서 「Advisor Agent」 시 보이는 설문 전용 스크립트입니다.
           </p>
           <form action={formAction} className="mt-4 space-y-3">
             <input type="hidden" name="slug" value={selected.slug} />

@@ -21,7 +21,7 @@ function PageImage({
 }) {
   const imgClass = fullBleed
     ? "block h-auto w-full max-w-none"
-    : "mx-auto max-h-[min(70vh,640px)] w-full object-contain";
+    : "block h-auto w-full object-contain";
 
   const img = (
     // eslint-disable-next-line @next/next/no-img-element
@@ -68,7 +68,7 @@ function PageImage({
   }
 
   return (
-    <figure className="overflow-hidden rounded-xl border border-brand-900/10 bg-surface">
+    <figure className="overflow-hidden rounded-xl border border-brand-900/10 bg-white">
       {linked}
       {alt ? (
         <figcaption className="border-t border-brand-900/10 px-3 py-2 text-center text-xs text-brand-700/80">

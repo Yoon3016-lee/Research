@@ -43,6 +43,8 @@ clarifications.question 작성 규칙 (필수):
 
 불필요한 보완 요청은 하지 마세요. 명확하면 바로 proposals를 생성하세요.
 
+**재생성(revision) 요청이 포함된 경우:** needs_clarification을 사용하지 말고 반드시 status "proposals"로 ${proposalCount}개의 새 설문안을 생성하세요. 이전 안과 차별화하되, 관리자 보완·추가 목적을 반영하세요.
+
 ### B) 설문 생성 가능한 경우
 {
   "status": "proposals",
@@ -130,6 +132,44 @@ export function buildSurveyAiUserPrompt(brief: SurveyAiBrief, ksicBlock: string)
         ].join("\n")
       : "";
 
+  const isRevision = Boolean(brief.revisionFeedback.trim());
+  const previousBlock =
+    isRevision && brief.previousProposals.length > 0
+      ? [
+          "",
+          "## 직전 라운드에서 제시된 설문안 (참고·차별화용)",
+          ...brief.previousProposals.map((p, i) => {
+            const improvements =
+              p.improvements.length > 0
+                ? p.improvements
+                    .map((n) => `  - [${n.area}] ${n.detail}`)
+                    .join("\n")
+                : "  - (없음)";
+            return [
+              `### 이전 안 ${i + 1}: ${p.title}`,
+              `- 요약: ${p.summary}`,
+              `- AI가 제시한 보완점:`,
+              improvements,
+            ].join("\n");
+          }),
+        ].join("\n")
+      : "";
+
+  const revisionBlock = isRevision
+    ? [
+        "",
+        "## 관리자 재생성 요청 (필수 반영)",
+        brief.revisionFeedback.trim(),
+        "",
+        "위 추가 목적·보완점을 반영해 **이전 안과 다른** 새 설문안을 생성하세요.",
+        "needs_clarification을 반환하지 말고 status \"proposals\"만 사용하세요.",
+      ].join("\n")
+    : "";
+
+  const closing = isRevision
+    ? "위 정보를 바탕으로 전문 조사표 형식(SQ1 스크리닝 시작, SQ 번호·분기 하위번호, 문항 약 20개)의 **새로운** 설문안을 생성하세요."
+    : "위 정보를 바탕으로 전문 조사표 형식(SQ1 스크리닝 시작, SQ 번호·분기 하위번호, 문항 약 20개)의 설문안을 생성하세요.\n정보가 부족하면 clarifications를 「… 내용 보완이 필요합니다.」 형식으로 반환하세요.";
+
   return `## KSIC·산업 정보
 ${ksicBlock}
 
@@ -139,7 +179,8 @@ ${ksicBlock}
 - 설문 주제·관심 영역: ${brief.surveyTopic.trim() || "(미입력)"}
 - 추가 메모: ${brief.additionalNotes.trim() || "(없음)"}
 ${clarificationBlock}
+${previousBlock}
+${revisionBlock}
 
-위 정보를 바탕으로 전문 조사표 형식(SQ1 스크리닝 시작, SQ 번호·분기 하위번호, 문항 약 20개)의 설문안을 생성하세요.
-정보가 부족하면 clarifications를 「… 내용 보완이 필요합니다.」 형식으로 반환하세요.`;
+${closing}`;
 }

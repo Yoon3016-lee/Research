@@ -101,6 +101,7 @@ async function completeWithOpenAi(
   config: SurveyAiLlmConfig,
   systemPrompt: string,
   userPrompt: string,
+  options?: { json?: boolean; temperature?: number; maxTokens?: number },
 ): Promise<string> {
   const key = readServerEnv("OPENAI_API_KEY");
   if (!key) throw new Error("OPENAI_API_KEY가 설정되지 않았습니다.");
@@ -108,8 +109,9 @@ async function completeWithOpenAi(
   const client = new OpenAI({ apiKey: key });
   const completion = await client.chat.completions.create({
     model: config.model,
-    temperature: 0.7,
-    response_format: { type: "json_object" },
+    temperature: options?.temperature ?? 0.7,
+    max_tokens: options?.maxTokens,
+    response_format: options?.json === false ? undefined : { type: "json_object" },
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
@@ -127,6 +129,13 @@ async function completeWithGemini(
   config: SurveyAiLlmConfig,
   systemPrompt: string,
   userPrompt: string,
+  options?: {
+    json?: boolean;
+    temperature?: number;
+    maxTokens?: number;
+    /** Gemini 2.5 thinking 예산. 0이면 사고 생략(짧은 답변에 권장) */
+    thinkingBudget?: number;
+  },
 ): Promise<string> {
   const key = getGeminiApiKey();
   if (!key) {
@@ -134,13 +143,21 @@ async function completeWithGemini(
   }
 
   const genAI = new GoogleGenerativeAI(key);
+  const generationConfig: Record<string, unknown> = {
+    temperature: options?.temperature ?? 0.7,
+    maxOutputTokens: options?.maxTokens,
+    responseMimeType: options?.json === false ? "text/plain" : "application/json",
+  };
+  if (typeof options?.thinkingBudget === "number") {
+    generationConfig.thinkingConfig = { thinkingBudget: options.thinkingBudget };
+  }
+
   const model = genAI.getGenerativeModel({
     model: config.model,
     systemInstruction: systemPrompt,
-    generationConfig: {
-      temperature: 0.7,
-      responseMimeType: "application/json",
-    },
+    generationConfig: generationConfig as Parameters<
+      GoogleGenerativeAI["getGenerativeModel"]
+    >[0]["generationConfig"],
   });
 
   const result = await model.generateContent(userPrompt);
@@ -161,4 +178,34 @@ export async function completeSurveyAiJson(params: {
     return completeWithGemini(config, systemPrompt, userPrompt);
   }
   return completeWithOpenAi(config, systemPrompt, userPrompt);
+}
+
+/** AXI 등 짧은 평문 답변용 */
+export async function completeSurveyAiText(params: {
+  config: SurveyAiLlmConfig;
+  systemPrompt: string;
+  userPrompt: string;
+  temperature?: number;
+  maxTokens?: number;
+  /** Gemini 전용. 짧은 가이드 답변은 0 권장 */
+  thinkingBudget?: number;
+}): Promise<string> {
+  const {
+    config,
+    systemPrompt,
+    userPrompt,
+    temperature = 0.3,
+    maxTokens = 1024,
+    thinkingBudget,
+  } = params;
+  const options = {
+    json: false as const,
+    temperature,
+    maxTokens,
+    thinkingBudget,
+  };
+  if (config.provider === "gemini") {
+    return completeWithGemini(config, systemPrompt, userPrompt, options);
+  }
+  return completeWithOpenAi(config, systemPrompt, userPrompt, options);
 }

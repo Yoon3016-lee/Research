@@ -44,6 +44,8 @@ const emptyBrief = (): SurveyAiBrief => ({
   surveyTopic: "",
   additionalNotes: "",
   clarificationAnswers: {},
+  revisionFeedback: "",
+  previousProposals: [],
 });
 
 export function SurveyAiGenerator() {
@@ -148,6 +150,19 @@ export function SurveyAiGenerator() {
       setProposals(result.proposals);
       setWarnings(result.warnings ?? []);
       setSelectedId(result.proposals[0]?.id ?? null);
+      setBrief((prev) => {
+        const feedback = nextBrief.revisionFeedback.trim();
+        const notesParts = [
+          prev.additionalNotes.trim(),
+          feedback ? `[재생성 반영] ${feedback}` : "",
+        ].filter(Boolean);
+        return {
+          ...prev,
+          revisionFeedback: "",
+          previousProposals: [],
+          additionalNotes: notesParts.join("\n\n") || prev.additionalNotes,
+        };
+      });
       setStep("proposals");
     });
   };
@@ -165,7 +180,26 @@ export function SurveyAiGenerator() {
         return;
       }
     }
-    runGenerate(brief);
+    runGenerate({ ...brief, revisionFeedback: "", previousProposals: [] });
+  };
+
+  const handleRevisionSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const feedback = brief.revisionFeedback.trim();
+    if (!feedback) {
+      setError("추가 목적이나 보완할 점을 입력한 뒤 새 설문안을 생성해 주세요.");
+      return;
+    }
+    const previousProposals = proposals.map((p) => ({
+      title: p.title,
+      summary: p.summary,
+      improvements: p.improvements,
+    }));
+    runGenerate({
+      ...brief,
+      revisionFeedback: feedback,
+      previousProposals,
+    });
   };
 
   const applyProposal = () => {
@@ -184,6 +218,8 @@ export function SurveyAiGenerator() {
       targetCount: 100,
       listedPublic: true,
       responseScript: proposal.responseScript,
+      ksicCode: brief.ksicCode.trim(),
+      ksicName: brief.ksicName.trim(),
       questions: proposal.questions,
       aiSource: {
         proposalId: proposal.id,
@@ -438,6 +474,47 @@ export function SurveyAiGenerator() {
             <ProposalDetail proposal={proposals.find((p) => p.id === selectedId)!} />
           ) : null}
 
+          <form
+            onSubmit={handleRevisionSubmit}
+            className="space-y-3 rounded-2xl border border-violet-200 bg-violet-50/40 p-5"
+          >
+            <div className="flex items-start gap-2">
+              <Bot className="mt-0.5 h-5 w-5 shrink-0 text-violet-700" aria-hidden />
+              <div>
+                <h3 className="text-sm font-semibold text-violet-950">
+                  추가 목적·보완점 반영 후 새 설문안 생성
+                </h3>
+                <p className="mt-1 text-xs leading-relaxed text-violet-900/80">
+                  제시된 보완·개선 제안이나 추가로 반영할 조사 목적을 적어 주세요. AI가 이를
+                  반영해 설문안 {proposalCount}개를 다시 만듭니다.
+                </p>
+              </div>
+            </div>
+            <label className="block">
+              <span className="sr-only">추가 목적 및 보완할 점</span>
+              <textarea
+                value={brief.revisionFeedback}
+                onChange={(e) => updateBrief({ revisionFeedback: e.target.value })}
+                rows={4}
+                className="admin-input mt-1"
+                placeholder="예: 가격 민감도 문항을 강화하고, 경쟁사 비교 SQ를 추가해 주세요. 스크리닝은 B2B 의사결정자만 대상으로…"
+                disabled={pending}
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={pending}
+              className="admin-btn-primary inline-flex items-center gap-2 px-5 py-2.5 disabled:opacity-60"
+            >
+              {pending ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Sparkles className="h-4 w-4" aria-hidden />
+              )}
+              보완 반영해 설문안 {proposalCount}개 다시 생성
+            </button>
+          </form>
+
           <div className="flex flex-wrap gap-3 border-t border-brand-900/8 pt-6">
             <button
               type="button"
@@ -445,6 +522,7 @@ export function SurveyAiGenerator() {
                 setStep("input");
                 setProposals([]);
                 setWarnings([]);
+                updateBrief({ revisionFeedback: "", previousProposals: [] });
               }}
               className="admin-btn-secondary px-5 py-2.5"
             >
@@ -453,6 +531,7 @@ export function SurveyAiGenerator() {
             <button
               type="button"
               onClick={applyProposal}
+              disabled={pending}
               className="admin-btn-primary inline-flex items-center gap-2 px-6 py-2.5 disabled:opacity-60"
             >
               선택한 설문안을 편집기에 적용

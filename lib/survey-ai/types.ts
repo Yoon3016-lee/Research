@@ -1,17 +1,5 @@
 import type { CreateSurveyPayload, DraftQuestion } from "@/lib/survey-types";
 
-/** 관리자가 AI에 전달하는 조사 개요 */
-export type SurveyAiBrief = {
-  ksicCode: string;
-  ksicName: string;
-  researchPurpose: string;
-  targetRespondent: string;
-  surveyTopic: string;
-  additionalNotes: string;
-  /** 이전 단계에서 AI가 요청한 보완 답변 */
-  clarificationAnswers: Record<string, string>;
-};
-
 export type SurveyAiClarification = {
   id: string;
   question: string;
@@ -29,6 +17,32 @@ export type SurveyAiQuestionScript = {
 export type SurveyAiImprovementNote = {
   area: string;
   detail: string;
+};
+
+/** 재생성 시 참고할 이전 설문안 요약 */
+export type SurveyAiPreviousProposalSummary = {
+  title: string;
+  summary: string;
+  improvements: SurveyAiImprovementNote[];
+};
+
+/** 관리자가 AI에 전달하는 조사 개요 */
+export type SurveyAiBrief = {
+  ksicCode: string;
+  ksicName: string;
+  researchPurpose: string;
+  targetRespondent: string;
+  surveyTopic: string;
+  additionalNotes: string;
+  /** 이전 단계에서 AI가 요청한 보완 답변 */
+  clarificationAnswers: Record<string, string>;
+  /**
+   * 설문안 제시 후 관리자가 입력한 추가 목적·보완 요청.
+   * 있으면 보완 질문 없이 새 proposals를 생성하도록 유도합니다.
+   */
+  revisionFeedback: string;
+  /** 직전 라운드에서 생성된 설문안 요약(재생성 시 참고) */
+  previousProposals: SurveyAiPreviousProposalSummary[];
 };
 
 /** 추가로 만들면 좋은 문항 방향 */

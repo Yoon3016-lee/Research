@@ -64,6 +64,8 @@ export async function createSurveyAction(
       status: periodBuilt.data.status,
       listed_public: payload.listedPublic,
       response_script: payload.responseScript.trim(),
+      ksic_code: (payload.ksicCode ?? "").trim(),
+      ksic_name: (payload.ksicName ?? "").trim(),
       response_count: 0,
     })
     .select("id")
@@ -81,6 +83,12 @@ export async function createSurveyAction(
       return {
         error:
           "DB에 period_start·period_end 컬럼이 없습니다. supabase/migrations/20260407270000_survey_period_dates.sql 을 실행한 뒤 다시 저장하세요.",
+      };
+    }
+    if (msg.includes("ksic_code") || msg.includes("ksic_name")) {
+      return {
+        error:
+          "DB에 ksic_code·ksic_name 컬럼이 없습니다. supabase/migrations/20260409000000_surveys_ksic.sql 을 실행한 뒤 다시 저장하세요.",
       };
     }
     return { error: msg };

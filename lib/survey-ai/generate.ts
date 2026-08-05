@@ -132,6 +132,16 @@ export async function generateSurveyWithAi(brief: SurveyAiBrief): Promise<Survey
     });
 
     const result = parseSurveyAiResponse(content);
+    if (
+      brief.revisionFeedback.trim() &&
+      result.status === "needs_clarification"
+    ) {
+      return {
+        status: "error",
+        error:
+          "재생성 요청인데 AI가 보완 질문을 반환했습니다. 추가 목적·보완점을 조금 더 구체적으로 적어 다시 시도해 주세요.",
+      };
+    }
     if (result.status === "proposals" && preWarnings.length > 0) {
       return {
         ...result,

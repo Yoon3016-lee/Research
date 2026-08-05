@@ -39,10 +39,10 @@ export function SurveyScriptCheckButton({ slug, surveyTitle }: Props) {
       type="button"
       onClick={openScriptWindow}
       className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-900 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-100"
-      title={`${surveyTitle} — 응답 스크립트를 별도 창에서 확인`}
+      title={`${surveyTitle} — Advisor Agent에서 스크립트 확인`}
     >
       <FileText className="h-4 w-4 shrink-0" aria-hidden />
-      스크립트 확인
+      Advisor Agent
     </button>
   );
 }

@@ -1,13 +1,16 @@
 import "server-only";
 
 import { normalizeCatiOutcomeValue } from "@/lib/cati-outcomes";
+import { columnLetterToIndex } from "@/lib/survey-sample-columns";
 import type {
+  SurveySampleBatchDataPreview,
   SurveySampleBatchSummary,
   SurveySampleColumnMapping,
 } from "@/lib/survey-sample-types";
 import { buildSurveySampleRows, serializeColumnHeaders } from "@/lib/survey-sample-parse";
 import { isUuid, normalizeSurveyRef } from "@/lib/survey-slug";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
+import * as XLSX from "xlsx";
 
 const INSERT_CHUNK = 400;
 
@@ -291,4 +294,188 @@ export async function activateSurveySampleBatch(
   }
 
   return { ok: true };
+}
+
+const PREVIEW_LIMIT = 30;
+
+export async function getSurveySampleBatchPreview(
+  surveyRef: string,
+  batchId: string,
+): Promise<{ ok: true; preview: SurveySampleBatchDataPreview } | { ok: false; error: string }> {
+  const surveyId = await resolveSurveyId(surveyRef);
+  if (!surveyId) {
+    return { ok: false, error: "설문을 찾을 수 없습니다." };
+  }
+
+  const admin = createSupabaseServiceRoleClient();
+  const { data: batch, error: batchError } = await admin
+    .from("survey_sample_batches")
+    .select(
+      "id, version_number, original_filename, uid_column, phone_column, outcome_column, column_headers, row_count, status",
+    )
+    .eq("id", batchId)
+    .eq("survey_id", surveyId)
+    .maybeSingle();
+
+  if (batchError || !batch) {
+    return { ok: false, error: "표본 버전을 찾을 수 없습니다." };
+  }
+  if (batch.status !== "ready") {
+    return { ok: false, error: "완료된 표본 버전만 미리볼 수 있습니다." };
+  }
+
+  const { data: samples, error: samplesError } = await admin
+    .from("survey_samples")
+    .select("row_index, uid, phone, row_data")
+    .eq("batch_id", batchId)
+    .order("row_index", { ascending: true })
+    .limit(PREVIEW_LIMIT);
+
+  if (samplesError) {
+    return { ok: false, error: samplesError.message };
+  }
+
+  const headers = Array.isArray(batch.column_headers)
+    ? batch.column_headers.filter((h): h is string => typeof h === "string")
+    : [];
+
+  const rows = (samples ?? []).map((s) => {
+    const rowData =
+      s.row_data && typeof s.row_data === "object"
+        ? (s.row_data as Record<string, unknown>)
+        : {};
+    const cells: Record<string, string> = {};
+    for (const [k, v] of Object.entries(rowData)) {
+      cells[k] = v == null ? "" : String(v);
+    }
+    if (!cells[batch.uid_column as string]) {
+      cells[batch.uid_column as string] = String(s.uid ?? "");
+    }
+    if (!cells[batch.phone_column as string]) {
+      cells[batch.phone_column as string] = String(s.phone ?? "");
+    }
+    return {
+      rowIndex: s.row_index as number,
+      cells,
+    };
+  });
+
+  return {
+    ok: true,
+    preview: {
+      batchId: batch.id as string,
+      versionNumber: batch.version_number as number,
+      originalFilename: batch.original_filename as string,
+      uidColumn: batch.uid_column as string,
+      phoneColumn: batch.phone_column as string,
+      outcomeColumn: batch.outcome_column as string,
+      columnHeaders: headers,
+      totalRows: batch.row_count as number,
+      rows,
+    },
+  };
+}
+
+export async function buildSurveySampleBatchExcel(
+  surveyRef: string,
+  batchId: string,
+): Promise<
+  | { ok: true; filename: string; buffer: Buffer }
+  | { ok: false; error: string }
+> {
+  const surveyId = await resolveSurveyId(surveyRef);
+  if (!surveyId) {
+    return { ok: false, error: "설문을 찾을 수 없습니다." };
+  }
+
+  const admin = createSupabaseServiceRoleClient();
+  const { data: batch, error: batchError } = await admin
+    .from("survey_sample_batches")
+    .select(
+      "id, version_number, original_filename, uid_column, phone_column, outcome_column, column_headers, status",
+    )
+    .eq("id", batchId)
+    .eq("survey_id", surveyId)
+    .maybeSingle();
+
+  if (batchError || !batch) {
+    return { ok: false, error: "표본 버전을 찾을 수 없습니다." };
+  }
+  if (batch.status !== "ready") {
+    return { ok: false, error: "완료된 표본 버전만 다운로드할 수 있습니다." };
+  }
+
+  const { data: samples, error: samplesError } = await admin
+    .from("survey_samples")
+    .select("row_index, uid, phone, row_data, outcome_value")
+    .eq("batch_id", batchId)
+    .order("row_index", { ascending: true });
+
+  if (samplesError) {
+    return { ok: false, error: samplesError.message };
+  }
+
+  const headers = Array.isArray(batch.column_headers)
+    ? batch.column_headers.filter((h): h is string => typeof h === "string")
+    : [];
+
+  const letterSet = new Set<string>();
+  for (const s of samples ?? []) {
+    const rowData =
+      s.row_data && typeof s.row_data === "object"
+        ? (s.row_data as Record<string, unknown>)
+        : {};
+    for (const key of Object.keys(rowData)) letterSet.add(key);
+  }
+  letterSet.add(batch.uid_column as string);
+  letterSet.add(batch.phone_column as string);
+  letterSet.add(batch.outcome_column as string);
+
+  const letters = [...letterSet].sort(
+    (a, b) => columnLetterToIndex(a) - columnLetterToIndex(b),
+  );
+
+  const headerRow = letters.map((letter) => {
+    const idx = columnLetterToIndex(letter);
+    const h = idx >= 0 ? headers[idx]?.trim() : "";
+    return h || letter;
+  });
+
+  const matrix: (string | number)[][] = [headerRow];
+  for (const s of samples ?? []) {
+    const rowData =
+      s.row_data && typeof s.row_data === "object"
+        ? (s.row_data as Record<string, unknown>)
+        : {};
+    matrix.push(
+      letters.map((letter) => {
+        if (letter === batch.uid_column) return String(s.uid ?? rowData[letter] ?? "");
+        if (letter === batch.phone_column) return String(s.phone ?? rowData[letter] ?? "");
+        if (letter === batch.outcome_column) {
+          return String(s.outcome_value ?? rowData[letter] ?? "");
+        }
+        const v = rowData[letter];
+        return v == null ? "" : String(v);
+      }),
+    );
+  }
+
+  const sheet = XLSX.utils.aoa_to_sheet(matrix);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, sheet, "samples");
+  const buffer = Buffer.from(
+    XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as ArrayBuffer,
+  );
+
+  const baseName =
+    String(batch.original_filename ?? "samples")
+      .replace(/\.(xlsx|xls)$/i, "")
+      .replace(/[^\w가-힣.-]+/g, "_")
+      .slice(0, 80) || "samples";
+
+  return {
+    ok: true,
+    filename: `${baseName}-v${batch.version_number}.xlsx`,
+    buffer,
+  };
 }

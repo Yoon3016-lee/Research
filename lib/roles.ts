@@ -31,7 +31,7 @@ export function isStaffRole(role: string): role is InternalStaffRole {
   return (INTERNAL_STAFF_ROLES as readonly string[]).includes(role);
 }
 
-/** 설문 참여 화면에서 응답 스크립트(메뉴얼) 팝업 — 직원(employee) 이상 */
+/** 설문 참여 화면에서 Advisor Agent(응답 스크립트) 팝업 — 직원(employee) 이상 */
 export function canViewResponseScript(role: string | null | undefined): boolean {
   return !!role && isStaffRole(role);
 }

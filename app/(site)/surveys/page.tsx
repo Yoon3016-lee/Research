@@ -1,11 +1,16 @@
 import Link from "next/link";
 import { Calendar, ChevronRight, Clock, Users } from "lucide-react";
 import { SiteContainer } from "@/components/site/SiteContainer";
+import {
+  findSiteNavGuideMatch,
+  findSiteNavTrailForHref,
+  getSiteHomepageConfig,
+} from "@/lib/site-homepage";
 import { getPublicOngoingSurveys } from "@/lib/surveys-db";
 import type { SurveyStatus } from "@/lib/survey-list-types";
 
 export const metadata = {
-  title: "진행중 설문 | Research Hub",
+  title: "설문 광장 | Research Hub",
   description: "진행중·예정 설문조사 목록",
 };
 
@@ -20,19 +25,37 @@ function statusBadgeClass(status: SurveyStatus): string {
 }
 
 export default async function SurveysPage() {
-  const surveys = await getPublicOngoingSurveys();
+  const [surveys, homepage] = await Promise.all([
+    getPublicOngoingSurveys(),
+    getSiteHomepageConfig(),
+  ]);
+  const trail = findSiteNavTrailForHref(homepage.groups, "/surveys");
+  const guideMatch = findSiteNavGuideMatch(homepage.groups, "/surveys");
+  const itemLabel = trail?.itemLabel ?? "설문 광장";
   const ongoingCount = surveys.filter((s) => s.status === "진행중").length;
   const scheduledCount = surveys.filter((s) => s.status === "예정").length;
 
   return (
     <SiteContainer as="main" className="py-10 sm:py-12 lg:py-14">
-      <div className="max-w-3xl">
-        <h1 className="font-semibold text-brand-900">진행중인 설문</h1>
-        <p className="mt-2 text-brand-700">
-          공개로 설정된 <strong>진행중</strong>·<strong>예정</strong> 설문을 표시합니다.
-          예정 설문은 목록에서 안내만 보이며, 기간이 시작된 뒤(진행중)에 참여할 수 있습니다.
-        </p>
-      </div>
+      {guideMatch ? (
+        <>
+          <h1 className="sr-only">{itemLabel}</h1>
+          <p className="max-w-3xl text-brand-700">
+            공개로 설정된 <strong>진행중</strong>·<strong>예정</strong> 설문을 표시합니다.
+            예정 설문은 목록에서 안내만 보이며, 기간이 시작된 뒤(진행중)에 참여할 수 있습니다.
+          </p>
+        </>
+      ) : (
+        <header className="border-b border-brand-900/10 pb-5 sm:pb-6">
+          <h1 className="text-[2.25rem] font-semibold leading-tight tracking-tight text-brand-900 sm:text-[2.8125rem]">
+            {itemLabel}
+          </h1>
+          <p className="mt-3 max-w-3xl text-brand-700">
+            공개로 설정된 <strong>진행중</strong>·<strong>예정</strong> 설문을 표시합니다.
+            예정 설문은 목록에서 안내만 보이며, 기간이 시작된 뒤(진행중)에 참여할 수 있습니다.
+          </p>
+        </header>
+      )}
 
       {surveys.length === 0 ? (
         <p className="site-card mt-10 border-dashed text-center text-brand-700">
@@ -68,7 +91,7 @@ export default async function SurveysPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <span className={statusBadgeClass(s.status)}>{s.status}</span>
                       </div>
-                      <h2 className="mt-2.5 text-2xl font-semibold tracking-tight text-brand-900 sm:text-3xl">
+                      <h2 className="mt-2.5 text-[1.5rem] font-semibold leading-snug tracking-tight text-brand-900">
                         {s.title}
                       </h2>
                       <p className="mt-1 text-brand-700">{s.summary}</p>

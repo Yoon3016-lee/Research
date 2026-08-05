@@ -291,3 +291,73 @@ export function findSiteNavTrailForPage(
 
   return null;
 }
+
+/** 경로(href)에 연결된 상단 탭·하단 메뉴 라벨을 찾습니다. 예: /surveys */
+export function findSiteNavTrailForHref(
+  groups: SiteNavGroup[],
+  href: string,
+): SiteNavTrail | null {
+  const path = normalizeNavPath(href);
+  if (!path) return null;
+
+  for (const group of groups) {
+    for (const item of group.items) {
+      if (normalizeNavPath(item.href) === path) {
+        return {
+          groupLabel: group.label.trim() || group.key,
+          itemLabel: item.label.trim() || path,
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+export type SiteNavGuideMatch = {
+  groupKey: string;
+  groupLabel: string;
+  itemLabel: string;
+  guidePdfUrl: string;
+  guideMediaType: SiteNavGuideMediaType;
+};
+
+/**
+ * 현재 경로에 표시할 상단 탭 안내 배너(가이드)와 하단 메뉴 제목을 찾습니다.
+ * 배너가 없으면 null — 페이지에서 제목을 별도 출력합니다.
+ */
+export function findSiteNavGuideMatch(
+  groups: SiteNavGroup[],
+  href: string,
+): SiteNavGuideMatch | null {
+  const path = normalizeNavPath(href);
+  if (!path) return null;
+
+  let best: SiteNavGuideMatch | null = null;
+  let bestLen = -1;
+
+  for (const group of groups) {
+    if (!group.guidePdfUrl) continue;
+    for (const item of group.items) {
+      const itemPath = normalizeNavPath(item.href);
+      let len = -1;
+      if (itemPath === "/") {
+        len = path === "/" ? 1 : -1;
+      } else if (path === itemPath || path.startsWith(`${itemPath}/`)) {
+        len = itemPath.length;
+      }
+      if (len > bestLen) {
+        bestLen = len;
+        best = {
+          groupKey: group.key,
+          groupLabel: group.label.trim() || group.key,
+          itemLabel: item.label.trim() || itemPath,
+          guidePdfUrl: group.guidePdfUrl,
+          guideMediaType: group.guideMediaType ?? "pdf",
+        };
+      }
+    }
+  }
+
+  return best;
+}

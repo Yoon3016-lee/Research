@@ -251,5 +251,9 @@ export type CreateSurveyPayload = {
   listedPublic: boolean;
   /** 직원 전화 조사용 응답 스크립트·메뉴얼 */
   responseScript: string;
+  /** 한국표준산업분류(KSIC) 코드 */
+  ksicCode: string;
+  /** KSIC 분류명 */
+  ksicName: string;
   questions: DraftQuestion[];
 };

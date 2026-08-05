@@ -59,3 +59,19 @@ export type SurveySampleUploadResult =
 export type SurveySamplePreviewResult =
   | { ok: true; preview: SurveySampleSpreadsheetPreview }
   | { ok: false; error: string };
+
+export type SurveySampleBatchDataPreview = {
+  batchId: string;
+  versionNumber: number;
+  originalFilename: string;
+  uidColumn: string;
+  phoneColumn: string;
+  outcomeColumn: string;
+  columnHeaders: string[];
+  totalRows: number;
+  rows: SurveySamplePreviewRow[];
+};
+
+export type SurveySampleBatchPreviewResult =
+  | { ok: true; preview: SurveySampleBatchDataPreview }
+  | { ok: false; error: string };

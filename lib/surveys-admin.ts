@@ -28,6 +28,8 @@ type SurveyRow = {
   listed_public: boolean;
   response_count: number;
   response_script: string;
+  ksic_code?: string | null;
+  ksic_name?: string | null;
 };
 
 type QuestionRow = {
@@ -65,12 +67,33 @@ async function fetchSurveyRow(
   }
 
   const select =
-    "id, slug, title, summary, period_label, period_start, period_end, target_count, status, listed_public, response_count, response_script";
+    "id, slug, title, summary, period_label, period_start, period_end, target_count, status, listed_public, response_count, response_script, ksic_code, ksic_name";
 
   const bySlug = await admin.from("surveys").select(select).eq("slug", normalized).maybeSingle();
   if (bySlug.error) {
-    console.error("[loadSurveyForEdit] slug lookup:", bySlug.error.message);
-    return { row: null, errorMessage: bySlug.error.message };
+    // 마이그레이션 전 DB: ksic 컬럼 없을 수 있음
+    if (
+      bySlug.error.message.includes("ksic_code") ||
+      bySlug.error.message.includes("ksic_name")
+    ) {
+      const fallbackSelect =
+        "id, slug, title, summary, period_label, period_start, period_end, target_count, status, listed_public, response_count, response_script";
+      const fallback = await admin
+        .from("surveys")
+        .select(fallbackSelect)
+        .eq("slug", normalized)
+        .maybeSingle();
+      if (fallback.error) {
+        console.error("[loadSurveyForEdit] slug lookup:", fallback.error.message);
+        return { row: null, errorMessage: fallback.error.message };
+      }
+      if (fallback.data) {
+        return { row: fallback.data as SurveyRow };
+      }
+    } else {
+      console.error("[loadSurveyForEdit] slug lookup:", bySlug.error.message);
+      return { row: null, errorMessage: bySlug.error.message };
+    }
   }
   if (bySlug.data) {
     return { row: bySlug.data as SurveyRow };
@@ -79,8 +102,28 @@ async function fetchSurveyRow(
   if (isUuid(normalized)) {
     const byId = await admin.from("surveys").select(select).eq("id", normalized).maybeSingle();
     if (byId.error) {
-      console.error("[loadSurveyForEdit] id lookup:", byId.error.message);
-      return { row: null, errorMessage: byId.error.message };
+      if (
+        byId.error.message.includes("ksic_code") ||
+        byId.error.message.includes("ksic_name")
+      ) {
+        const fallbackSelect =
+          "id, slug, title, summary, period_label, period_start, period_end, target_count, status, listed_public, response_count, response_script";
+        const fallback = await admin
+          .from("surveys")
+          .select(fallbackSelect)
+          .eq("id", normalized)
+          .maybeSingle();
+        if (fallback.error) {
+          console.error("[loadSurveyForEdit] id lookup:", fallback.error.message);
+          return { row: null, errorMessage: fallback.error.message };
+        }
+        if (fallback.data) {
+          return { row: fallback.data as SurveyRow };
+        }
+      } else {
+        console.error("[loadSurveyForEdit] id lookup:", byId.error.message);
+        return { row: null, errorMessage: byId.error.message };
+      }
     }
     if (byId.data) {
       return { row: byId.data as SurveyRow };
@@ -305,6 +348,8 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
       targetCount: surveyRow.target_count,
       listedPublic: surveyRow.listed_public,
       responseScript: surveyRow.response_script ?? "",
+      ksicCode: surveyRow.ksic_code ?? "",
+      ksicName: surveyRow.ksic_name ?? "",
       questions: draftQuestions,
     },
   };

@@ -3,11 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { parseSurveySampleSpreadsheet } from "@/lib/survey-sample-parse";
 import type {
+  SurveySampleBatchPreviewResult,
   SurveySamplePreviewResult,
   SurveySampleUploadResult,
 } from "@/lib/survey-sample-types";
 import {
   activateSurveySampleBatch,
+  getSurveySampleBatchPreview,
   uploadSurveySampleBatch,
 } from "@/lib/survey-samples-admin";
 import { requireAdminPanelAccess } from "@/lib/require-admin";
@@ -98,4 +100,12 @@ export async function activateSurveySampleBatchAction(
     revalidatePath("/admin/surveys/samples");
   }
   return result;
+}
+
+export async function previewSurveySampleBatchAction(
+  slug: string,
+  batchId: string,
+): Promise<SurveySampleBatchPreviewResult> {
+  await requireAdminPanelAccess();
+  return getSurveySampleBatchPreview(slug, batchId);
 }

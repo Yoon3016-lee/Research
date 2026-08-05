@@ -81,6 +81,8 @@ export function rehydrateSurveyAiDraftPayload(parsed: SurveyAiDraftPayload): {
       targetCount: rest.targetCount ?? 100,
       listedPublic: rest.listedPublic ?? true,
       responseScript: rest.responseScript ?? "",
+      ksicCode: typeof rest.ksicCode === "string" ? rest.ksicCode : "",
+      ksicName: typeof rest.ksicName === "string" ? rest.ksicName : "",
       questions,
     },
     meta: {

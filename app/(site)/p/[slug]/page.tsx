@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
+import { SiteContainer } from "@/components/site/SiteContainer";
 import { SitePageBody } from "@/components/site/SitePageBody";
 import {
+  findSiteNavGuideMatch,
   findSiteNavTrailForPage,
   getSiteHomepageConfig,
   getSitePageBySlug,
@@ -29,23 +31,23 @@ export default async function SiteCmsPage({ params }: Props) {
   }
 
   const trail = findSiteNavTrailForPage(homepage.groups, page);
+  const guideMatch = findSiteNavGuideMatch(homepage.groups, `/p/${page.slug}`);
+  const title = trail?.itemLabel ?? page.title;
 
   return (
-    <main className="w-full">
-      <div className="border-b border-brand-900/10 bg-white/80">
-        <div className="site-container mx-auto w-full max-w-[var(--site-content-max)] py-5 sm:py-6">
-          <h1 className="text-2xl font-semibold tracking-tight text-brand-900 sm:text-3xl">
-            <span className="text-brand-700/70">{trail?.groupLabel ?? "페이지"}</span>
-            <span className="mx-2.5 font-medium text-brand-700/35" aria-hidden>
-              -
-            </span>
-            <span>{trail?.itemLabel ?? page.title}</span>
+    <SiteContainer as="main" width="page" className="py-10 sm:py-12 lg:py-14">
+      {!guideMatch ? (
+        <header className="border-b border-brand-900/10 pb-5 sm:pb-6">
+          <h1 className="text-[2.25rem] font-semibold leading-tight tracking-tight text-brand-900 sm:text-[2.8125rem]">
+            {title}
           </h1>
-        </div>
-      </div>
-      <article className="w-full">
-        <SitePageBody body={page.body} layout="fullBleed" />
+        </header>
+      ) : (
+        <h1 className="sr-only">{title}</h1>
+      )}
+      <article className={guideMatch ? undefined : "mt-8"}>
+        <SitePageBody body={page.body} />
       </article>
-    </main>
+    </SiteContainer>
   );
 }

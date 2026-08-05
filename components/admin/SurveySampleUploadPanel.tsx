@@ -4,11 +4,13 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   activateSurveySampleBatchAction,
+  previewSurveySampleBatchAction,
   previewSurveySampleUploadAction,
   uploadSurveySampleBatchAction,
 } from "@/app/actions/survey-samples";
 import { formatColumnLabel } from "@/lib/survey-sample-columns";
 import type {
+  SurveySampleBatchDataPreview,
   SurveySampleBatchSummary,
   SurveySampleColumnInfo,
   SurveySampleColumnMapping,
@@ -16,6 +18,8 @@ import type {
 } from "@/lib/survey-sample-types";
 import {
   CheckCircle2,
+  Download,
+  Eye,
   FileSpreadsheet,
   Loader2,
   Upload,
@@ -112,6 +116,10 @@ export function SurveySampleUploadPanel({ slug, title, batches }: Props) {
   const [previewPending, startPreview] = useTransition();
   const [uploadPending, startUpload] = useTransition();
   const [activatePending, startActivate] = useTransition();
+  const [batchPreviewPending, startBatchPreview] = useTransition();
+  const [batchPreview, setBatchPreview] = useState<SurveySampleBatchDataPreview | null>(
+    null,
+  );
 
   const activeBatch = batches.find((b) => b.isActive && b.status === "ready") ?? null;
   const previewColumns = useMemo(
@@ -198,6 +206,42 @@ export function SurveySampleUploadPanel({ slug, title, batches }: Props) {
     });
   };
 
+  const handleBatchPreview = (batchId: string) => {
+    setError(null);
+    startBatchPreview(async () => {
+      const result = await previewSurveySampleBatchAction(slug, batchId);
+      if (!result.ok) {
+        setError(result.error);
+        setBatchPreview(null);
+        return;
+      }
+      setBatchPreview(result.preview);
+    });
+  };
+
+  const downloadBatchUrl = (batchId: string) =>
+    `/admin/surveys/samples/export?slug=${encodeURIComponent(slug)}&batchId=${encodeURIComponent(batchId)}`;
+
+  const batchPreviewColumns = useMemo(() => {
+    if (!batchPreview) return [];
+    return [
+      batchPreview.uidColumn,
+      batchPreview.phoneColumn,
+      batchPreview.outcomeColumn,
+    ].map((letter) => {
+      const role =
+        letter === batchPreview.uidColumn
+          ? "UID"
+          : letter === batchPreview.phoneColumn
+            ? "전화"
+            : "결과";
+      return {
+        letter,
+        title: `${formatColumnLabel(letter)} · ${role}`,
+      };
+    });
+  }, [batchPreview]);
+
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <section className="admin-card p-6">
@@ -217,14 +261,40 @@ export function SurveySampleUploadPanel({ slug, title, batches }: Props) {
 
         {activeBatch ? (
           <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-950">
-            <p className="font-medium">
-              현재 적용 버전 · v{activeBatch.versionNumber} ({activeBatch.rowCount.toLocaleString()}
-              건)
-            </p>
-            <p className="mt-1 text-xs text-emerald-900/85">
-              UID 열: {activeBatch.uidColumn} · 전화: {activeBatch.phoneColumn} · 결과:{" "}
-              {activeBatch.outcomeColumn}
-            </p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="font-medium">
+                  현재 적용 버전 · v{activeBatch.versionNumber} (
+                  {activeBatch.rowCount.toLocaleString()}건)
+                </p>
+                <p className="mt-1 text-xs text-emerald-900/85">
+                  UID 열: {activeBatch.uidColumn} · 전화: {activeBatch.phoneColumn} · 결과:{" "}
+                  {activeBatch.outcomeColumn}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={batchPreviewPending}
+                  onClick={() => handleBatchPreview(activeBatch.id)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-white px-2.5 py-1.5 text-xs font-medium text-emerald-950 hover:bg-emerald-100 disabled:opacity-60"
+                >
+                  {batchPreviewPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <Eye className="h-3.5 w-3.5" aria-hidden />
+                  )}
+                  미리보기
+                </button>
+                <a
+                  href={downloadBatchUrl(activeBatch.id)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-white px-2.5 py-1.5 text-xs font-medium text-emerald-950 hover:bg-emerald-100"
+                >
+                  <Download className="h-3.5 w-3.5" aria-hidden />
+                  다운로드
+                </a>
+              </div>
+            </div>
           </div>
         ) : (
           <p className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
@@ -424,16 +494,38 @@ export function SurveySampleUploadPanel({ slug, title, batches }: Props) {
                     ) : null}
                   </td>
                   <td className="px-4 py-3">
-                    {batch.status === "ready" && !batch.isActive ? (
-                      <button
-                        type="button"
-                        disabled={activatePending}
-                        onClick={() => handleActivate(batch.id)}
-                        className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-900 hover:bg-emerald-100 disabled:opacity-60"
-                      >
-                        적용
-                      </button>
-                    ) : null}
+                    <div className="flex flex-wrap gap-1.5">
+                      {batch.status === "ready" ? (
+                        <>
+                          <button
+                            type="button"
+                            disabled={batchPreviewPending}
+                            onClick={() => handleBatchPreview(batch.id)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-brand-900/12 bg-white px-2 py-1.5 text-xs font-medium text-brand-800 hover:bg-surface disabled:opacity-60"
+                          >
+                            <Eye className="h-3 w-3" aria-hidden />
+                            미리보기
+                          </button>
+                          <a
+                            href={downloadBatchUrl(batch.id)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-brand-900/12 bg-white px-2 py-1.5 text-xs font-medium text-brand-800 hover:bg-surface"
+                          >
+                            <Download className="h-3 w-3" aria-hidden />
+                            다운로드
+                          </a>
+                        </>
+                      ) : null}
+                      {batch.status === "ready" && !batch.isActive ? (
+                        <button
+                          type="button"
+                          disabled={activatePending}
+                          onClick={() => handleActivate(batch.id)}
+                          className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-900 hover:bg-emerald-100 disabled:opacity-60"
+                        >
+                          적용
+                        </button>
+                      ) : null}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -441,6 +533,65 @@ export function SurveySampleUploadPanel({ slug, title, batches }: Props) {
           </table>
         </div>
       </section>
+
+      {batchPreview ? (
+        <section className="admin-card overflow-hidden">
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-brand-900/8 px-4 py-3">
+            <div>
+              <h3 className="text-sm font-semibold text-brand-900">
+                표본 미리보기 · v{batchPreview.versionNumber}
+              </h3>
+              <p className="mt-0.5 text-xs text-brand-700/80">
+                {batchPreview.originalFilename} · 전체{" "}
+                {batchPreview.totalRows.toLocaleString()}건 중 앞쪽{" "}
+                {batchPreview.rows.length.toLocaleString()}건
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <a
+                href={downloadBatchUrl(batchPreview.batchId)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-brand-900/12 bg-white px-2.5 py-1.5 text-xs font-medium text-brand-800 hover:bg-surface"
+              >
+                <Download className="h-3.5 w-3.5" aria-hidden />
+                엑셀 다운로드
+              </a>
+              <button
+                type="button"
+                onClick={() => setBatchPreview(null)}
+                className="rounded-lg border border-brand-900/12 px-2.5 py-1.5 text-xs font-medium text-brand-700 hover:bg-surface"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-xs">
+              <thead className="bg-surface/90">
+                <tr>
+                  <th className="px-3 py-2 font-semibold text-brand-800">행</th>
+                  {batchPreviewColumns.map((col) => (
+                    <th key={col.letter} className="px-3 py-2 font-semibold text-brand-800">
+                      {col.title}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-brand-900/6">
+                {batchPreview.rows.map((row) => (
+                  <tr key={row.rowIndex}>
+                    <td className="px-3 py-2 tabular-nums text-brand-700">{row.rowIndex}</td>
+                    {batchPreviewColumns.map((col) => (
+                      <td key={col.letter} className="px-3 py-2 text-brand-900">
+                        {row.cells[col.letter] || "—"}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

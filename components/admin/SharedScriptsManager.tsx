@@ -32,7 +32,7 @@ export function SharedScriptsManager({ scripts, embedded = false }: Props) {
           <div>
             <h2 className="text-base font-semibold text-zinc-900">등록된 공용 스크립트</h2>
             <p className="mt-1 text-sm text-zinc-500">
-              직원이 어떤 설문에서든 「스크립트 확인」→ 「공용 스크립트」탭에서 볼 수 있습니다.
+              직원이 어떤 설문에서든 「Advisor Agent」→ 「공용 스크립트」탭에서 볼 수 있습니다.
             </p>
           </div>
           <button

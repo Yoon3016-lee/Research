@@ -54,6 +54,10 @@ export async function generateSurveyAiAction(
     surveyTopic: brief.surveyTopic ?? "",
     additionalNotes: brief.additionalNotes ?? "",
     clarificationAnswers: brief.clarificationAnswers ?? {},
+    revisionFeedback: brief.revisionFeedback ?? "",
+    previousProposals: Array.isArray(brief.previousProposals)
+      ? brief.previousProposals
+      : [],
   });
 }
 

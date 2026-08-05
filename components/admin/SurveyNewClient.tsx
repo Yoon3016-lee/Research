@@ -74,6 +74,13 @@ export function SurveyNewClient({ templateFrom, templateSurveys, fromAi }: Props
             <p className="mt-2 text-xs text-indigo-800/80">
               KSIC 적합성: {aiDraft.meta.ksicRelevance}
             </p>
+            {aiDraft.initial.ksicCode ? (
+              <p className="mt-2 text-xs text-indigo-800/80">
+                KSIC:{" "}
+                <span className="font-mono font-medium">{aiDraft.initial.ksicCode}</span>
+                {aiDraft.initial.ksicName ? ` · ${aiDraft.initial.ksicName}` : ""}
+              </p>
+            ) : null}
           </div>
 
           {aiDraft.meta.improvements.length > 0 ? (

@@ -27,7 +27,7 @@ export default async function SiteLayout({
     .map((g) => ({
       key: g.key,
       label: g.label,
-      hrefs: g.items.map((i) => i.href),
+      links: g.items.map((i) => ({ href: i.href, label: i.label })),
       guidePdfUrl: g.guidePdfUrl as string,
       guideMediaType: g.guideMediaType ?? "pdf",
     }));
