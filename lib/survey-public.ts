@@ -60,7 +60,7 @@ export type SurveyAnswerInput =
   | { questionId: string; type: "contact_fields"; values: Record<string, string> };
 
 export type SurveyParticipationLoad =
-  | { ok: true; survey: PublicSurveyDetail }
+  | { ok: true; survey: PublicSurveyDetail; redirectedFromSlug?: string }
   | { ok: false; reason: "not_found" }
   | {
       ok: false;
@@ -82,6 +82,7 @@ type SurveyRow = {
   listed_public: boolean;
   ksic_code?: string | null;
   ksic_name?: string | null;
+  successor_survey_id?: string | null;
 };
 
 function effectiveSurveyStatus(row: SurveyRow): string {
@@ -89,6 +90,125 @@ function effectiveSurveyStatus(row: SurveyRow): string {
   const end = normalizeStoredDate(row.period_end);
   if (start && end) return resolveSurveyStatus(start, end);
   return row.status;
+}
+
+function isParticipationOpen(row: SurveyRow): boolean {
+  return effectiveSurveyStatus(row) === "진행중" && row.listed_public;
+}
+
+type SurveyLookupClient = ReturnType<typeof createSupabaseServiceRoleClient>;
+
+async function fetchSurveyRowBySlug(
+  client: SurveyLookupClient,
+  slug: string,
+  withListedPublicFilter: boolean,
+): Promise<SurveyRow | null> {
+  const selectWithVersion =
+    "id, slug, title, summary, period_label, period_start, period_end, status, listed_public, ksic_code, ksic_name, successor_survey_id";
+  const selectBasic =
+    "id, slug, title, summary, period_label, period_start, period_end, status, listed_public, successor_survey_id";
+  const selectWithKsicNoVersion =
+    "id, slug, title, summary, period_label, period_start, period_end, status, listed_public, ksic_code, ksic_name";
+
+  let query = client.from("surveys").select(selectWithVersion).eq("slug", slug);
+  if (withListedPublicFilter) {
+    query = query.eq("listed_public", true);
+  }
+
+  const primary = await query.maybeSingle();
+
+  if (primary.error?.message.includes("successor_survey_id")) {
+    let fbQuery = client.from("surveys").select(selectBasic).eq("slug", slug);
+    if (withListedPublicFilter) {
+      fbQuery = fbQuery.eq("listed_public", true);
+    }
+    const fallback = await fbQuery.maybeSingle();
+    if (fallback.error) {
+      console.error("[loadSurveyForParticipation] slug:", fallback.error.message);
+      return null;
+    }
+    return (fallback.data as SurveyRow | null) ?? null;
+  }
+
+  if (
+    primary.error &&
+    (primary.error.message.includes("ksic_code") || primary.error.message.includes("ksic_name"))
+  ) {
+    let fbQuery = client.from("surveys").select(selectWithKsicNoVersion).eq("slug", slug);
+    if (withListedPublicFilter) {
+      fbQuery = fbQuery.eq("listed_public", true);
+    }
+    const fallback = await fbQuery.maybeSingle();
+    if (fallback.error) {
+      console.error("[loadSurveyForParticipation] slug ksic fallback:", fallback.error.message);
+      return null;
+    }
+    return (fallback.data as SurveyRow | null) ?? null;
+  }
+
+  if (primary.error) {
+    console.error("[loadSurveyForParticipation]", primary.error.message);
+    return null;
+  }
+
+  return (primary.data as SurveyRow | null) ?? null;
+}
+
+async function fetchSurveyRowById(
+  client: SurveyLookupClient,
+  id: string,
+): Promise<SurveyRow | null> {
+  const selectWithVersion =
+    "id, slug, title, summary, period_label, period_start, period_end, status, listed_public, ksic_code, ksic_name, successor_survey_id";
+  const selectBasic =
+    "id, slug, title, summary, period_label, period_start, period_end, status, listed_public, successor_survey_id";
+
+  const primary = await client.from("surveys").select(selectWithVersion).eq("id", id).maybeSingle();
+
+  if (primary.error?.message.includes("successor_survey_id")) {
+    const fallback = await client
+      .from("surveys")
+      .select(selectBasic)
+      .eq("id", id)
+      .maybeSingle();
+    if (fallback.error) return null;
+    return (fallback.data as SurveyRow | null) ?? null;
+  }
+
+  if (primary.error) return null;
+  return (primary.data as SurveyRow | null) ?? null;
+}
+
+/** 종료된 이전 버전 slug로 접속 시 successor(새 버전)로 연결 */
+async function resolveParticipationSurveyRow(
+  client: SurveyLookupClient,
+  slug: string,
+  withListedPublicFilter: boolean,
+): Promise<{ row: SurveyRow; redirectedFromSlug?: string } | null> {
+  const initial = await fetchSurveyRowBySlug(client, slug, withListedPublicFilter);
+  if (!initial) return null;
+
+  if (isParticipationOpen(initial)) {
+    return { row: initial };
+  }
+
+  if (!initial.successor_survey_id) {
+    return { row: initial };
+  }
+
+  let hops = 0;
+  let currentId: string | null = initial.successor_survey_id;
+  while (currentId && hops < 10) {
+    const successor = await fetchSurveyRowById(client, currentId);
+    if (!successor) break;
+    if (isParticipationOpen(successor)) {
+      return { row: successor, redirectedFromSlug: slug };
+    }
+    currentId = successor.successor_survey_id ?? null;
+    hops += 1;
+  }
+
+  return { row: initial };
 }
 
 type QuestionRow = {
@@ -297,46 +417,12 @@ export async function loadSurveyForParticipation(
     const admin = createSupabaseServiceRoleClient();
     await syncSurveyPeriodStatuses(admin);
 
-    const selectWithKsic =
-      "id, slug, title, summary, period_label, period_start, period_end, status, listed_public, ksic_code, ksic_name";
-    const selectBasic =
-      "id, slug, title, summary, period_label, period_start, period_end, status, listed_public";
+    const resolved = await resolveParticipationSurveyRow(admin, normalized, false);
+    if (!resolved) return { ok: false, reason: "not_found" };
 
-    let row: SurveyRow | null = null;
-    let error: { message: string } | null = null;
-
-    const primary = await admin
-      .from("surveys")
-      .select(selectWithKsic)
-      .eq("slug", normalized)
-      .maybeSingle();
-
-    if (
-      primary.error &&
-      (primary.error.message.includes("ksic_code") ||
-        primary.error.message.includes("ksic_name"))
-    ) {
-      const fallback = await admin
-        .from("surveys")
-        .select(selectBasic)
-        .eq("slug", normalized)
-        .maybeSingle();
-      row = (fallback.data as SurveyRow | null) ?? null;
-      error = fallback.error;
-    } else {
-      row = (primary.data as SurveyRow | null) ?? null;
-      error = primary.error;
-    }
-
-    if (error) {
-      console.error("[loadSurveyForParticipation]", error.message);
-      return { ok: false, reason: "not_found" };
-    }
-    if (!row) return { ok: false, reason: "not_found" };
-
-    const s = row;
+    const s = resolved.row;
     const status = effectiveSurveyStatus(s);
-    if (status !== "진행중" || !s.listed_public) {
+    if (!isParticipationOpen(s)) {
       return {
         ok: false,
         reason: "not_open",
@@ -346,7 +432,10 @@ export async function loadSurveyForParticipation(
       };
     }
 
-    return { ok: true, survey: await buildSurveyDetail(s, true) };
+    const survey = await buildSurveyDetail(s, true);
+    return resolved.redirectedFromSlug
+      ? { ok: true, survey, redirectedFromSlug: resolved.redirectedFromSlug }
+      : { ok: true, survey };
   }
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
@@ -354,48 +443,16 @@ export async function loadSurveyForParticipation(
   }
 
   const supabase = await createSupabaseServerClient();
-  const selectWithKsic =
-    "id, slug, title, summary, period_label, period_start, period_end, status, listed_public, ksic_code, ksic_name";
-  const selectBasic =
-    "id, slug, title, summary, period_label, period_start, period_end, status, listed_public";
+  const resolved = await resolveParticipationSurveyRow(
+    supabase as unknown as SurveyLookupClient,
+    normalized,
+    true,
+  );
+  if (!resolved) return { ok: false, reason: "not_found" };
 
-  let row: SurveyRow | null = null;
-  let error: { message: string } | null = null;
-
-  const primary = await supabase
-    .from("surveys")
-    .select(selectWithKsic)
-    .eq("slug", normalized)
-    .eq("listed_public", true)
-    .maybeSingle();
-
-  if (
-    primary.error &&
-    (primary.error.message.includes("ksic_code") ||
-      primary.error.message.includes("ksic_name"))
-  ) {
-    const fallback = await supabase
-      .from("surveys")
-      .select(selectBasic)
-      .eq("slug", normalized)
-      .eq("listed_public", true)
-      .maybeSingle();
-    row = (fallback.data as SurveyRow | null) ?? null;
-    error = fallback.error;
-  } else {
-    row = (primary.data as SurveyRow | null) ?? null;
-    error = primary.error;
-  }
-
-  if (error) {
-    console.error("[loadSurveyForParticipation] anon", error.message);
-    return { ok: false, reason: "not_found" };
-  }
-  if (!row) return { ok: false, reason: "not_found" };
-
-  const s = row;
+  const s = resolved.row;
   const status = effectiveSurveyStatus(s);
-  if (status !== "진행중") {
+  if (!isParticipationOpen(s)) {
     return {
       ok: false,
       reason: "not_open",
@@ -405,7 +462,10 @@ export async function loadSurveyForParticipation(
     };
   }
 
-  return { ok: true, survey: await buildSurveyDetail(s, false) };
+  const survey = await buildSurveyDetail(s, false);
+  return resolved.redirectedFromSlug
+    ? { ok: true, survey, redirectedFromSlug: resolved.redirectedFromSlug }
+    : { ok: true, survey };
 }
 
 export async function getPublicSurveyBySlug(

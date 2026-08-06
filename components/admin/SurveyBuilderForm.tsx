@@ -36,6 +36,9 @@ type SurveyBuilderFormProps = {
   slug?: string;
   initial?: CreateSurveyPayload;
   responseCount?: number;
+  surveyStatus?: string;
+  successorSlug?: string | null;
+  supersedesSlug?: string | null;
   /** URL ?template= 또는 서버에서 미리 로드한 문항 */
   templateFrom?: SurveyTemplateFrom;
   /** 템플릿 선택 모달용 설문 목록 */
@@ -47,6 +50,9 @@ export function SurveyBuilderForm({
   slug,
   initial,
   responseCount = 0,
+  surveyStatus = "",
+  successorSlug = null,
+  supersedesSlug = null,
   templateFrom,
   templateSurveys = [],
 }: SurveyBuilderFormProps) {
@@ -168,8 +174,22 @@ export function SurveyBuilderForm({
         return;
       }
       if ("ok" in res && res.ok) {
-        const query = isEdit ? "updated" : "created";
-        router.push(`/admin/surveys?${query}=${encodeURIComponent(res.slug)}`);
+        const forked =
+          isEdit && "forked" in res && Boolean((res as { forked?: boolean }).forked);
+        if (forked) {
+          const previousSlug =
+            "previousSlug" in res
+              ? ((res as { previousSlug?: string }).previousSlug ?? slug ?? "")
+              : slug ?? "";
+          router.push(
+            `/admin/surveys?forked=${encodeURIComponent(res.slug)}&from=${encodeURIComponent(
+              previousSlug,
+            )}`,
+          );
+        } else {
+          const query = isEdit ? "updated" : "created";
+          router.push(`/admin/surveys?${query}=${encodeURIComponent(res.slug)}`);
+        }
         router.refresh();
       }
     });
@@ -196,8 +216,31 @@ export function SurveyBuilderForm({
         ) : null}
         {isEdit && responseCount > 0 ? (
           <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-            이 설문에 응답이 {responseCount.toLocaleString()}건 있습니다. 문항 구조를
-            바꾸면 기존 응답에 연결된 문항·선택지 데이터가 삭제될 수 있습니다.
+            이 설문에 응답이 {responseCount.toLocaleString()}건 있습니다. 저장하면{" "}
+            <strong>새 설문(새 slug·문항 ID)</strong>이 생성되고, 현재 설문은{" "}
+            <strong>종료·비공개</strong>로 보존됩니다. 이전 설문 제목에는{" "}
+            <strong>(숨김)</strong>이 붙고, 편집 중인 제목은 새 설문에 적용됩니다.
+          </p>
+        ) : null}
+        {isEdit && successorSlug ? (
+          <p className="mt-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
+            이 설문은 종료된 이전 버전입니다. 현재 참여용 설문:{" "}
+            <Link
+              href={{
+                pathname: "/admin/surveys/edit",
+                query: { slug: successorSlug },
+              }}
+              className="font-medium text-sky-800 underline"
+            >
+              {successorSlug}
+            </Link>
+          </p>
+        ) : null}
+        {isEdit && supersedesSlug ? (
+          <p className="mt-3 text-xs text-zinc-600">
+            이전 버전 slug:{" "}
+            <code className="rounded bg-zinc-100 px-1">{supersedesSlug}</code>
+            {surveyStatus === "종료" ? " · 이 설문은 새 버전으로 대체되었습니다." : null}
           </p>
         ) : null}
         {templateSource ? (

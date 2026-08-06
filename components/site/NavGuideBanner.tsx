@@ -59,7 +59,7 @@ export function NavGuideBanner({ items }: Props) {
 
   return (
     <section
-      className="relative z-0 w-full overflow-hidden border-b border-slate-200 bg-slate-900"
+      className="relative z-0 w-full overflow-hidden bg-slate-900"
       aria-label={`${bestGroup.label} 안내`}
     >
       <div className="relative mx-auto w-[var(--site-banner-max)] max-w-full">

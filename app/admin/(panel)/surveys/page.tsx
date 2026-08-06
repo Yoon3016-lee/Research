@@ -18,11 +18,13 @@ export default async function AdminSurveysPage({
   searchParams: Promise<{
     created?: string;
     updated?: string;
+    forked?: string;
+    from?: string;
     deleted?: string;
     scripts?: string;
   }>;
 }) {
-  const { created, updated, deleted, scripts } = await searchParams;
+  const { created, updated, forked, from, deleted, scripts } = await searchParams;
   const scriptsOpen = scripts === "open" || scripts === "1";
   const [adminSurveys, sharedScripts, surveyScripts] = await Promise.all([
     getAdminSurveys(),
@@ -47,6 +49,21 @@ export default async function AdminSurveysPage({
           <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
             설문이 수정되었습니다. (slug:{" "}
             <code className="rounded bg-emerald-100/80 px-1">{decodeURIComponent(updated)}</code>)
+          </p>
+        ) : null}
+        {forked ? (
+          <p className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+            응답이 있는 설문을 새 버전으로 저장했습니다. 새 slug:{" "}
+            <code className="rounded bg-sky-100/80 px-1">{decodeURIComponent(forked)}</code>
+            {from ? (
+              <>
+                {" "}
+                (이전 버전{" "}
+                <code className="rounded bg-sky-100/80 px-1">{decodeURIComponent(from)}</code>는
+                종료·비공개로 보존됩니다)
+              </>
+            ) : null}
+            . 배포 링크는 새 slug로 업데이트하세요.
           </p>
         ) : null}
         {deleted ? (

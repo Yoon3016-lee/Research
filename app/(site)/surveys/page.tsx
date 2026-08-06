@@ -36,7 +36,14 @@ export default async function SurveysPage() {
   const scheduledCount = surveys.filter((s) => s.status === "예정").length;
 
   return (
-    <SiteContainer as="main" className="py-10 sm:py-12 lg:py-14">
+    <SiteContainer
+      as="main"
+      className={
+        guideMatch
+          ? "pb-10 pt-0 sm:pb-12 lg:pb-14"
+          : "py-10 sm:py-12 lg:py-14"
+      }
+    >
       {guideMatch ? (
         <>
           <h1 className="sr-only">{itemLabel}</h1>

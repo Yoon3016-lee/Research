@@ -9,6 +9,9 @@ import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 export type SurveyEditBundle = CreateSurveyPayload & {
   slug: string;
   responseCount: number;
+  status: string;
+  successorSlug: string | null;
+  supersedesSlug: string | null;
 };
 
 export type SurveyEditLoad =
@@ -30,6 +33,8 @@ type SurveyRow = {
   response_script: string;
   ksic_code?: string | null;
   ksic_name?: string | null;
+  successor_survey_id?: string | null;
+  supersedes_survey_id?: string | null;
 };
 
 type QuestionRow = {
@@ -67,7 +72,7 @@ async function fetchSurveyRow(
   }
 
   const select =
-    "id, slug, title, summary, period_label, period_start, period_end, target_count, status, listed_public, response_count, response_script, ksic_code, ksic_name";
+    "id, slug, title, summary, period_label, period_start, period_end, target_count, status, listed_public, response_count, response_script, ksic_code, ksic_name, successor_survey_id, supersedes_survey_id";
 
   const bySlug = await admin.from("surveys").select(select).eq("slug", normalized).maybeSingle();
   if (bySlug.error) {
@@ -77,7 +82,7 @@ async function fetchSurveyRow(
       bySlug.error.message.includes("ksic_name")
     ) {
       const fallbackSelect =
-        "id, slug, title, summary, period_label, period_start, period_end, target_count, status, listed_public, response_count, response_script";
+        "id, slug, title, summary, period_label, period_start, period_end, target_count, status, listed_public, response_count, response_script, successor_survey_id, supersedes_survey_id";
       const fallback = await admin
         .from("surveys")
         .select(fallbackSelect)
@@ -155,6 +160,26 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
   }
 
   const admin = createSupabaseServiceRoleClient();
+
+  let successorSlug: string | null = null;
+  let supersedesSlug: string | null = null;
+
+  if (surveyRow.successor_survey_id) {
+    const { data: succ } = await admin
+      .from("surveys")
+      .select("slug")
+      .eq("id", surveyRow.successor_survey_id)
+      .maybeSingle();
+    successorSlug = (succ?.slug as string) ?? null;
+  }
+  if (surveyRow.supersedes_survey_id) {
+    const { data: prev } = await admin
+      .from("surveys")
+      .select("slug")
+      .eq("id", surveyRow.supersedes_survey_id)
+      .maybeSingle();
+    supersedesSlug = (prev?.slug as string) ?? null;
+  }
 
   const { data: qRowsRaw, error: qError } = await admin
     .from("survey_questions")
@@ -341,6 +366,9 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
     bundle: {
       slug: surveyRow.slug,
       responseCount: surveyRow.response_count,
+      status: surveyRow.status,
+      successorSlug,
+      supersedesSlug,
       title: surveyRow.title,
       summary: surveyRow.summary,
       periodStart: normalizeStoredDate(surveyRow.period_start),

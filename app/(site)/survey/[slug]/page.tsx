@@ -78,6 +78,8 @@ export default async function SurveyParticipatePage({ params }: Props) {
   }
 
   const survey = loaded.survey;
+  const redirectedFromSlug =
+    "redirectedFromSlug" in loaded ? loaded.redirectedFromSlug : undefined;
   const participant = await getSurveyParticipant();
   const catiEnabled = await hasActiveCatiBatch(survey.slug);
   const contactOptions = catiEnabled ? await listActiveCatiContactOptions() : [];
@@ -130,7 +132,9 @@ export default async function SurveyParticipatePage({ params }: Props) {
       <header className="mt-6 border-b border-brand-900/10 pb-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h1>{survey.title}</h1>
+            <h1 className="text-[clamp(1.3125rem,2.7vw,2.125rem)] font-semibold leading-snug tracking-tight text-brand-900">
+              {survey.title}
+            </h1>
             {survey.summary ? (
               <p className="mt-2 text-brand-700">{survey.summary}</p>
             ) : null}
@@ -143,6 +147,12 @@ export default async function SurveyParticipatePage({ params }: Props) {
           ) : null}
         </div>
       </header>
+
+      {redirectedFromSlug ? (
+        <p className="mt-4 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+          이 설문은 새 버전으로 업데이트되었습니다. 최신 설문으로 연결되었습니다.
+        </p>
+      ) : null}
 
       {survey.questions.length === 0 ? (
         <p className="mt-8 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">

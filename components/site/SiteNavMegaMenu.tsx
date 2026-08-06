@@ -157,7 +157,7 @@ export function SiteNavMegaMenu({ groups }: Props) {
     ) : null;
 
   const tabClass = (active: boolean, isActiveKey: boolean) =>
-    `whitespace-nowrap rounded-t-md border-b-[3px] px-3 py-2.5 text-left text-[1.35rem] font-bold tracking-tight transition sm:px-5 sm:text-[1.4rem] ${
+    `whitespace-nowrap rounded-t-md border-b-[3px] px-3 py-2.5 text-center text-[1.2rem] font-bold tracking-tight transition sm:px-5 ${
       active
         ? "border-brand-900 text-brand-900"
         : isActiveKey
@@ -169,10 +169,7 @@ export function SiteNavMegaMenu({ groups }: Props) {
     <>
       <div
         ref={navRef}
-        className="grid gap-0.5 sm:gap-1"
-        style={{
-          gridTemplateColumns: `repeat(${groups.length}, minmax(7.5rem, max-content))`,
-        }}
+        className="flex flex-wrap items-end justify-center gap-x-2 sm:gap-x-3"
         onMouseLeave={scheduleClose}
       >
         {groups.map((group) => {
@@ -185,6 +182,7 @@ export function SiteNavMegaMenu({ groups }: Props) {
               <div
                 key={group.key}
                 ref={(el) => setColumnRef(group.key, el)}
+                className="shrink-0"
                 onMouseEnter={() => {
                   cancelClose();
                   setActiveKey(null);
@@ -204,6 +202,7 @@ export function SiteNavMegaMenu({ groups }: Props) {
             <div
               key={group.key}
               ref={(el) => setColumnRef(group.key, el)}
+              className="shrink-0"
               onMouseEnter={() => openGroup(group.key)}
             >
               <button

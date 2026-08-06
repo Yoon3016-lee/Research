@@ -267,6 +267,7 @@
   .admin-sidebar {
     display: flex;
     width: 100%;
+    min-height: 100%;
     flex-direction: column;
     border-right: 1px solid rgba(15, 23, 42, 0.08);
     background: linear-gradient(180deg, #ffffff 0%, #faf9f7 100%);
@@ -277,6 +278,8 @@
   @media (min-width: 1024px) {
     .admin-sidebar {
       width: 15rem;
+      height: 100dvh;
+      min-height: 100dvh;
     }
   }
 }

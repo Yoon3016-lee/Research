@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent } from "rea
 import { Sparkles } from "lucide-react";
 import { AxiGuidePanel } from "@/components/site/AxiGuidePanel";
 
-const ICON_SIZE = 56;
+const ICON_SIZE = 80;
 const EDGE_GAP = 20;
 const STORAGE_KEY = "research-a:axi-fab-pos";
 
@@ -146,7 +146,7 @@ export function AxiFloatingLauncher({
           onPointerMove={onPointerMove}
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
-          className="fixed z-[160] flex h-14 w-14 touch-none items-center justify-center overflow-hidden rounded-full border-2 border-white bg-teal-600 text-white shadow-[0_10px_28px_-8px_rgba(13,148,136,0.55)] ring-1 ring-teal-900/10 transition hover:scale-[1.03] active:cursor-grabbing"
+          className="fixed z-[160] flex h-20 w-20 touch-none items-center justify-center overflow-hidden rounded-full border-2 border-white bg-teal-600 text-white shadow-[0_10px_28px_-8px_rgba(13,148,136,0.55)] ring-1 ring-teal-900/10 transition hover:scale-[1.03] active:cursor-grabbing"
           style={{ left: pos.x, top: pos.y, cursor: "grab" }}
           aria-label="AXI 열기 (드래그하여 이동)"
           title="클릭: AXI 열기 · 드래그: 위치 이동"
@@ -160,7 +160,7 @@ export function AxiFloatingLauncher({
               className="pointer-events-none h-full w-full object-cover"
             />
           ) : (
-            <Sparkles className="h-6 w-6" aria-hidden />
+            <Sparkles className="h-9 w-9" aria-hidden />
           )}
         </button>
       ) : null}
@@ -181,6 +181,7 @@ export function AxiFloatingLauncher({
             scriptContext={scriptContext}
             ksicCode={ksicCode}
             ksicName={ksicName}
+            axiIconUrl={axiIconUrl}
             onClose={() => setOpen(false)}
             embedded
           />

@@ -10,9 +10,9 @@ export default async function AdminPanelLayout({
 
   return (
     <div className="admin-shell">
-      <div className="mx-auto flex min-h-screen max-w-[1600px]">
+      <div className="mx-auto flex min-h-dvh max-w-[1600px]">
         <div className="hidden lg:block lg:shrink-0">
-          <div className="sticky top-0 h-screen">
+          <div className="sticky top-0 h-dvh">
             <AdminSidebarWrapper />
           </div>
         </div>

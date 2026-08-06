@@ -18,7 +18,31 @@ type Props = {
   embedded?: boolean;
   ksicCode?: string;
   ksicName?: string;
+  axiIconUrl?: string | null;
 };
+
+function AxiAvatar({ axiIconUrl, size = "md" }: { axiIconUrl?: string | null; size?: "sm" | "md" }) {
+  const dim = size === "md" ? "h-9 w-9" : "h-8 w-8";
+  const icon = size === "md" ? "h-5 w-5" : "h-4 w-4";
+  if (axiIconUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={axiIconUrl}
+        alt=""
+        className={`${dim} shrink-0 rounded-full object-cover ring-1 ring-zinc-200`}
+      />
+    );
+  }
+  return (
+    <span
+      className={`inline-flex ${dim} shrink-0 items-center justify-center rounded-full bg-teal-600 text-white ring-1 ring-teal-700/20`}
+      aria-hidden
+    >
+      <Sparkles className={icon} />
+    </span>
+  );
+}
 
 export function AxiGuidePanel({
   surveyTitle,
@@ -27,6 +51,7 @@ export function AxiGuidePanel({
   embedded = false,
   ksicCode = "",
   ksicName = "",
+  axiIconUrl = null,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -97,15 +122,10 @@ export function AxiGuidePanel({
       }
       aria-label="AXI 가이드"
     >
-      <div className="flex shrink-0 items-start justify-between gap-2 border-b border-zinc-200 px-3 py-2.5">
-        <div className="min-w-0">
-          <p className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wide text-teal-700">
-            <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            AXI
-          </p>
-          <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">
-            단어·보기 해석 · 짧은 답변
-          </p>
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-zinc-200 px-3 py-2.5">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <AxiAvatar axiIconUrl={axiIconUrl} size="md" />
+          <p className="text-sm font-semibold tracking-tight text-teal-800">AXI</p>
         </div>
         <button
           type="button"
@@ -119,28 +139,38 @@ export function AxiGuidePanel({
 
       <div
         ref={listRef}
-        className="min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-contain px-3 py-3"
+        className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 py-3"
       >
-        {messages.map((m) => (
-          <div
-            key={m.id}
-            className={
-              m.role === "user"
-                ? "ml-4 rounded-lg bg-indigo-50 px-2.5 py-2 text-xs leading-relaxed text-indigo-950"
-                : "mr-2 rounded-lg bg-zinc-50 px-2.5 py-2 text-xs leading-relaxed text-zinc-800"
-            }
-          >
-            {m.role === "axi" ? (
-              <span className="mb-1 block text-[10px] font-semibold text-teal-700">AXI</span>
-            ) : null}
-            {m.text}
-          </div>
-        ))}
+        {messages.map((m) =>
+          m.role === "user" ? (
+            <div key={m.id} className="flex justify-end">
+              <div className="max-w-[85%] rounded-2xl rounded-br-md bg-indigo-50 px-3 py-2 text-xs leading-relaxed text-indigo-950">
+                {m.text}
+              </div>
+            </div>
+          ) : (
+            <div key={m.id} className="flex gap-2">
+              <AxiAvatar axiIconUrl={axiIconUrl} size="sm" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold text-teal-800">AXI</p>
+                <div className="mt-1 max-w-[95%] rounded-2xl rounded-tl-md bg-zinc-100 px-3 py-2 text-xs leading-relaxed text-zinc-800">
+                  {m.text}
+                </div>
+              </div>
+            </div>
+          ),
+        )}
         {pending ? (
-          <p className="flex items-center gap-1.5 text-[11px] text-zinc-500">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-            답변 작성 중…
-          </p>
+          <div className="flex gap-2">
+            <AxiAvatar axiIconUrl={axiIconUrl} size="sm" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-semibold text-teal-800">AXI</p>
+              <p className="mt-1 flex items-center gap-1.5 text-[11px] text-zinc-500">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                답변 작성 중…
+              </p>
+            </div>
+          </div>
         ) : null}
       </div>
 

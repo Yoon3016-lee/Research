@@ -12,6 +12,7 @@ import {
   isQuestionShownInSurvey,
 } from "@/lib/survey-visibility";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
+import { archiveSurveyResponseOnSubmit } from "@/lib/survey-response-backup";
 
 export type SubmitSurveyAfter = "stay" | "list";
 
@@ -197,6 +198,12 @@ export async function submitSurveyResponseAction(
     }
   }
 
+  await archiveSurveyResponseOnSubmit(admin, responseId, survey, rows, {
+    respondent_kind: respondent.respondent_kind,
+    respondent_user_id: respondent.respondent_user_id,
+    sample_id: sampleId ?? null,
+  });
+
   const { data: current } = await admin
     .from("surveys")
     .select("response_count")
@@ -213,6 +220,7 @@ export async function submitSurveyResponseAction(
     revalidatePath("/admin/surveys/samples");
   }
 
+  revalidatePath("/admin/backups");
   revalidatePath("/surveys");
   revalidatePath(`/survey/${slug}`);
   revalidatePath("/admin");

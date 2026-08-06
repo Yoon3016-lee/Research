@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   ClipboardList,
+  DatabaseBackup,
   Globe,
   LayoutDashboard,
   LogOut,
@@ -49,6 +50,7 @@ const items = [
   { href: "/admin/inquiries", label: "문의 관리", icon: MessageSquare, exact: false, color: "rose" },
   { href: "/admin/permissions", label: "권한 관리", icon: ShieldCheck, exact: false, color: "amber" },
   { href: "/admin/progress", label: "진행·업무 현황", icon: Users, exact: false, color: "sky" },
+  { href: "/admin/backups", label: "응답 백업", icon: DatabaseBackup, exact: false, color: "indigo" },
 ] as const;
 
 type Props = {
@@ -96,20 +98,22 @@ export function AdminSidebar({ email, role }: Props) {
 
   return (
     <aside className="admin-sidebar">
-      <div className="flex h-16 items-center gap-3 border-b border-brand-900/8 px-4">
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-accent-400/90 to-accent-600 text-brand-950 shadow-sm">
-          <BarChart3 className="h-4 w-4" aria-hidden />
+      <div className="flex min-h-[4.8rem] items-center gap-3 border-b border-brand-900/8 px-4 py-2.5">
+        <span className="flex h-[2.7rem] w-[2.7rem] shrink-0 items-center justify-center rounded-[0.6rem] bg-gradient-to-br from-accent-400/90 to-accent-600 text-brand-950 shadow-sm">
+          <BarChart3 className="h-5 w-5" aria-hidden />
         </span>
         <div className="min-w-0 leading-tight">
-          <p className="truncate text-sm font-semibold text-brand-900">Research Hub</p>
-          <p className="truncate text-[11px] text-brand-700/70">Admin Console</p>
+          <p className="truncate text-[1.05rem] font-semibold text-brand-900">
+            Research Hub
+          </p>
+          <p className="truncate text-[0.825rem] text-brand-700/70">Admin Console</p>
         </div>
       </div>
 
       {email ? (
-        <div className="border-b border-brand-900/8 px-4 py-3 text-xs">
-          <p className="truncate font-medium text-brand-900">{email}</p>
-          <p className="mt-0.5 text-brand-700/80">{roleLabel}</p>
+        <div className="border-b border-brand-900/8 px-4 py-3">
+          <p className="truncate text-[1rem] font-medium text-brand-900">{email}</p>
+          <p className="mt-0.5 truncate text-[1rem] text-brand-700/80">{roleLabel}</p>
         </div>
       ) : null}
 

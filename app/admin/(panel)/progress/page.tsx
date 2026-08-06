@@ -35,7 +35,7 @@ export default async function AdminProgressPage({
           <h2 className="text-sm font-semibold text-zinc-900">설문 진행도</h2>
           <p className="mt-1 text-sm text-zinc-600">
             목표 대비 응답 수·상태를 확인합니다.「응답 분석」을 누르면 해당 설문의
-            작업량·문항별 빈도를 볼 수 있습니다.
+            작업량·문항별 빈도를 바로 아래에서 볼 수 있습니다.
           </p>
           {adminSurveys.length === 0 ? (
             <p className="mt-4 rounded-xl border border-dashed border-zinc-200 bg-zinc-50/80 px-4 py-8 text-center text-sm text-zinc-600">
@@ -70,17 +70,25 @@ export default async function AdminProgressPage({
                         <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-800">
                           {s.status}
                         </span>
-                        <Link
-                          href={{ pathname: "/admin/progress", query: { survey: s.id } }}
-                          className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium ${
-                            isSelected
-                              ? "border-indigo-600 bg-indigo-600 text-white"
-                              : "border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50"
-                          }`}
-                        >
-                          <BarChart3 className="h-3.5 w-3.5" aria-hidden />
-                          응답 분석
-                        </Link>
+                        {isSelected ? (
+                          <Link
+                            href="/admin/progress"
+                            className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50"
+                          >
+                            닫기
+                          </Link>
+                        ) : (
+                          <Link
+                            href={{
+                              pathname: "/admin/progress",
+                              query: { survey: s.id },
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50"
+                          >
+                            <BarChart3 className="h-3.5 w-3.5" aria-hidden />
+                            응답 분석
+                          </Link>
+                        )}
                       </div>
                     </div>
                     <div className="mt-4">
@@ -88,7 +96,9 @@ export default async function AdminProgressPage({
                         <span>
                           응답 {s.responses.toLocaleString()} / 목표{" "}
                           {target.toLocaleString()}
-                          {s.targetCount == null || s.targetCount <= 0 ? " (추정)" : ""}
+                          {s.targetCount == null || s.targetCount <= 0
+                            ? " (추정)"
+                            : ""}
                         </span>
                         <span>{pct}%</span>
                       </div>
@@ -105,52 +115,36 @@ export default async function AdminProgressPage({
                         />
                       </div>
                     </div>
+
+                    {isSelected ? (
+                      <div className="mt-6 space-y-8 border-t border-zinc-100 pt-6">
+                        {surveyWorkload ? (
+                          <SurveyWorkloadSection workload={surveyWorkload} />
+                        ) : null}
+
+                        <div>
+                          {stats?.ok ? (
+                            <SurveyFrequencyBreakdown stats={stats} />
+                          ) : stats &&
+                            !stats.ok &&
+                            stats.reason === "not_configured" ? (
+                            <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                              <code>SUPABASE_SERVICE_ROLE_KEY</code>가 설정되지
+                              않았습니다.
+                            </p>
+                          ) : (
+                            <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                              설문을 찾을 수 없거나 응답 데이터를 불러오지
+                              못했습니다.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ) : null}
                   </li>
                 );
               })}
             </ul>
-          )}
-        </section>
-
-        {selectedSlug && surveyWorkload ? (
-          <SurveyWorkloadSection workload={surveyWorkload} />
-        ) : null}
-
-        <section>
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold text-zinc-900">문항별 응답 빈도</h2>
-              <p className="mt-1 text-sm text-zinc-600">
-                제출 건수 대비 각 보기·답변·무응답 빈도입니다. 무응답은 답변 행이 없는
-                제출(건너뛰기·빈 칸)입니다.
-              </p>
-            </div>
-            {selectedSlug ? (
-              <Link
-                href="/admin/progress"
-                className="text-sm font-medium text-indigo-700 hover:underline"
-              >
-                선택 해제
-              </Link>
-            ) : null}
-          </div>
-
-          {!selectedSlug ? (
-            <p className="mt-4 rounded-xl border border-dashed border-zinc-200 bg-zinc-50/80 px-4 py-10 text-center text-sm text-zinc-600">
-              위 목록에서 설문의「응답 분석」을 눌러 주세요.
-            </p>
-          ) : stats?.ok ? (
-            <div className="mt-6">
-              <SurveyFrequencyBreakdown stats={stats} />
-            </div>
-          ) : stats && !stats.ok && stats.reason === "not_configured" ? (
-            <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-              <code>SUPABASE_SERVICE_ROLE_KEY</code>가 설정되지 않았습니다.
-            </p>
-          ) : (
-            <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              설문을 찾을 수 없거나 응답 데이터를 불러오지 못했습니다.
-            </p>
           )}
         </section>
       </div>

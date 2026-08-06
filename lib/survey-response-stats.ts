@@ -2,18 +2,20 @@ import "server-only";
 
 import { normalizeSurveyRef, isUuid } from "@/lib/survey-slug";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
+import {
+  NO_ANSWER_LABEL,
+  type FrequencyBucket,
+  type QuestionFrequencyStats,
+  type SurveyResponseStats,
+} from "@/lib/survey-response-stats-shared";
 import { LIKERT_7_VALUES, isLikert7Value, isStarRatingValue, type QuestionType } from "@/lib/survey-types";
 
-export const NO_ANSWER_LABEL = "무응답";
-
-export type FrequencyBucket = {
-  key: string;
-  label: string;
-  count: number;
-  percent: number;
-  staffCount: number;
-  guestCount: number;
-};
+export {
+  NO_ANSWER_LABEL,
+  type FrequencyBucket,
+  type QuestionFrequencyStats,
+  type SurveyResponseStats,
+} from "@/lib/survey-response-stats-shared";
 
 type RespondentKind = "staff" | "guest";
 
@@ -27,28 +29,6 @@ type BucketCounts = {
   staff: number;
   guest: number;
 };
-
-export type QuestionFrequencyStats = {
-  questionId: string;
-  orderIndex: number;
-  prompt: string;
-  type: QuestionType;
-  allowSkip: boolean;
-  totalSubmissions: number;
-  answeredCount: number;
-  noAnswerCount: number;
-  buckets: FrequencyBucket[];
-};
-
-export type SurveyResponseStats =
-  | {
-      ok: true;
-      slug: string;
-      title: string;
-      totalSubmissions: number;
-      questions: QuestionFrequencyStats[];
-    }
-  | { ok: false; reason: "not_configured" | "not_found" };
 
 type SurveyRow = { id: string; slug: string; title: string };
 

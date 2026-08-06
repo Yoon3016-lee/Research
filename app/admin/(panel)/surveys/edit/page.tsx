@@ -57,13 +57,18 @@ export default async function EditSurveyByQueryPage({ searchParams }: Props) {
     notFound();
   }
 
-  const { slug: surveySlug, responseCount, ...initial } = loaded.bundle;
+  const { slug: surveySlug, responseCount, status, successorSlug, supersedesSlug, ...initial } =
+    loaded.bundle;
 
   return (
     <>
       <AdminHeader
         title="설문 편집"
-        description="기본 정보와 문항을 수정한 뒤 저장합니다. slug는 변경되지 않습니다."
+        description={
+          responseCount > 0
+            ? "응답이 있는 설문은 저장 시 새 버전이 생성되고 기존 설문은 종료됩니다."
+            : "기본 정보와 문항을 수정한 뒤 저장합니다."
+        }
       />
       <div className="p-4 sm:p-6">
         <p className="mb-6 flex flex-wrap items-center gap-4 text-sm text-zinc-600">
@@ -85,6 +90,9 @@ export default async function EditSurveyByQueryPage({ searchParams }: Props) {
           slug={surveySlug}
           initial={initial}
           responseCount={responseCount}
+          surveyStatus={status}
+          successorSlug={successorSlug}
+          supersedesSlug={supersedesSlug}
           templateSurveys={adminSurveys}
         />
       </div>

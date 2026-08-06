@@ -5,12 +5,13 @@ import type { CreateSurveyPayload } from "@/lib/survey-types";
 import { buildSurveyPeriodPersist } from "@/lib/survey-period";
 import { normalizeSurveyRef } from "@/lib/survey-slug";
 import { persistSurveyQuestionsUpdate, validateQuestion } from "@/lib/survey-persist";
+import { forkSurveyOnEdit, surveyHasStoredResponses } from "@/lib/survey-version";
 import { requireAdminPanelAccess } from "@/lib/require-admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 
 export type UpdateSurveyState =
-  | { error: string; ok?: undefined; slug?: undefined }
-  | { ok: true; slug: string; error?: undefined };
+  | { error: string; ok?: undefined; slug?: undefined; forked?: undefined; previousSlug?: undefined }
+  | { ok: true; slug: string; forked?: boolean; previousSlug?: string; error?: undefined };
 
 export async function updateSurveyAction(
   slug: string,
@@ -20,7 +21,7 @@ export async function updateSurveyAction(
     return { error: "서버에 Service Role 키가 없습니다." };
   }
 
-  await requireAdminPanelAccess();
+  const { userId } = await requireAdminPanelAccess();
 
   const normalizedSlug = normalizeSurveyRef(slug);
   const title = payload.title.trim();
@@ -40,17 +41,71 @@ export async function updateSurveyAction(
   if (!periodBuilt.ok) return { error: periodBuilt.error };
 
   const admin = createSupabaseServiceRoleClient();
-  const { data: existing, error: findError } = await admin
+
+  type ExistingSurveyRow = {
+    id: string;
+    slug: string;
+    title: string;
+    response_count: number;
+    root_survey_id?: string | null;
+  };
+
+  let existing: ExistingSurveyRow | null = null;
+
+  const selectWithVersion =
+    "id, slug, title, response_count, root_survey_id";
+  const selectBasic = "id, slug, title, response_count";
+
+  const primary = await admin
     .from("surveys")
-    .select("id, slug, response_count")
+    .select(selectWithVersion)
     .eq("slug", normalizedSlug)
     .maybeSingle();
 
-  if (findError || !existing) {
+  if (primary.error?.message && primary.error.message.includes("root_survey_id")) {
+    const fallback = await admin
+      .from("surveys")
+      .select(selectBasic)
+      .eq("slug", normalizedSlug)
+      .maybeSingle();
+    if (fallback.error || !fallback.data) {
+      return { error: "설문을 찾을 수 없습니다." };
+    }
+    existing = fallback.data as ExistingSurveyRow;
+  } else if (primary.error || !primary.data) {
+    return { error: "설문을 찾을 수 없습니다." };
+  } else {
+    existing = primary.data as ExistingSurveyRow;
+  }
+
+  if (!existing) {
     return { error: "설문을 찾을 수 없습니다." };
   }
 
-  const surveyId = existing.id as string;
+  const surveyId = existing.id;
+  const hasResponses = await surveyHasStoredResponses(
+    admin,
+    surveyId,
+    existing.response_count ?? 0,
+  );
+
+  if (hasResponses) {
+    const forkResult = await forkSurveyOnEdit(admin, existing, payload, {
+      createdBy: userId,
+    });
+    if (!forkResult.ok) {
+      return { error: forkResult.error };
+    }
+
+    revalidatePaths(normalizedSlug, forkResult.slug, forkResult.previousSlug);
+
+    return {
+      ok: true,
+      slug: forkResult.slug,
+      forked: true,
+      previousSlug: forkResult.previousSlug,
+    };
+  }
 
   const { error: updateError } = await admin
     .from("surveys")
@@ -71,35 +126,9 @@ export async function updateSurveyAction(
     .eq("id", surveyId);
 
   if (updateError) {
-    if (updateError.message.includes("response_script")) {
-      return {
-        error:
-          "DB에 response_script 컬럼이 없습니다. Supabase SQL Editor에서 supabase/migrations/20260407200000_survey_response_script.sql 을 실행하세요.",
-      };
-    }
-    if (
-      updateError.message.includes("period_start") ||
-      updateError.message.includes("period_end")
-    ) {
-      return {
-        error:
-          "DB에 period_start·period_end 컬럼이 없습니다. supabase/migrations/20260407270000_survey_period_dates.sql 을 실행하세요.",
-      };
-    }
-    if (
-      updateError.message.includes("ksic_code") ||
-      updateError.message.includes("ksic_name")
-    ) {
-      return {
-        error:
-          "DB에 ksic_code·ksic_name 컬럼이 없습니다. supabase/migrations/20260409000000_surveys_ksic.sql 을 실행하세요.",
-      };
-    }
-    return { error: updateError.message };
+    return { error: formatSurveyUpdateError(updateError.message) };
   }
 
-  // 문항을 통째로 지우면 ON DELETE CASCADE로 응답 답변이 함께 사라집니다.
-  // 기존 문항·보기 UUID를 유지하는 upsert로 저장합니다.
   const persistError = await persistSurveyQuestionsUpdate(
     admin,
     surveyId,
@@ -109,14 +138,36 @@ export async function updateSurveyAction(
     return { error: persistError };
   }
 
+  revalidatePaths(normalizedSlug);
+
+  return { ok: true, slug: normalizedSlug };
+}
+
+function formatSurveyUpdateError(message: string): string {
+  if (message.includes("response_script")) {
+    return "DB에 response_script 컬럼이 없습니다. supabase/migrations/20260407200000_survey_response_script.sql 을 실행하세요.";
+  }
+  if (message.includes("period_start") || message.includes("period_end")) {
+    return "DB에 period_start·period_end 컬럼이 없습니다. supabase/migrations/20260407270000_survey_period_dates.sql 을 실행하세요.";
+  }
+  if (message.includes("ksic_code") || message.includes("ksic_name")) {
+    return "DB에 ksic_code·ksic_name 컬럼이 없습니다. supabase/migrations/20260409000000_surveys_ksic.sql 을 실행하세요.";
+  }
+  return message;
+}
+
+function revalidatePaths(...slugs: string[]) {
+  revalidatePath("/admin/backups");
   revalidatePath("/admin");
   revalidatePath("/admin/surveys");
   revalidatePath("/admin/surveys/edit");
   revalidatePath("/admin/surveys/logic");
   revalidatePath("/admin/progress");
   revalidatePath("/surveys");
-  revalidatePath(`/survey/${normalizedSlug}`);
-  revalidatePath(`/survey-script/${normalizedSlug}`);
 
-  return { ok: true, slug: normalizedSlug };
+  for (const s of slugs) {
+    if (!s) continue;
+    revalidatePath(`/survey/${s}`);
+    revalidatePath(`/survey-script/${s}`);
+  }
 }

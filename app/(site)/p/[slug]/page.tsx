@@ -35,7 +35,15 @@ export default async function SiteCmsPage({ params }: Props) {
   const title = trail?.itemLabel ?? page.title;
 
   return (
-    <SiteContainer as="main" width="page" className="py-10 sm:py-12 lg:py-14">
+    <SiteContainer
+      as="main"
+      width="page"
+      className={
+        guideMatch
+          ? "pb-10 pt-0 sm:pb-12 lg:pb-14"
+          : "py-10 sm:py-12 lg:py-14"
+      }
+    >
       {!guideMatch ? (
         <header className="border-b border-brand-900/10 pb-5 sm:pb-6">
           <h1 className="text-[2.25rem] font-semibold leading-tight tracking-tight text-brand-900 sm:text-[2.8125rem]">
