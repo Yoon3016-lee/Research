@@ -81,6 +81,16 @@ function useAxiSiteOptional(): AxiSiteValue | null {
 }
 
 /** 공개 사이트 전역 AXI (직원 전용). children을 Provider로 감싸 설문 페이지에서 맥락 주입 가능 */
+function AxiReadyMarker() {
+  useEffect(() => {
+    document.documentElement.dataset.axiReady = "1";
+    return () => {
+      delete document.documentElement.dataset.axiReady;
+    };
+  }, []);
+  return null;
+}
+
 export function AxiSiteHost({
   axiIconUrl,
   children,
@@ -90,6 +100,7 @@ export function AxiSiteHost({
 }) {
   return (
     <AxiSiteProvider axiIconUrl={axiIconUrl}>
+      <AxiReadyMarker />
       {children}
       <AxiFloatingLauncher />
     </AxiSiteProvider>

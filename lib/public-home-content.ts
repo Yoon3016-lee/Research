@@ -558,15 +558,6 @@ export function buildPublicHomeHtml(content: PublicHomeContent): string {
   }
 
   parts.push("</main>");
-  parts.push(`
-  <aside class="axi-modal" id="axi-modal" aria-hidden="true" aria-label="AXI 어드바이저 체험">
-    <div class="modal-card">
-      <button class="close-modal" aria-label="닫기" type="button">×</button>
-      <div class="modal-title"><span class="live-dot"></span><b>AXI ADVISOR</b><small>INTERACTIVE GUIDANCE</small></div>
-      <div id="assistant-chat" class="assistant-chat"><p class="bot">안녕하세요. PRIME AX의 AXI입니다. 아래 주제를 선택하면 조사 설계의 출발점을 안내해 드립니다.</p></div>
-      <div class="suggestions"><button type="button">만족도 조사</button><button type="button">KSIC 매핑</button><button type="button">전화 친절도</button></div>
-    </div>
-  </aside>`);
 
   return parts.join("\n");
 }

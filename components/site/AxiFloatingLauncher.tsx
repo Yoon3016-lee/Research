@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent } from "rea
 import { Sparkles } from "lucide-react";
 import { useAxiSite } from "@/components/site/AxiSiteContext";
 import { AxiGuidePanel } from "@/components/site/AxiGuidePanel";
+import { AXI_OPEN_EVENT } from "@/lib/axi/open-event";
 
 const ICON_SIZE = 80;
 const EDGE_GAP = 20;
@@ -65,6 +66,12 @@ export function AxiFloatingLauncher() {
     const onResize = () => setPos((p) => clampPos(p.x, p.y));
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener(AXI_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(AXI_OPEN_EVENT, onOpen);
   }, []);
 
   const persist = useCallback((next: Pos) => {

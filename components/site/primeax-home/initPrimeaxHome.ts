@@ -1,6 +1,8 @@
 /**
  * PRIME AX 홈 랜딩 인터랙션 (Shadow DOM 루트 기준)
  */
+import { isPlatformAxiAvailable, requestOpenAxi } from "@/lib/axi/open-event";
+
 export type PrimeaxHomeCleanup = () => void;
 
 export function initPrimeaxHome(root: ParentNode): PrimeaxHomeCleanup {
@@ -148,49 +150,14 @@ export function initPrimeaxHome(root: ParentNode): PrimeaxHomeCleanup {
     cleanups.push(() => button.removeEventListener("click", onClick));
   });
 
-  const modal = root.querySelector<HTMLElement>("#axi-modal");
-  const chat = root.querySelector("#assistant-chat");
-  const answers: Record<string, string> = {
-    "만족도 조사":
-      "조사 목적, 핵심 고객군, 서비스 접점을 알려주시면 KPI와 문항 구조를 우선 제안합니다.",
-    "KSIC 매핑":
-      "사업체명·업종 설명을 입력하면 후보 코드, 판단 근거, 추가 확인 질문을 정리합니다.",
-    "전화 친절도":
-      "평가 채널과 업무 유형에 맞춰 경청·설명정확성·해결노력 등 루브릭을 구성합니다.",
-  };
-
   root.querySelectorAll("[data-open-axi]").forEach((b) => {
-    const onClick = () => {
-      modal?.classList.add("open");
-      modal?.setAttribute("aria-hidden", "false");
-    };
-    b.addEventListener("click", onClick);
-    cleanups.push(() => b.removeEventListener("click", onClick));
-  });
-
-  const closeBtn = root.querySelector(".close-modal");
-  const onClose = () => {
-    modal?.classList.remove("open");
-    modal?.setAttribute("aria-hidden", "true");
-  };
-  closeBtn?.addEventListener("click", onClose);
-  if (closeBtn) cleanups.push(() => closeBtn.removeEventListener("click", onClose));
-
-  const onModalBg = (e: Event) => {
-    if (e.target === modal) onClose();
-  };
-  modal?.addEventListener("click", onModalBg);
-  if (modal) cleanups.push(() => modal.removeEventListener("click", onModalBg));
-
-  root.querySelectorAll<HTMLButtonElement>(".suggestions button").forEach((b) => {
-    const onClick = () => {
-      const key = b.textContent?.trim() ?? "";
-      if (!chat || !key) return;
-      chat.insertAdjacentHTML(
-        "beforeend",
-        `<p class="user">${key}</p><p class="bot">${answers[key] ?? "관련 안내를 준비 중입니다."}</p>`,
-      );
-      chat.scrollTop = chat.scrollHeight;
+    const onClick = (e: Event) => {
+      e.preventDefault();
+      if (isPlatformAxiAvailable()) {
+        requestOpenAxi();
+        return;
+      }
+      window.alert("AXI는 권한이 있는 계정으로 로그인한 뒤 이용할 수 있습니다.");
     };
     b.addEventListener("click", onClick);
     cleanups.push(() => b.removeEventListener("click", onClick));
