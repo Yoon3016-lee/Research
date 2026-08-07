@@ -63,7 +63,7 @@ body{background:#f7fbff;color:#132f56}
 .banner-live-score strong{font-size:clamp(12px,1.55vw,28px);letter-spacing:-.06em;font-variant-numeric:tabular-nums}
 .banner-live-score em{margin-left:2px;font-size:clamp(8px,.8vw,14px);font-style:normal}
 .banner-live-score small{position:absolute;left:50%;bottom:-9px;transform:translateX(-50%);color:#1767dc;font:700 clamp(5px,.42vw,8px)/1 var(--mono);letter-spacing:.12em}
-.banner-axi-motion{position:absolute;z-index:4;left:78.8%;top:54.5%;width:15.2%;pointer-events:none;transform-origin:center bottom;animation:bannerAxiFloat 3.6s ease-in-out infinite}
+.banner-axi-motion{display:none!important;position:absolute;z-index:4;left:78.8%;top:54.5%;width:15.2%;pointer-events:none;transform-origin:center bottom;animation:bannerAxiFloat 3.6s ease-in-out infinite}
 .banner-axi-motion img{position:relative;z-index:2;display:block;width:100%;height:auto;filter:drop-shadow(0 12px 12px rgba(6,52,116,.2))}
 .banner-axi-motion i{position:absolute;z-index:1;left:14%;right:8%;bottom:4%;height:46%;border-radius:50%;background:radial-gradient(circle,rgba(79,215,247,.36),rgba(52,123,225,.12) 47%,transparent 72%);filter:blur(8px);animation:bannerAxiGlow 2.5s ease-in-out infinite}
 

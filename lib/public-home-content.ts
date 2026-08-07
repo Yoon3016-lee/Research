@@ -94,7 +94,7 @@ export type PublicHomeContent = {
 
 export const DEFAULT_PUBLIC_HOME_CONTENT: PublicHomeContent = {
   hero: {
-    bannerImageUrl: "/primeax-home/assets/primeax-banner-no-logo.png",
+    bannerImageUrl: "/primeax-home/assets/primeax-banner-no-axi.png",
     engineHref: "#engine",
   },
   intro: {
@@ -308,9 +308,18 @@ export function parsePublicHomeContent(raw: unknown): PublicHomeContent {
     };
   });
 
+  const rawBanner = asString(hero.bannerImageUrl, d.hero.bannerImageUrl);
+  // 기본 번들에 AXI 마스코트·라벨이 있던 옛 배너는 AXI 없는 버전으로 교체
+  const legacyBanners = new Set([
+    "/primeax-home/assets/primeax-banner-no-logo.png",
+    "/primeax-home/assets/primeax-banner.png",
+    "/primeax-home/assets/primeax-banner-v2.png",
+  ]);
+  const bannerImageUrl = legacyBanners.has(rawBanner) ? d.hero.bannerImageUrl : rawBanner;
+
   return {
     hero: {
-      bannerImageUrl: asString(hero.bannerImageUrl, d.hero.bannerImageUrl),
+      bannerImageUrl,
       engineHref: asString(hero.engineHref, d.hero.engineHref),
     },
     intro: {
@@ -407,7 +416,6 @@ export function buildPublicHomeHtml(content: PublicHomeContent): string {
         <span class="banner-network-pulse pulse-three" aria-hidden="true"></span>
         <span class="banner-chart-motion" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
         <span class="banner-live-score" aria-label="실시간 분석 점수"><strong data-banner-score>83</strong><em>%</em><small>LIVE</small></span>
-        <span class="banner-axi-motion" aria-hidden="true"><i></i><img src="/primeax-home/assets/axi-motion.png" alt="" /></span>
         <a class="banner-engine-hotspot" href="${escAttr(c.hero.engineHref)}" aria-label="KSIC 매핑엔진 체험하기"></a>
       </div>
     </section>`);

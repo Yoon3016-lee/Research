@@ -67,7 +67,7 @@ export function PrimeaxHomeLanding({ content }: Props) {
               font-family: 'Manrope', 'Noto Sans KR', sans-serif;
               -webkit-font-smoothing: antialiased;
             }
-            .site-header, .site-footer, footer.site-footer { display: none !important; }
+            .banner-axi-motion { display: none !important; }
             a { text-decoration: none; color: inherit; }
             button { font: inherit; cursor: pointer; }
             h1, h2, h3, p { margin-top: 0; }
