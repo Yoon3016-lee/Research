@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminHomepagePage() {
   await requireSuperAdmin();
   const [config, popupBanners, topBanners, publicHome] = await Promise.all([
-    getSiteHomepageConfig(),
+    getSiteHomepageConfig({ includeHiddenNavItems: true }),
     listAllSiteBanners("popup"),
     listAllSiteBanners("top"),
     getPublicHomeContent(),

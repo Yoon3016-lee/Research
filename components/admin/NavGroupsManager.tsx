@@ -1,8 +1,9 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { LayoutList, Pencil, Plus, Trash2 } from "lucide-react";
+import { LayoutList, Pencil, Plus, Trash2, Wand2 } from "lucide-react";
 import {
+  applyPrimeaxNavStructureAction,
   createNavGroupAction,
   deleteNavGroupAction,
   updateNavGroupAction,
@@ -28,7 +29,9 @@ export function NavGroupsManager({ groups, embedded = false }: Props) {
         <div>
           <h2 className="text-base font-semibold text-brand-900">상단 메뉴</h2>
           <p className="mt-1 text-sm text-brand-700/80">
-            공개 사이트 헤더의 상단 탭을 추가·수정·삭제합니다.
+            공개 사이트 헤더의 상단 탭을 추가·수정·삭제합니다. PRIME AX 6개 구조(ABOUT /
+            RESEARCH SERVICES / AI SOLUTIONS / PERFORMANCE / SURVEY PLAZA / PROJECT INQUIRY)를
+            적용한 뒤, 하위 메뉴·CMS 페이지를 이어서 관리하세요.
           </p>
         </div>
       ) : null}
@@ -37,33 +40,37 @@ export function NavGroupsManager({ groups, embedded = false }: Props) {
           <div>
             <h2 className="flex items-center gap-2 text-base font-semibold text-zinc-900">
               <LayoutList className="h-4 w-4 text-indigo-600" aria-hidden />
-              {embedded ? "상단 탭 목록" : "상단 탭 목록"}
+              상단 탭 목록
             </h2>
             <p className="mt-1 text-sm text-zinc-500">
               공개 사이트 헤더에 표시되는 상단 메뉴 탭입니다. 각 탭의 하위 메뉴는{" "}
               <a href="#section-homepage" className="font-medium text-indigo-700 hover:underline">
                 사이트 설정
               </a>
-              에서 편집할 수 있습니다. 「이름·배너 수정」에서 탭별 안내 배너(PDF·이미지)를
-              등록하면 해당 탭의 하위 페이지 상단에 표시됩니다.
+              에서 편집할 수 있습니다. 홈 섹션 연결 예:{" "}
+              <code className="rounded bg-zinc-100 px-1 text-xs">/#why</code>,{" "}
+              <code className="rounded bg-zinc-100 px-1 text-xs">/#engine</code>
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setEditingKey(null);
-              setShowCreate(!showCreate);
-            }}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
-          >
-            <Plus className="h-4 w-4" aria-hidden />
-            탭 추가
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <ApplyPrimeaxNavButton />
+            <button
+              type="button"
+              onClick={() => {
+                setEditingKey(null);
+                setShowCreate(!showCreate);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+            >
+              <Plus className="h-4 w-4" aria-hidden />
+              탭 추가
+            </button>
+          </div>
         </div>
 
         {groups.length === 0 ? (
           <p className="mt-6 rounded-xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-8 text-center text-sm text-zinc-600">
-            등록된 상단 탭이 없습니다. 「탭 추가」로 첫 탭을 만들어 주세요.
+            등록된 상단 탭이 없습니다. 「PRIME AX 메뉴 적용」또는 「탭 추가」로 시작해 주세요.
           </p>
         ) : (
           <ul className="mt-6 divide-y divide-zinc-100">
@@ -138,6 +145,28 @@ export function NavGroupsManager({ groups, embedded = false }: Props) {
   );
 }
 
+function ApplyPrimeaxNavButton() {
+  const [state, formAction, pending] = useActionState(applyPrimeaxNavStructureAction, initial);
+
+  return (
+    <form action={formAction} className="inline-flex flex-col items-end gap-1">
+      <button
+        type="submit"
+        disabled={pending}
+        className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-800 hover:bg-indigo-100 disabled:opacity-60"
+        title="기존 CMS 페이지·하위 메뉴는 유지하고, 6개 탭 이름/순서와 기본 링크만 맞춥니다."
+      >
+        <Wand2 className="h-4 w-4" aria-hidden />
+        {pending ? "적용 중…" : "PRIME AX 메뉴 적용"}
+      </button>
+      {state.error ? <p className="max-w-xs text-right text-xs text-red-600">{state.error}</p> : null}
+      {state.ok ? (
+        <p className="max-w-xs text-right text-xs text-emerald-700">6개 상단 탭 구조를 적용했습니다.</p>
+      ) : null}
+    </form>
+  );
+}
+
 function NavGroupCreateForm({ onDone }: { onDone: () => void }) {
   const [state, formAction, pending] = useActionState(createNavGroupAction, initial);
 
@@ -181,12 +210,13 @@ function NavGroupCreateForm({ onDone }: { onDone: () => void }) {
         <input
           name="href"
           className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-          placeholder="/inquiry?type=survey"
+          placeholder="/inquiry 또는 /#engine"
           defaultValue=""
         />
         <span className="mt-1 block text-xs text-zinc-500">
           입력하면 하위 드롭다운 없이 탭 클릭 시 해당 주소로 이동합니다. 예:{" "}
-          <code className="rounded bg-white px-1">/inquiry?type=survey</code>
+          <code className="rounded bg-white px-1">/inquiry</code>,{" "}
+          <code className="rounded bg-white px-1">/#proof</code>
         </span>
       </label>
       <GuideFileField />

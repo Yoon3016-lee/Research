@@ -23,9 +23,12 @@
   }
 
   .site-header {
-    background: #ffffff;
+    /* 불투명도 약 70% — 스크롤 시 아래 콘텐츠가 살짝 비침 */
+    background: rgba(255, 255, 255, 0.7);
     border-bottom: 1px solid rgba(15, 23, 42, 0.08);
     box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
   }
 
   /* 가운데 탭 영역에만 덧칠하던 오버레이 제거 — 헤더 전체 톤을 통일한다.

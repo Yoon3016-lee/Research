@@ -15,7 +15,7 @@ type Props = {
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
   const page = await getSitePageBySlug(slug);
-  if (!page) return { title: "페이지를 찾을 수 없음" };
+  if (!page) return { title: "페이지를 찾을 수 없음", robots: { index: false, follow: false } };
   return { title: page.title };
 }
 

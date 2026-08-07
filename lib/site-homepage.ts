@@ -58,6 +58,8 @@ export type SitePage = {
   slug: string;
   title: string;
   body: string;
+  /** true면 공개 메뉴·URL에서 숨김 */
+  isHidden: boolean;
 };
 
 const DEFAULT_CONFIG: SiteHomepageConfig = {
@@ -68,13 +70,68 @@ const DEFAULT_CONFIG: SiteHomepageConfig = {
   axiIconUrl: null,
   axiAllowedRoles: [...DEFAULT_AXI_ALLOWED_ROLES],
   groups: [
-    { key: "intro", label: "회사 소개", sortOrder: 0, items: [], guidePdfUrl: null, guideMediaType: null, href: "" },
-    { key: "survey", label: "설문 조사", sortOrder: 1, items: [], guidePdfUrl: null, guideMediaType: null, href: "" },
-    { key: "service", label: "서비스", sortOrder: 2, items: [], guidePdfUrl: null, guideMediaType: null, href: "" },
+    {
+      key: "intro",
+      label: "ABOUT PRIME AX",
+      sortOrder: 0,
+      items: [],
+      guidePdfUrl: null,
+      guideMediaType: null,
+      href: "",
+    },
+    {
+      key: "service",
+      label: "RESEARCH SERVICES",
+      sortOrder: 1,
+      items: [],
+      guidePdfUrl: null,
+      guideMediaType: null,
+      href: "",
+    },
+    {
+      key: "ai",
+      label: "AI SOLUTIONS",
+      sortOrder: 2,
+      items: [],
+      guidePdfUrl: null,
+      guideMediaType: null,
+      href: "",
+    },
+    {
+      key: "performance",
+      label: "PERFORMANCE",
+      sortOrder: 3,
+      items: [],
+      guidePdfUrl: null,
+      guideMediaType: null,
+      href: "",
+    },
+    {
+      key: "survey",
+      label: "SURVEY PLAZA",
+      sortOrder: 4,
+      items: [],
+      guidePdfUrl: null,
+      guideMediaType: null,
+      href: "",
+    },
+    {
+      key: "inquiry",
+      label: "PROJECT INQUIRY ↗",
+      sortOrder: 5,
+      items: [],
+      guidePdfUrl: null,
+      guideMediaType: null,
+      href: "/inquiry",
+    },
   ],
 };
 
-export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
+export async function getSiteHomepageConfig(options?: {
+  /** true면 숨김 CMS 페이지에 연결된 메뉴도 포함 (관리자용) */
+  includeHiddenNavItems?: boolean;
+}): Promise<SiteHomepageConfig> {
+  const includeHiddenNavItems = options?.includeHiddenNavItems === true;
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return DEFAULT_CONFIG;
   }
@@ -271,6 +328,34 @@ export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
         }))
       : DEFAULT_CONFIG.groups;
 
+  if (!includeHiddenNavItems) {
+    const pageIds = builtGroups
+      .flatMap((g) => g.items.map((i) => i.pageId))
+      .filter((id): id is string => Boolean(id));
+    if (pageIds.length > 0) {
+      const pages = await getSitePagesByIds(pageIds);
+      const hiddenIds = new Set(
+        Object.values(pages)
+          .filter((p) => p.isHidden)
+          .map((p) => p.id),
+      );
+      if (hiddenIds.size > 0) {
+        return {
+          siteName,
+          siteNameFont,
+          siteNameFontFamily,
+          logoUrl,
+          axiIconUrl,
+          axiAllowedRoles,
+          groups: builtGroups.map((g) => ({
+            ...g,
+            items: g.items.filter((item) => !item.pageId || !hiddenIds.has(item.pageId)),
+          })),
+        };
+      }
+    }
+  }
+
   return {
     siteName,
     siteNameFont,
@@ -311,12 +396,34 @@ export async function getSitePagesByIds(ids: string[]): Promise<Record<string, S
   }
 
   const admin = createSupabaseServiceRoleClient();
-  const { data, error } = await admin
+  let data:
+    | {
+        id: string;
+        slug: string;
+        title: string;
+        body: string | null;
+        is_hidden?: boolean | null;
+      }[]
+    | null = null;
+
+  const withHidden = await admin
     .from("site_pages")
-    .select("id, slug, title, body")
+    .select("id, slug, title, body, is_hidden")
     .in("id", unique);
 
-  if (error || !data) return {};
+  if (withHidden.error?.message.includes("is_hidden")) {
+    const fallback = await admin
+      .from("site_pages")
+      .select("id, slug, title, body")
+      .in("id", unique);
+    data = fallback.data;
+  } else if (withHidden.error || !withHidden.data) {
+    return {};
+  } else {
+    data = withHidden.data;
+  }
+
+  if (!data) return {};
 
   const map: Record<string, SitePage> = {};
   for (const row of data) {
@@ -325,32 +432,63 @@ export async function getSitePagesByIds(ids: string[]): Promise<Record<string, S
       slug: row.slug as string,
       title: row.title as string,
       body: (row.body as string) ?? "",
+      isHidden: Boolean(row.is_hidden),
     };
   }
   return map;
 }
 
-export async function getSitePageBySlug(slug: string): Promise<SitePage | null> {
+export async function getSitePageBySlug(
+  slug: string,
+  options?: { allowHidden?: boolean },
+): Promise<SitePage | null> {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return null;
 
   const normalized = slug.trim().toLowerCase();
   if (!normalized) return null;
 
   const admin = createSupabaseServiceRoleClient();
-  const { data, error } = await admin
+  const withHidden = await admin
     .from("site_pages")
-    .select("id, slug, title, body")
+    .select("id, slug, title, body, is_hidden")
     .eq("slug", normalized)
     .maybeSingle();
 
-  if (error || !data) return null;
+  let row: {
+    id: string;
+    slug: string;
+    title: string;
+    body: string | null;
+    is_hidden?: boolean | null;
+  } | null = null;
 
-  return {
-    id: data.id as string,
-    slug: data.slug as string,
-    title: data.title as string,
-    body: (data.body as string) ?? "",
+  if (withHidden.error?.message.includes("is_hidden")) {
+    const fallback = await admin
+      .from("site_pages")
+      .select("id, slug, title, body")
+      .eq("slug", normalized)
+      .maybeSingle();
+    if (fallback.error || !fallback.data) return null;
+    row = fallback.data;
+  } else if (withHidden.error || !withHidden.data) {
+    return null;
+  } else {
+    row = withHidden.data;
+  }
+
+  const page: SitePage = {
+    id: row.id as string,
+    slug: row.slug as string,
+    title: row.title as string,
+    body: (row.body as string) ?? "",
+    isHidden: Boolean(row.is_hidden),
   };
+
+  if (page.isHidden && !options?.allowHidden) {
+    return null;
+  }
+
+  return page;
 }
 
 export type SiteNavTrail = {

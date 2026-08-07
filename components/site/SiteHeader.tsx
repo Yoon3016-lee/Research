@@ -8,6 +8,7 @@ import type { SurveyParticipant } from "@/lib/participant-types";
 import { SITE_HEADER_LABELS } from "@/lib/ui-labels";
 import { SiteAuthNav } from "@/components/site/SiteAuthNav";
 import { SiteNavMegaMenu } from "@/components/site/SiteNavMegaMenu";
+import { PrimeaxHashLink } from "@/components/site/PrimeaxHashLink";
 
 const adminLinkClass =
   "inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-brand-900/10 bg-white/90 px-3 py-2 text-[0.9375rem] font-medium text-brand-800 shadow-sm backdrop-blur-sm transition hover:border-accent-500/40 hover:bg-white hover:text-brand-900";
@@ -54,9 +55,10 @@ function AdminEntryLink({ adminLink }: { adminLink: PublicAdminLinkConfig }) {
 export function SiteHeader({ homepage, adminLink, participant }: SiteHeaderProps) {
   return (
     <header className="site-header relative sticky top-0 z-[60] overflow-visible backdrop-blur-md">
-      <Link
-        href="/"
+      <PrimeaxHashLink
+        hash="top"
         className="absolute left-4 top-1/2 z-[2] flex min-w-0 max-w-[min(45vw,17rem)] -translate-y-1/2 items-center overflow-visible sm:left-6 sm:max-w-[19rem] lg:left-8"
+        aria-label={`${homepage.siteName} 홈`}
       >
         {homepage.logoUrl ? (
           <>
@@ -72,7 +74,7 @@ export function SiteHeader({ homepage, adminLink, participant }: SiteHeaderProps
             {homepage.siteName}
           </span>
         )}
-      </Link>
+      </PrimeaxHashLink>
 
       <div className="site-content-band relative">
         <div className="site-header-content-band" aria-hidden />
@@ -80,7 +82,7 @@ export function SiteHeader({ homepage, adminLink, participant }: SiteHeaderProps
           <span aria-hidden className="justify-self-start" />
 
           <nav
-            className="site-header-nav-band overflow-visible"
+            className="site-header-nav-band max-w-[min(100%,54rem)] overflow-visible"
             aria-label={SITE_HEADER_LABELS.mainNavAria}
           >
             <SiteNavMegaMenu groups={homepage.groups} />

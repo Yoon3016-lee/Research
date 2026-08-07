@@ -2,11 +2,12 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Download, Globe, Pencil, Plus, Trash2 } from "lucide-react";
+import { Download, Eye, EyeOff, Globe, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   createNavItemAction,
   deleteNavItemAction,
   deleteSiteLogoAction,
+  toggleSitePageHiddenAction,
   updateNavItemAction,
   updateNavItemPageAction,
   updateSiteLogoAction,
@@ -94,7 +95,14 @@ export function HomepageSettingsManager({ config, pages, embedded = false }: Pro
                   <li key={item.id} className="py-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="font-medium text-zinc-900">{item.label}</p>
+                        <p className="font-medium text-zinc-900">
+                          {item.label}
+                          {page?.isHidden ? (
+                            <span className="ml-2 inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
+                              숨김
+                            </span>
+                          ) : null}
+                        </p>
                         <p className="mt-1 text-sm text-zinc-500">
                           링크:{" "}
                           <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs">{item.href}</code>
@@ -117,18 +125,21 @@ export function HomepageSettingsManager({ config, pages, embedded = false }: Pro
                           메뉴 편집
                         </button>
                         {page ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setAddingGroup(null);
-                              setEditingItemId(null);
-                              setEditingPageId(editingPageId === page.id ? null : page.id);
-                            }}
-                            className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 px-3 py-1.5 text-xs font-medium text-indigo-800 hover:bg-indigo-50"
-                          >
-                            <Globe className="h-3.5 w-3.5" aria-hidden />
-                            페이지 본문
-                          </button>
+                          <>
+                            <TogglePageHiddenButton page={page} />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAddingGroup(null);
+                                setEditingItemId(null);
+                                setEditingPageId(editingPageId === page.id ? null : page.id);
+                              }}
+                              className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 px-3 py-1.5 text-xs font-medium text-indigo-800 hover:bg-indigo-50"
+                            >
+                              <Globe className="h-3.5 w-3.5" aria-hidden />
+                              페이지 본문
+                            </button>
+                          </>
                         ) : null}
                         <DeleteNavItemButton id={item.id} label={item.label} />
                       </div>
@@ -402,7 +413,7 @@ function NavItemCreateForm({
           <span>
             <span className="font-medium text-zinc-900">기존 경로로 연결</span>
             <span className="mt-0.5 block text-xs text-zinc-500">
-              예: /surveys (진행중 설문), /services (서비스 안내)
+              예: /surveys (설문광장), /services (기술소개), /#engine (KSIC 섹션)
             </span>
           </span>
         </label>
@@ -548,7 +559,25 @@ function PageEditForm({ page, onDone }: { page: SitePage; onDone: () => void }) 
       <input type="hidden" name="page_id" value={page.id} />
       <p className="text-xs text-zinc-500">
         공개 URL: <code>/p/{page.slug}</code>
+        {page.isHidden ? (
+          <span className="ml-2 font-medium text-zinc-600">(현재 숨김 — 공개 메뉴·URL에서 비표시)</span>
+        ) : null}
       </p>
+      <label className="flex items-start gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm">
+        <input
+          type="checkbox"
+          name="is_hidden"
+          value="on"
+          defaultChecked={page.isHidden}
+          className="mt-0.5 h-4 w-4 rounded border-zinc-300"
+        />
+        <span>
+          <span className="font-medium text-zinc-800">공개 사이트에서 숨김</span>
+          <span className="mt-0.5 block text-xs text-zinc-500">
+            체크하면 상단 메뉴에서 빠지고 <code>/p/{page.slug}</code> 직접 접근도 막힙니다.
+          </span>
+        </span>
+      </label>
       <label className="block text-sm">
         <span className="font-medium text-zinc-700">페이지 제목</span>
         <input
@@ -575,6 +604,36 @@ function PageEditForm({ page, onDone }: { page: SitePage; onDone: () => void }) 
           닫기
         </button>
       </div>
+    </form>
+  );
+}
+
+function TogglePageHiddenButton({ page }: { page: SitePage }) {
+  const [state, formAction, pending] = useActionState(toggleSitePageHiddenAction, initial);
+  const nextHidden = !page.isHidden;
+
+  return (
+    <form action={formAction} className="inline-flex flex-col items-start gap-1">
+      <input type="hidden" name="page_id" value={page.id} />
+      <input type="hidden" name="is_hidden" value={nextHidden ? "true" : "false"} />
+      <button
+        type="submit"
+        disabled={pending}
+        className={`inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium disabled:opacity-60 ${
+          page.isHidden
+            ? "border-emerald-200 text-emerald-800 hover:bg-emerald-50"
+            : "border-zinc-200 text-zinc-700 hover:bg-zinc-50"
+        }`}
+        title={page.isHidden ? "공개로 전환" : "공개 사이트에서 숨김"}
+      >
+        {page.isHidden ? (
+          <Eye className="h-3.5 w-3.5" aria-hidden />
+        ) : (
+          <EyeOff className="h-3.5 w-3.5" aria-hidden />
+        )}
+        {pending ? "처리 중…" : page.isHidden ? "공개" : "숨김"}
+      </button>
+      {state.error ? <p className="max-w-[12rem] text-xs text-red-600">{state.error}</p> : null}
     </form>
   );
 }

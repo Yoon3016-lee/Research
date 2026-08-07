@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import type { SiteNavGroup } from "@/lib/site-homepage";
+import { scrollToPrimeaxSectionWhenReady } from "@/lib/primeax-public-chrome";
 
 type Props = {
   groups: SiteNavGroup[];
@@ -23,18 +24,78 @@ function hrefPathname(href: string): string {
   return path || "/";
 }
 
+function hrefHash(href: string): string | null {
+  const trimmed = href.trim();
+  const hashIndex = trimmed.indexOf("#");
+  if (hashIndex < 0) return null;
+  const hash = trimmed.slice(hashIndex + 1).split("?")[0]?.trim();
+  return hash || null;
+}
+
+function isHomeSectionHref(href: string): boolean {
+  const path = hrefPathname(href);
+  return (path === "/" || path === "") && Boolean(hrefHash(href));
+}
+
 function isHrefActive(pathname: string, href: string): boolean {
+  if (isHomeSectionHref(href)) {
+    if (pathname !== "/") return false;
+    if (typeof window === "undefined") return false;
+    return window.location.hash === `#${hrefHash(href)}`;
+  }
   const path = hrefPathname(href);
   return pathname === path || pathname.startsWith(`${path}/`);
 }
 
+function isInquiryCta(group: SiteNavGroup): boolean {
+  const href = group.href.trim().toLowerCase();
+  const label = group.label.toUpperCase();
+  return (
+    group.key === "inquiry" ||
+    href.startsWith("/inquiry") ||
+    label.includes("PROJECT INQUIRY") ||
+    label.includes("문의")
+  );
+}
+
+function useNavHrefHandler() {
+  const pathname = usePathname();
+  const router = useRouter();
+
+  return useCallback(
+    (e: MouseEvent<HTMLAnchorElement>, href: string) => {
+      if (!isHomeSectionHref(href)) return;
+      e.preventDefault();
+      const hash = hrefHash(href);
+      if (!hash) return;
+      const target = `/#${hash}`;
+      if (pathname === "/") {
+        scrollToPrimeaxSectionWhenReady(hash);
+        window.history.replaceState(null, "", target);
+        window.dispatchEvent(new Event("hashchange"));
+        return;
+      }
+      router.push(target);
+    },
+    [pathname, router],
+  );
+}
+
 export function SiteNavMegaMenu({ groups }: Props) {
   const pathname = usePathname();
+  const onNavHref = useNavHrefHandler();
   const navRef = useRef<HTMLDivElement>(null);
   const columnRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [dropdownPos, setDropdownPos] = useState<DropdownPos | null>(null);
+  const [, setHashTick] = useState(0);
+
+  useEffect(() => {
+    const sync = () => setHashTick((n) => n + 1);
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, []);
 
   const isGroupActive = (group: SiteNavGroup) => {
     if (group.href.trim() && isHrefActive(pathname, group.href)) return true;
@@ -57,8 +118,8 @@ export function SiteNavMegaMenu({ groups }: Props) {
   const cancelClose = useCallback(() => {
     if (closeTimerRef.current) {
       clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
     }
+    closeTimerRef.current = null;
   }, []);
 
   const openGroup = useCallback(
@@ -138,7 +199,10 @@ export function SiteNavMegaMenu({ groups }: Props) {
                   <li key={item.id}>
                     <Link
                       href={item.href}
-                      onClick={() => setActiveKey(null)}
+                      onClick={(e) => {
+                        onNavHref(e, item.href);
+                        setActiveKey(null);
+                      }}
                       className={`block whitespace-nowrap rounded-lg px-3 py-2 text-left text-sm transition ${
                         itemActive
                           ? "bg-brand-900/8 font-semibold text-brand-900"
@@ -157,7 +221,7 @@ export function SiteNavMegaMenu({ groups }: Props) {
     ) : null;
 
   const tabClass = (active: boolean, isActiveKey: boolean) =>
-    `whitespace-nowrap rounded-t-md border-b-[3px] px-3 py-2.5 text-center text-[1.2rem] font-bold tracking-tight transition sm:px-5 ${
+    `whitespace-nowrap rounded-t-md border-b-[3px] px-2.5 py-2.5 text-center text-[0.72rem] font-extrabold tracking-tight transition sm:px-3.5 sm:text-[0.8rem] lg:text-[0.88rem] ${
       active
         ? "border-brand-900 text-brand-900"
         : isActiveKey
@@ -165,24 +229,28 @@ export function SiteNavMegaMenu({ groups }: Props) {
           : "border-transparent text-brand-800 hover:border-brand-900/30 hover:text-brand-900"
     }`;
 
+  const inquiryClass =
+    "inline-flex items-center gap-1 rounded-md border border-[#88b9ef] bg-[rgba(242,248,255,0.74)] px-2.5 py-1.5 text-[0.65rem] font-bold tracking-wide text-[#104788] transition hover:border-[#1767dc] hover:bg-white sm:text-[0.7rem]";
+
   return (
     <>
       <div
         ref={navRef}
-        className="flex flex-wrap items-end justify-center gap-x-2 sm:gap-x-3"
+        className="flex flex-wrap items-end justify-center gap-x-1 gap-y-1 sm:gap-x-2"
         onMouseLeave={scheduleClose}
       >
         {groups.map((group) => {
           const active = isGroupActive(group);
           const isActiveKey = activeKey === group.key;
           const directHref = group.href.trim();
+          const inquiry = isInquiryCta(group);
 
           if (directHref) {
             return (
               <div
                 key={group.key}
                 ref={(el) => setColumnRef(group.key, el)}
-                className="shrink-0"
+                className="shrink-0 self-center"
                 onMouseEnter={() => {
                   cancelClose();
                   setActiveKey(null);
@@ -190,9 +258,15 @@ export function SiteNavMegaMenu({ groups }: Props) {
               >
                 <Link
                   href={directHref}
-                  className={`block ${tabClass(active, false)}`}
+                  onClick={(e) => onNavHref(e, directHref)}
+                  className={inquiry ? inquiryClass : `block ${tabClass(active, false)}`}
                 >
                   {group.label}
+                  {inquiry && !group.label.includes("↗") ? (
+                    <span className="text-[#ff5a32]" aria-hidden>
+                      ↗
+                    </span>
+                  ) : null}
                 </Link>
               </div>
             );

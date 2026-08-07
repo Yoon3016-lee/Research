@@ -2,6 +2,8 @@ export type PublicHomeServiceCard = {
   title: string;
   description: string;
   tags: string[];
+  /** 카드 우측 인덱스 라벨 (예: DESIGN & FIELDWORK) */
+  indexLabel?: string;
 };
 
 export type PublicHomeMetric = {
@@ -113,22 +115,25 @@ export const DEFAULT_PUBLIC_HOME_CONTENT: PublicHomeContent = {
         description:
           "조사 목적을 측정 가능한 지표로 전환하고, 표본·문항·실사·품질관리 체계를 과업 특성에 맞게 설계합니다.",
         tags: ["Research Framework · KPI", "Sampling & Questionnaire Design", "CAWI · CAPI · Field QA"],
+        indexLabel: "DESIGN & FIELDWORK",
       },
       {
         title: "정량·정성 통합분석",
         description:
           "통계적 패턴과 응답 맥락을 함께 분석해 핵심 이슈, 원인, 개선 우선순위를 Evidence 중심으로 도출합니다.",
         tags: ["PCSI · IPA · GAP Analysis", "SPSS · Cross-tab · Segmentation", "FGI · IDI · VOC Coding"],
+        indexLabel: "MIXED-METHOD ANALYSIS",
       },
       {
         title: "공공·기업 리서치 파트너십",
         description:
           "공공정책부터 CX·교육 수요·미스터리쇼퍼까지 분야별 전문가와 함께 조사 전 과정을 책임 운영합니다.",
         tags: ["Public Policy · CX Research", "Education Demand · Outcome", "Mystery Shopper · CS Consulting"],
+        indexLabel: "RESEARCH PARTNERSHIP",
       },
     ],
     bottomLabel: "PRIME AX / HUMAN INSIGHT × AI INTELLIGENCE",
-    inquiryHref: "/inquiry",
+    inquiryHref: "#contact",
     inquiryLabel: "프로젝트 문의",
   },
   engine: {
@@ -211,15 +216,14 @@ export const DEFAULT_PUBLIC_HOME_CONTENT: PublicHomeContent = {
         current: true,
       },
     ],
-    noteHtml:
-      "※ 예비창업패키지 제출 당시 상호 ‘크래들서베이’의 사업화 과제는 최종 상호 <strong>PRIME AX</strong>로 추진 중입니다.",
+    noteHtml: "",
   },
   contact: {
     kicker: "07 / START A PROJECT",
     titleHtml: "다음 조사에 필요한<br /><em>답을 함께 설계합니다.</em>",
     email: "shwa710@naver.com",
-    phone: "010-4366-9009",
-    addressHtml: "대전광역시 중구 계백로 1719<br />센트리아오피스텔 503호",
+    phone: "",
+    addressHtml: "",
     emailButtonLabel: "이메일로 문의하기",
   },
   sections: {
@@ -270,6 +274,7 @@ export function parsePublicHomeContent(raw: unknown): PublicHomeContent {
       title: asString(c.title, fallback.title),
       description: asString(c.description, fallback.description),
       tags: asStringArray(c.tags, fallback.tags),
+      indexLabel: asString(c.indexLabel, fallback.indexLabel ?? "SERVICE"),
     };
   });
 
@@ -314,6 +319,7 @@ export function parsePublicHomeContent(raw: unknown): PublicHomeContent {
     "/primeax-home/assets/primeax-banner-no-logo.png",
     "/primeax-home/assets/primeax-banner.png",
     "/primeax-home/assets/primeax-banner-v2.png",
+    "assets/primeax-banner-no-logo.png",
   ]);
   const bannerImageUrl = legacyBanners.has(rawBanner) ? d.hero.bannerImageUrl : rawBanner;
 
@@ -404,7 +410,11 @@ export function sanitizeHomeHtml(raw: string): string {
 export function buildPublicHomeHtml(content: PublicHomeContent): string {
   const c = content;
   const s = c.sections;
-  const parts: string[] = ['<main id="main">'];
+  const parts: string[] = [
+    '<!-- PRIME AX body fragment -->',
+    '<div class="primeax-embed" data-primeax-root>',
+    '<main id="main">',
+  ];
 
   parts.push(`
     <section class="hero banner-hero" id="top" aria-label="PRIME AX Research Intelligence">
@@ -457,7 +467,16 @@ export function buildPublicHomeHtml(content: PublicHomeContent): string {
       .map((card, i) => {
         const cls = cardClasses[i % cardClasses.length];
         const tags = card.tags.map((t) => `<li>${sanitizeHomeHtml(t)}</li>`).join("");
-        return `<article class="service-card ${cls}"><div class="service-index"><span>0${i + 1}</span><small>SERVICE</small></div><div class="service-icon" aria-hidden="true"><i></i><i></i><i></i></div><h3>${sanitizeHomeHtml(card.title)}</h3><p>${sanitizeHomeHtml(card.description)}</p><ul>${tags}</ul></article>`;
+        const indexLabel = card.indexLabel?.trim() || "SERVICE";
+        const iconClass =
+          i === 1 ? "service-icon chart-icon" : i === 2 ? "service-icon network-icon" : "service-icon";
+        const iconInner =
+          i === 1
+            ? "<i></i><i></i><i></i><i></i>"
+            : i === 2
+              ? "<i></i><i></i><i></i><i></i>"
+              : "<i></i><i></i><i></i>";
+        return `<article class="service-card ${cls}"><div class="service-index"><span>0${i + 1}</span><small>${sanitizeHomeHtml(indexLabel)}</small></div><div class="${iconClass}" aria-hidden="true">${iconInner}</div><h3>${sanitizeHomeHtml(card.title)}</h3><p>${sanitizeHomeHtml(card.description)}</p><ul>${tags}</ul></article>`;
       })
       .join("");
     parts.push(`
@@ -537,27 +556,40 @@ export function buildPublicHomeHtml(content: PublicHomeContent): string {
         return `<article${cls}><span>${sanitizeHomeHtml(it.badge)}</span><b>${sanitizeHomeHtml(it.title)}</b><p>${sanitizeHomeHtml(it.body)}</p></article>`;
       })
       .join("");
+    const note = c.milestone.noteHtml.trim()
+      ? `<p class="milestone-note">${sanitizeHomeHtml(c.milestone.noteHtml)}</p>`
+      : "";
     parts.push(`
-    <section class="milestone"><div><p class="section-kicker">${sanitizeHomeHtml(c.milestone.kicker)}</p><h2>${sanitizeHomeHtml(c.milestone.titleHtml)}</h2></div><div class="milestone-list">${itemsHtml}</div><p class="milestone-note">${sanitizeHomeHtml(c.milestone.noteHtml)}</p></section>`);
+    <section class="milestone"><div><p class="section-kicker">${sanitizeHomeHtml(c.milestone.kicker)}</p><h2>${sanitizeHomeHtml(c.milestone.titleHtml)}</h2></div><div class="milestone-list">${itemsHtml}</div>${note}</section>`);
   }
 
   if (s.contact) {
-    const tel = c.contact.phone.replace(/[^0-9+]/g, "");
+    const phone = c.contact.phone.trim();
+    const address = c.contact.addressHtml.trim();
+    const tel = phone.replace(/[^0-9+]/g, "");
+    const detail =
+      phone || address
+        ? `<div><p>${
+            phone ? `<a href="tel:${escAttr(tel)}">${sanitizeHomeHtml(phone)}</a>` : ""
+          }</p><p>${sanitizeHomeHtml(address)}</p></div>`
+        : "";
+    const rowClass = detail ? "contact-row" : "contact-row contact-row-single";
     parts.push(`
     <section class="contact" id="contact">
       <p class="section-kicker">${sanitizeHomeHtml(c.contact.kicker)}</p>
       <h2>${sanitizeHomeHtml(c.contact.titleHtml)}</h2>
-      <div class="contact-row">
+      <div class="${rowClass}">
         <a class="email-action" href="mailto:${escAttr(c.contact.email)}" aria-label="이메일로 문의하기">
           <span class="email-action-icon" aria-hidden="true">✉</span>
           <span><small>PROJECT INQUIRY</small><strong>${sanitizeHomeHtml(c.contact.emailButtonLabel)}</strong></span><b>↗</b>
         </a>
-        <div><p><a href="tel:${escAttr(tel)}">${sanitizeHomeHtml(c.contact.phone)}</a></p><p>${sanitizeHomeHtml(c.contact.addressHtml)}</p></div>
+        ${detail}
       </div>
     </section>`);
   }
 
   parts.push("</main>");
+  parts.push("</div>");
 
   return parts.join("\n");
 }

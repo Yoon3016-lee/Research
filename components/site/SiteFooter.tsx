@@ -1,60 +1,95 @@
-import Link from "next/link";
-import { SiteContainer } from "@/components/site/SiteContainer";
 import { PublicAdminFooterLink } from "@/components/site/PublicAdminLink";
-import type { SiteNavGroup } from "@/lib/site-homepage";
+import { PrimeaxHashLink } from "@/components/site/PrimeaxHashLink";
+import { PRIMEAX_FOOTER } from "@/lib/primeax-public-chrome";
 
 type Props = {
   siteName: string;
-  groups: SiteNavGroup[];
+  logoUrl?: string | null;
 };
 
-export function SiteFooter({ siteName, groups }: Props) {
-  const flatItems = [
-    ...groups
-      .filter((g) => g.href.trim())
-      .map((g) => ({ id: `group-${g.key}`, label: g.label, href: g.href.trim() })),
-    ...groups.flatMap((g) => g.items),
-  ];
-  const displayName = siteName.replace(/^\[|\]$/g, "").trim() || siteName;
+export function SiteFooter({ siteName, logoUrl = null }: Props) {
+  const displayName =
+    siteName.replace(/^\[|\]$/g, "").trim() || PRIMEAX_FOOTER.companyLabel;
 
   return (
-    <footer className="border-t border-white/10 bg-gradient-to-b from-brand-900 to-brand-950 text-slate-300">
-      <SiteContainer className="flex flex-col gap-10 py-14 sm:flex-row sm:items-start sm:justify-between">
-        <div className="max-w-md">
-          <p className="site-name-font text-xl font-semibold tracking-tight text-white">
-            {displayName}
-          </p>
-          <p className="mt-3 leading-relaxed text-slate-400">
-            설문조사·리서치 전문 플랫폼입니다. 데이터 기반 의사결정을 위한 조사 서비스를
-            제공합니다.
+    <footer className="border-t border-[#b7d3ef] bg-gradient-to-br from-[#f7fbff] to-[#eaf5ff] text-[#0b2b59]">
+      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-5 py-12 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)_minmax(0,1fr)] sm:gap-8 sm:px-8 lg:px-10">
+        <div className="min-w-0">
+          <PrimeaxHashLink hash="top" className="inline-block" aria-label={`${displayName} 홈`}>
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoUrl}
+                alt={displayName}
+                className="h-14 w-auto max-w-[11rem] object-contain object-left"
+              />
+            ) : (
+              <span className="site-name-font text-xl font-semibold tracking-tight text-[#0b2b59]">
+                {displayName}
+              </span>
+            )}
+          </PrimeaxHashLink>
+          <p className="mt-3 text-[0.65rem] font-bold tracking-[0.11em] text-[#587394]">
+            {PRIMEAX_FOOTER.tagline}{" "}
+            <span className="text-[#ff5a32]">×</span> {PRIMEAX_FOOTER.taglineAccent}
           </p>
         </div>
-        <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
-          {flatItems.length > 0 ? (
-            flatItems.map((item) => (
-              <Link
-                key={item.id}
-                href={item.href}
-                className="text-slate-400 transition hover:text-accent-400"
-              >
-                {item.label}
-              </Link>
-            ))
-          ) : (
-            <>
-              <Link href="/surveys" className="text-slate-400 transition hover:text-accent-400">
-                진행중 설문
-              </Link>
-              <Link href="/services" className="text-slate-400 transition hover:text-accent-400">
-                서비스
-              </Link>
-            </>
-          )}
-          <PublicAdminFooterLink />
+
+        <div className="grid gap-3 pt-1" aria-label="회사 정보">
+          <p className="grid grid-cols-[5.5rem_1fr] gap-3 text-sm">
+            <b className="text-[0.65rem] font-bold tracking-[0.1em] text-[#2e66a6]">
+              {PRIMEAX_FOOTER.companyLabel}
+            </b>
+            <span className="font-medium leading-relaxed text-[#385678]">
+              {PRIMEAX_FOOTER.companyNameKo}
+            </span>
+          </p>
+          <p className="grid grid-cols-[5.5rem_1fr] gap-3 text-sm">
+            <b className="text-[0.65rem] font-bold tracking-[0.1em] text-[#2e66a6]">ADDRESS</b>
+            <span className="font-medium leading-relaxed text-[#385678]">
+              {PRIMEAX_FOOTER.address}
+            </span>
+          </p>
         </div>
-      </SiteContainer>
-      <div className="border-t border-white/8 py-5 text-center text-xs text-slate-500">
-        © {new Date().getFullYear()} {displayName}. All rights reserved.
+
+        <div className="grid gap-3 pt-1" aria-label="연락처">
+          <p className="grid grid-cols-[5.5rem_1fr] items-center gap-3 text-sm">
+            <b className="text-[0.65rem] font-bold tracking-[0.1em] text-[#2e66a6]">E-MAIL</b>
+            <a
+              href={`mailto:${PRIMEAX_FOOTER.email}`}
+              className="inline-flex w-max items-center justify-center gap-1.5 rounded-md border border-[#94bde7] bg-white/75 px-2.5 py-1.5 text-xs font-bold text-[#174f92] transition hover:border-[#1767dc] hover:bg-white"
+              aria-label="PRIME AX에 이메일로 문의하기"
+            >
+              <span aria-hidden>✉</span> 이메일 문의
+            </a>
+          </p>
+          <p className="grid grid-cols-[5.5rem_1fr] items-center gap-3 text-sm">
+            <b className="text-[0.65rem] font-bold tracking-[0.1em] text-[#2e66a6]">WEB</b>
+            <a
+              href={PRIMEAX_FOOTER.webHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-[#385678] transition hover:text-[#1767dc]"
+            >
+              {PRIMEAX_FOOTER.webLabel}
+            </a>
+          </p>
+          <div className="pt-1">
+            <PublicAdminFooterLink className="text-xs text-[#6f87a3] transition hover:text-[#1767dc]" />
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-3 border-t border-[#c7ddf2] px-5 py-5 sm:flex-row sm:items-center sm:px-8 lg:px-10">
+        <p className="m-0 text-[0.65rem] font-medium tracking-[0.08em] text-[#6f87a3]">
+          {PRIMEAX_FOOTER.copyright}
+        </p>
+        <PrimeaxHashLink
+          hash="top"
+          className="text-[0.65rem] font-medium tracking-[0.08em] text-[#2f6ab1] transition hover:text-[#1767dc]"
+        >
+          {PRIMEAX_FOOTER.backToTopLabel}
+        </PrimeaxHashLink>
       </div>
     </footer>
   );

@@ -43,7 +43,7 @@ export default async function SiteLayout({
         <NavGuideBanner items={guideItems} />
         {children}
       </SiteVisualFrame>
-      <SiteFooter siteName={homepage.siteName} groups={homepage.groups} />
+      <SiteFooter siteName={homepage.siteName} logoUrl={homepage.logoUrl} />
     </>
   );
 

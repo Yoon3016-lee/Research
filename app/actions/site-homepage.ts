@@ -49,6 +49,7 @@ async function parseGroupKey(raw: string): Promise<string | null> {
 function normalizeHref(raw: string): string | null {
   const href = raw.trim();
   if (!href.startsWith("/") || href.startsWith("//")) return null;
+  // 홈 섹션 해시 (/#engine) 및 일반 경로 허용
   return href;
 }
 
@@ -678,6 +679,7 @@ export async function updateNavItemPageAction(
   const pageId = String(formData.get("page_id") ?? "").trim();
   const title = String(formData.get("page_title") ?? "").trim();
   const body = String(formData.get("page_body") ?? "");
+  const isHidden = formData.get("is_hidden") === "on" || formData.get("is_hidden") === "true";
 
   if (!pageId) return { error: "페이지 ID가 없습니다." };
   if (!title) return { error: "페이지 제목을 입력하세요." };
@@ -688,6 +690,7 @@ export async function updateNavItemPageAction(
     .update({
       title,
       body,
+      is_hidden: isHidden,
       updated_at: new Date().toISOString(),
     })
     .eq("id", pageId)
@@ -695,6 +698,25 @@ export async function updateNavItemPageAction(
     .single();
 
   if (error) {
+    if (error.message.includes("is_hidden")) {
+      const fallback = await admin
+        .from("site_pages")
+        .update({
+          title,
+          body,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", pageId)
+        .select("slug")
+        .single();
+      if (fallback.error) return { error: fallback.error.message };
+      revalidateSite();
+      if (fallback.data?.slug) revalidatePath(`/p/${fallback.data.slug as string}`);
+      return {
+        error:
+          "DB에 is_hidden 컬럼이 없습니다. supabase/migrations/20260409800000_site_pages_is_hidden.sql 을 실행하세요. (제목·본문은 저장됨)",
+      };
+    }
     return { error: error.message };
   }
 
@@ -702,6 +724,42 @@ export async function updateNavItemPageAction(
   if (page?.slug) {
     revalidatePath(`/p/${page.slug as string}`);
   }
+  return { ok: true };
+}
+
+export async function toggleSitePageHiddenAction(
+  _prev: SiteHomepageActionState,
+  formData: FormData,
+): Promise<SiteHomepageActionState> {
+  await requireSuperAdmin();
+
+  const pageId = String(formData.get("page_id") ?? "").trim();
+  const nextHidden = formData.get("is_hidden") === "on" || formData.get("is_hidden") === "true";
+  if (!pageId) return { error: "페이지 ID가 없습니다." };
+
+  const admin = createSupabaseServiceRoleClient();
+  const { data: page, error } = await admin
+    .from("site_pages")
+    .update({
+      is_hidden: nextHidden,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", pageId)
+    .select("slug")
+    .single();
+
+  if (error) {
+    if (error.message.includes("is_hidden")) {
+      return {
+        error:
+          "DB에 is_hidden 컬럼이 없습니다. supabase/migrations/20260409800000_site_pages_is_hidden.sql 을 실행하세요.",
+      };
+    }
+    return { error: error.message };
+  }
+
+  revalidateSite();
+  if (page?.slug) revalidatePath(`/p/${page.slug as string}`);
   return { ok: true };
 }
 
@@ -899,6 +957,145 @@ export async function deleteNavGroupAction(
   }
 
   await deleteSiteMediaFile((existing?.guide_pdf_path as string | null) ?? null);
+
+  revalidateSite();
+  return { ok: true };
+}
+
+const PRIMEAX_NAV_GROUPS: Array<{
+  key: string;
+  label: string;
+  sortOrder: number;
+  href: string;
+}> = [
+  { key: "intro", label: "ABOUT PRIME AX", sortOrder: 0, href: "" },
+  { key: "service", label: "RESEARCH SERVICES", sortOrder: 1, href: "" },
+  { key: "ai", label: "AI SOLUTIONS", sortOrder: 2, href: "" },
+  { key: "performance", label: "PERFORMANCE", sortOrder: 3, href: "" },
+  { key: "survey", label: "SURVEY PLAZA", sortOrder: 4, href: "" },
+  { key: "inquiry", label: "PROJECT INQUIRY ↗", sortOrder: 5, href: "/inquiry" },
+];
+
+const PRIMEAX_NAV_ITEMS: Array<{
+  groupKey: string;
+  label: string;
+  href: string;
+  sortOrder: number;
+}> = [
+  { groupKey: "intro", label: "PRIME AX 소개", href: "/#why", sortOrder: 0 },
+  { groupKey: "service", label: "리서치 서비스", href: "/#services", sortOrder: 0 },
+  { groupKey: "ai", label: "기술소개", href: "/services", sortOrder: 0 },
+  { groupKey: "ai", label: "KSIC ENGINE", href: "/#engine", sortOrder: 1 },
+  { groupKey: "ai", label: "AXI", href: "/#axi", sortOrder: 2 },
+  { groupKey: "performance", label: "수행 역량·실적", href: "/#proof", sortOrder: 0 },
+  { groupKey: "survey", label: "설문광장", href: "/surveys", sortOrder: 0 },
+];
+
+/** ChatGPT 통합안 기준 상단 탭 6구조를 적용 (기존 CMS 페이지·하위메뉴는 보존) */
+export async function applyPrimeaxNavStructureAction(
+  _prev: SiteHomepageActionState,
+  _formData: FormData,
+): Promise<SiteHomepageActionState> {
+  await requireSuperAdmin();
+  const admin = createSupabaseServiceRoleClient();
+
+  for (const group of PRIMEAX_NAV_GROUPS) {
+    const { data: existing } = await admin
+      .from("site_nav_groups")
+      .select("key, href")
+      .eq("key", group.key)
+      .maybeSingle();
+
+    if (existing) {
+      const keepHref =
+        group.key === "inquiry" && String(existing.href ?? "").trim()
+          ? String(existing.href).trim()
+          : group.href;
+      const { error } = await admin
+        .from("site_nav_groups")
+        .update({
+          label: group.label,
+          sort_order: group.sortOrder,
+          href: keepHref,
+        })
+        .eq("key", group.key);
+      if (error) {
+        return {
+          error:
+            error.message.includes("href")
+              ? "DB에 site_nav_groups.href 컬럼이 없습니다. supabase/migrations/20260409100000_site_nav_groups_href.sql 을 실행하세요."
+              : error.message,
+        };
+      }
+    } else {
+      const { error } = await admin.from("site_nav_groups").insert({
+        key: group.key,
+        label: group.label,
+        sort_order: group.sortOrder,
+        href: group.href,
+      });
+      if (error) {
+        return {
+          error:
+            error.message.includes("href")
+              ? "DB에 site_nav_groups.href 컬럼이 없습니다. supabase/migrations/20260409100000_site_nav_groups_href.sql 을 실행하세요."
+              : error.message,
+        };
+      }
+    }
+  }
+
+  // 문의하기 라벨 탭이 다른 key로 남아 있으면 INQUIRY로 맞춤
+  await admin
+    .from("site_nav_groups")
+    .update({
+      label: "PROJECT INQUIRY ↗",
+      sort_order: 5,
+      href: "/inquiry",
+    })
+    .eq("label", "문의하기")
+    .neq("key", "inquiry");
+
+  // /services → AI SOLUTIONS
+  await admin
+    .from("site_nav_items")
+    .update({ group_key: "ai" })
+    .eq("group_key", "service")
+    .in("href", ["/services", "/services/"]);
+
+  const { data: existingItems } = await admin
+    .from("site_nav_items")
+    .select("group_key, href");
+
+  const existingSet = new Set(
+    (existingItems ?? []).map((row) => `${row.group_key}::${row.href}`),
+  );
+
+  for (const item of PRIMEAX_NAV_ITEMS) {
+    const key = `${item.groupKey}::${item.href}`;
+    if (existingSet.has(key)) continue;
+    // /services 변형도 스킵
+    if (
+      item.href === "/services" &&
+      (existingSet.has("ai::/services") || existingSet.has("ai::/services/"))
+    ) {
+      continue;
+    }
+    const { error } = await admin.from("site_nav_items").insert({
+      group_key: item.groupKey,
+      label: item.label,
+      href: item.href,
+      sort_order: item.sortOrder,
+    });
+    if (error) return { error: error.message };
+  }
+
+  await admin
+    .from("site_nav_items")
+    .update({ label: "설문광장" })
+    .eq("group_key", "survey")
+    .eq("href", "/surveys")
+    .in("label", ["진행중 설문", "진행 중 설문"]);
 
   revalidateSite();
   return { ok: true };
