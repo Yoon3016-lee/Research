@@ -5,6 +5,11 @@ import {
   parseAxiAllowedRoles,
 } from "@/lib/axi/access";
 import {
+  DEFAULT_PUBLIC_HOME_CONTENT,
+  parsePublicHomeContent,
+  type PublicHomeContent,
+} from "@/lib/public-home-content";
+import {
   DEFAULT_SITE_NAME_FONT,
   getSiteNameFontOption,
   parseSiteNameFontKey,
@@ -275,6 +280,28 @@ export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
     axiAllowedRoles,
     groups: builtGroups,
   };
+}
+
+export async function getPublicHomeContent(): Promise<PublicHomeContent> {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return structuredClone(DEFAULT_PUBLIC_HOME_CONTENT);
+  }
+
+  const admin = createSupabaseServiceRoleClient();
+  const { data, error } = await admin
+    .from("site_settings")
+    .select("public_home_content")
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (error) {
+    if (!error.message.includes("public_home_content")) {
+      console.error("[getPublicHomeContent]", error.message);
+    }
+    return structuredClone(DEFAULT_PUBLIC_HOME_CONTENT);
+  }
+
+  return parsePublicHomeContent(data?.public_home_content);
 }
 
 export async function getSitePagesByIds(ids: string[]): Promise<Record<string, SitePage>> {

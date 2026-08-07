@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { parseAxiAllowedRoles } from "@/lib/axi/access";
+import { parsePublicHomeContent } from "@/lib/public-home-content";
 import { requireSuperAdmin } from "@/lib/require-super-admin";
 import { parseSiteNameFontKey } from "@/lib/site-name-fonts";
 import { deleteSiteMediaFile, uploadSiteMediaFile } from "@/lib/site-media-upload";
@@ -377,6 +378,67 @@ export async function updateSiteAxiAllowedRolesAction(
       return {
         error:
           "DB에 axi_allowed_roles 컬럼이 없습니다. supabase/migrations/20260409500000_site_settings_axi_allowed_roles.sql 을 실행하세요.",
+      };
+    }
+    return { error: error.message };
+  }
+
+  revalidateSite();
+  return { ok: true };
+}
+
+export async function updatePublicHomeContentAction(
+  _prev: SiteHomepageActionState,
+  formData: FormData,
+): Promise<SiteHomepageActionState> {
+  await requireSuperAdmin();
+
+  const rawJson = String(formData.get("public_home_json") ?? "").trim();
+  if (!rawJson) return { error: "저장할 내용이 없습니다." };
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawJson);
+  } catch {
+    return { error: "공개 홈 설정 JSON이 올바르지 않습니다." };
+  }
+
+  const content = parsePublicHomeContent(parsed);
+
+  const bannerFile = formData.get("hero_banner_file");
+  if (bannerFile instanceof File && bannerFile.size > 0) {
+    const uploaded = await uploadSiteMediaFile(bannerFile, "public-home");
+    if (!uploaded.ok) return { error: uploaded.error };
+    if (uploaded.data.mediaType !== "image") {
+      return { error: "히어로 배너는 이미지 파일만 업로드할 수 있습니다." };
+    }
+    content.hero.bannerImageUrl = uploaded.data.url;
+  }
+
+  const opsFile = formData.get("ops_image_file");
+  if (opsFile instanceof File && opsFile.size > 0) {
+    const uploaded = await uploadSiteMediaFile(opsFile, "public-home");
+    if (!uploaded.ok) return { error: uploaded.error };
+    if (uploaded.data.mediaType !== "image") {
+      return { error: "현장 이미지는 이미지 파일만 업로드할 수 있습니다." };
+    }
+    content.evidence.opsImageUrl = uploaded.data.url;
+  }
+
+  const admin = createSupabaseServiceRoleClient();
+  const { error } = await admin
+    .from("site_settings")
+    .update({
+      public_home_content: content,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", 1);
+
+  if (error) {
+    if (error.message.includes("public_home_content")) {
+      return {
+        error:
+          "DB에 public_home_content 컬럼이 없습니다. supabase/migrations/20260409600000_site_settings_public_home_content.sql 을 실행하세요.",
       };
     }
     return { error: error.message };

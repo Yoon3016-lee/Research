@@ -5,7 +5,9 @@ import { AdminSectionTabPanel } from "@/components/admin/AdminSectionTabPanel";
 import { AxiIconSettingsManager } from "@/components/admin/AxiIconSettingsManager";
 import { HomepageSettingsManager } from "@/components/admin/HomepageSettingsManager";
 import { NavGroupsManager } from "@/components/admin/NavGroupsManager";
+import { PublicHomeManager } from "@/components/admin/PublicHomeManager";
 import type { SiteBanner } from "@/lib/site-banners";
+import type { PublicHomeContent } from "@/lib/public-home-content";
 import type { SiteHomepageConfig, SitePage } from "@/lib/site-homepage";
 
 type Props = {
@@ -13,11 +15,13 @@ type Props = {
   pages: Record<string, SitePage>;
   topBanners: SiteBanner[];
   popupBanners: SiteBanner[];
+  publicHome: PublicHomeContent;
 };
 
 const tabs = [
   { id: "nav", label: "상단 메뉴" },
   { id: "homepage", label: "사이트 설정" },
+  { id: "public-home", label: "공개홈페이지 관리" },
   { id: "banners", label: "배너" },
   { id: "misc", label: "기타 관리" },
 ] as const;
@@ -27,6 +31,7 @@ export function HomepagePanel({
   pages,
   topBanners,
   popupBanners,
+  publicHome,
 }: Props) {
   return (
     <AdminSectionTabPanel tabs={[...tabs]} defaultTabId="nav">
@@ -39,6 +44,14 @@ export function HomepagePanel({
           );
         }
 
+        if (activeId === "public-home") {
+          return (
+            <section>
+              <PublicHomeManager content={publicHome} />
+            </section>
+          );
+        }
+
         if (activeId === "banners") {
           return (
             <section className="space-y-10">
@@ -46,7 +59,7 @@ export function HomepagePanel({
                 placement="top"
                 banners={topBanners}
                 heading="상단 배너"
-                description="헤더 바로 아래 본문 영역에 가로로 표시됩니다. 메인 화면 레이아웃에 포함됩니다."
+                description="헤더 바로 아래 본문 영역에 가로로 표시됩니다. 현재 공개 홈(/) 메인은 시안 랜딩을 쓰므로 홈에는 표시되지 않고, 필요 시 다른 공개 페이지 연동에 활용할 수 있습니다."
                 createHeading="새 상단 배너 등록"
               />
               <BannersManager
