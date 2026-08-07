@@ -26,7 +26,7 @@ export function scrollToPrimeaxSection(hash: string): boolean {
   const id = hash.replace(/^#/, "").trim();
   if (!id) return false;
 
-  // 맨 위(#top)는 문서 최상단으로 — 배너가 헤더에 가리지 않도록 host padding 기준
+  // 맨 위(#top)는 문서 최상단으로 이동
   if (id === "top") {
     window.scrollTo({ top: 0, behavior: "smooth" });
     return true;

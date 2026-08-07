@@ -119,13 +119,21 @@ export function PrimeaxHomeLanding({ content }: Props) {
             .banner-axi-motion { display: none !important; }
             .site-header, .site-footer, footer.site-footer { display: none !important; }
             [id] { scroll-margin-top: calc(var(--site-header-height, 4.5rem) + 12px); }
-            /* 맨 위 배너는 호스트 padding으로 이미 헤더 아래부터 시작 */
             .hero.banner-hero {
               scroll-margin-top: 0;
+              overflow: visible !important;
+            }
+            .banner-motion-wrap {
+              aspect-ratio: auto !important;
+              height: auto !important;
+              overflow: visible !important;
             }
             .banner-motion {
-              object-fit: cover;
-              object-position: center top;
+              width: 100% !important;
+              height: auto !important;
+              max-width: 100% !important;
+              object-fit: contain !important;
+              object-position: center top !important;
             }
             ${css}
           </style>
@@ -178,7 +186,7 @@ export function PrimeaxHomeLanding({ content }: Props) {
   return (
     <div
       ref={hostRef}
-      className="primeax-home-host w-full min-h-[50vh] bg-[#f7fbff] pt-[var(--site-header-height,4.5rem)]"
+      className="primeax-home-host w-full min-h-[50vh] bg-[#f7fbff]"
       data-primeax-home
     />
   );
