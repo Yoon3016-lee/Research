@@ -60,7 +60,8 @@ body{background:#f7fbff;color:#132f56}
 .site-header .nav{gap:24px;margin-right:28px}
 .site-header .nav a{font:800 12.5px/1 var(--sans);letter-spacing:-.015em;opacity:.86;white-space:nowrap}
 .site-header .header-contact{font-size:11px;font-weight:700;letter-spacing:.055em}
-.banner-live-score{position:absolute;z-index:5;left:88.4%;top:40.2%;width:7.1%;height:7.8%;display:flex;align-items:center;justify-content:center;border-radius:7px;background:rgba(239,247,255,.96);box-shadow:0 0 18px rgba(221,239,255,.8);color:#0b2b59;font-family:var(--sans);font-weight:800;line-height:1;pointer-events:none}
+/* 3:2 배너(primeax-banner-no-axi) 기준 — 파이프라인 카드 우측 점수 위치 */
+.banner-live-score{position:absolute;z-index:5;left:87.6%;top:32.6%;width:6.8%;height:7.2%;display:flex;align-items:center;justify-content:center;border-radius:7px;background:rgba(239,247,255,.98);box-shadow:0 0 18px rgba(221,239,255,.8);color:#0b2b59;font-family:var(--sans);font-weight:800;line-height:1;pointer-events:none}
 .banner-live-score strong{font-size:clamp(12px,1.55vw,28px);letter-spacing:-.06em;font-variant-numeric:tabular-nums}
 .banner-live-score em{margin-left:2px;font-size:clamp(8px,.8vw,14px);font-style:normal}
 .banner-live-score small{position:absolute;left:50%;bottom:-9px;transform:translateX(-50%);color:#1767dc;font:700 clamp(5px,.42vw,8px)/1 var(--mono);letter-spacing:.12em}
@@ -87,7 +88,7 @@ body{background:#f7fbff;color:#132f56}
 @keyframes bannerAxiGlow{0%,100%{opacity:.45;transform:scale(.92)}50%{opacity:1;transform:scale(1.08)}}
 
 @media(max-width:1150px){.site-header .nav{gap:14px;margin-right:18px}.site-header .nav a{font-size:10.5px}.site-header .header-contact{font-size:9px}.performance-grid{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:820px){.site-header .nav a{font-size:13px;letter-spacing:.01em}.banner-live-score{left:88%;top:39.2%;width:8%;height:10%}.banner-live-score small{display:none}.banner-axi-motion{left:78%;top:53%;width:17%}.performance-title{grid-template-columns:1fr;gap:10px}.performance-title>p:last-child{margin-top:8px}.performance-grid{grid-template-columns:1fr;gap:10px}.performance-grid article{min-height:205px}.performance-grid small{position:static;display:block;margin-top:18px}.performance-records{margin-top:46px;padding-top:34px}}
+@media(max-width:820px){.site-header .nav a{font-size:13px;letter-spacing:.01em}.banner-live-score{left:87.2%;top:32%;width:7.4%;height:8.2%}.banner-live-score small{display:none}.banner-axi-motion{left:78%;top:53%;width:17%}.performance-title{grid-template-columns:1fr;gap:10px}.performance-title>p:last-child{margin-top:8px}.performance-grid{grid-template-columns:1fr;gap:10px}.performance-grid article{min-height:205px}.performance-grid small{position:static;display:block;margin-top:18px}.performance-records{margin-top:46px;padding-top:34px}}
 @media(prefers-reduced-motion:reduce){.banner-axi-motion,.banner-axi-motion i{animation:none!important}}
 
 /* 2026-08-07 end-to-end research workflow */
