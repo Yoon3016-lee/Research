@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AxiFloatingLauncher } from "@/components/site/AxiFloatingLauncher";
+import { AxiSurveyContextBridge } from "@/components/site/AxiSiteContext";
 import { CatiStaffSurveySection } from "@/components/site/CatiStaffSurveySection";
 import { SurveyParticipantPanel } from "@/components/site/SurveyParticipantPanel";
 import { SiteContainer } from "@/components/site/SiteContainer";
 import { SurveyScriptCheckButton } from "@/components/site/SurveyScriptCheckButton";
 import { hasActiveCatiBatch } from "@/lib/cati-samples";
 import { listActiveCatiContactOptions } from "@/lib/cati-contact-options";
+import { canUseAxi } from "@/lib/axi/access";
 import { getSurveyParticipant } from "@/lib/participant";
-import { canViewResponseScript } from "@/lib/roles";
 import { getSiteHomepageConfig } from "@/lib/site-homepage";
 import { loadSurveyResponseScript } from "@/lib/survey-script";
 import { getSurveyViewModeForUser } from "@/lib/user-preferences";
@@ -80,23 +80,20 @@ export default async function SurveyParticipatePage({ params }: Props) {
   const survey = loaded.survey;
   const redirectedFromSlug =
     "redirectedFromSlug" in loaded ? loaded.redirectedFromSlug : undefined;
-  const participant = await getSurveyParticipant();
+  const [participant, homepage] = await Promise.all([
+    getSurveyParticipant(),
+    getSiteHomepageConfig(),
+  ]);
   const catiEnabled = await hasActiveCatiBatch(survey.slug);
   const contactOptions = catiEnabled ? await listActiveCatiContactOptions() : [];
   const viewMode = await getSurveyViewModeForUser(
     participant.mode === "anonymous" ? null : participant.userId,
   );
 
-  const showAxi =
-    participant.mode === "staff" && canViewResponseScript(participant.role);
-  let axiIconUrl: string | null = null;
+  const showAxi = canUseAxi(participant, homepage.axiAllowedRoles);
   let axiScriptContext = "";
   if (showAxi) {
-    const [homepage, scriptLoad] = await Promise.all([
-      getSiteHomepageConfig(),
-      loadSurveyResponseScript(survey.slug),
-    ]);
-    axiIconUrl = homepage.axiIconUrl;
+    const scriptLoad = await loadSurveyResponseScript(survey.slug);
     if (scriptLoad.ok) {
       const shared = scriptLoad.sharedScripts
         .map((s) => `▸ ${s.title}\n${s.body.trim()}`)
@@ -177,10 +174,9 @@ export default async function SurveyParticipatePage({ params }: Props) {
       )}
 
       {showAxi ? (
-        <AxiFloatingLauncher
+        <AxiSurveyContextBridge
           surveyTitle={survey.title}
           scriptContext={axiScriptContext}
-          axiIconUrl={axiIconUrl}
           ksicCode={survey.ksicCode}
           ksicName={survey.ksicName}
         />

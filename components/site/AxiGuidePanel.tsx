@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 import { Loader2, Send, Sparkles, X } from "lucide-react";
 import { askAxiAction } from "@/app/actions/axi-guide";
+import type { AxiMode } from "@/components/site/AxiSiteContext";
 
 type ChatMessage = {
   id: string;
@@ -11,6 +12,7 @@ type ChatMessage = {
 };
 
 type Props = {
+  mode?: AxiMode;
   surveyTitle: string;
   scriptContext: string;
   onClose: () => void;
@@ -44,7 +46,20 @@ function AxiAvatar({ axiIconUrl, size = "md" }: { axiIconUrl?: string | null; si
   );
 }
 
+function welcomeText(mode: AxiMode): string {
+  return mode === "survey"
+    ? "이 설문의 업종·스크립트를 참고해 답합니다. 단어 뜻이나 보기 해석을 짧게 물어보세요."
+    : "사이트·설문 이용이나 조사 용어를 짧게 물어보세요. 보편적인 안내를 1~2문장으로 답합니다.";
+}
+
+function placeholderText(mode: AxiMode): string {
+  return mode === "survey"
+    ? "예: ‘응답거절’ 보기는 어떤 때 쓰나요?"
+    : "예: 설문 광장과 참여 링크의 차이는?";
+}
+
 export function AxiGuidePanel({
+  mode = "general",
   surveyTitle,
   scriptContext,
   onClose,
@@ -57,7 +72,7 @@ export function AxiGuidePanel({
     {
       id: "welcome",
       role: "axi",
-      text: "단어 뜻이나 보기 해석을 짧게 물어보세요. 1~2문장으로 답합니다.",
+      text: welcomeText(mode),
     },
   ]);
   const [draft, setDraft] = useState("");
@@ -65,10 +80,21 @@ export function AxiGuidePanel({
   const [pending, startTransition] = useTransition();
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const modeRef = useRef(mode);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  // 설문 ↔ 일반 전환 시 안내 문구만 갱신 (대화 이력은 유지)
+  useEffect(() => {
+    if (modeRef.current === mode) return;
+    modeRef.current = mode;
+    setMessages((prev) => {
+      const rest = prev.filter((m) => m.id !== "welcome");
+      return [{ id: "welcome", role: "axi", text: welcomeText(mode) }, ...rest];
+    });
+  }, [mode]);
 
   useEffect(() => {
     const el = listRef.current;
@@ -89,6 +115,7 @@ export function AxiGuidePanel({
     startTransition(async () => {
       const result = await askAxiAction({
         question,
+        mode,
         surveyTitle,
         scriptContext,
         ksicCode,
@@ -125,7 +152,16 @@ export function AxiGuidePanel({
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-zinc-200 px-3 py-2.5">
         <div className="flex min-w-0 items-center gap-2.5">
           <AxiAvatar axiIconUrl={axiIconUrl} size="md" />
-          <p className="text-sm font-semibold tracking-tight text-teal-800">AXI</p>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold tracking-tight text-teal-800">AXI</p>
+            {mode === "survey" && surveyTitle.trim() ? (
+              <p className="truncate text-[10px] text-zinc-500" title={surveyTitle}>
+                {surveyTitle}
+              </p>
+            ) : (
+              <p className="text-[10px] text-zinc-500">사이트 안내</p>
+            )}
+          </div>
         </div>
         <button
           type="button"
@@ -202,7 +238,7 @@ export function AxiGuidePanel({
             rows={2}
             maxLength={400}
             disabled={pending}
-            placeholder="예: ‘응답거절’ 보기는 어떤 때 쓰나요?"
+            placeholder={placeholderText(mode)}
             className="min-h-[2.75rem] flex-1 resize-none rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-2 text-xs leading-relaxed outline-none ring-teal-500/25 placeholder:text-zinc-400 focus:border-teal-300 focus:bg-white focus:ring-2 disabled:opacity-60"
           />
           <button

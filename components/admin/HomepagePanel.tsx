@@ -66,10 +66,13 @@ export function HomepagePanel({
               <div>
                 <h2 className="text-base font-semibold text-brand-900">기타 관리</h2>
                 <p className="mt-1 text-sm text-brand-700/80">
-                  설문 AXI 아이콘 등 부가 리소스를 관리합니다.
+                  AXI 사용 권한·아이콘 등 부가 설정을 관리합니다.
                 </p>
               </div>
-              <AxiIconSettingsManager axiIconUrl={config.axiIconUrl} />
+              <AxiIconSettingsManager
+                axiIconUrl={config.axiIconUrl}
+                axiAllowedRoles={config.axiAllowedRoles}
+              />
             </section>
           );
         }

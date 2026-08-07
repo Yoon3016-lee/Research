@@ -208,14 +208,24 @@ export function SiteAuthNav({ participant, headerTheme = "light" }: Props) {
               {loginPending ? "처리 중…" : "로그인"}
             </button>
             <p className="text-center text-xs text-brand-700/80">
-              직원 계정이 없으면{" "}
+              계정이 없으면{" "}
               <Link
                 href={`/admin/signup?next=${encodeURIComponent(returnPath)}`}
-                className="admin-link hover:underline"
+                className="font-medium text-accent-600 hover:underline"
                 onClick={() => setPanel(null)}
               >
                 직원 회원가입
               </Link>
+              <span className="mx-1.5 text-brand-700/40" aria-hidden>
+                ·
+              </span>
+              <button
+                type="button"
+                className="font-medium text-accent-600 hover:underline"
+                onClick={() => openPanel("signup")}
+              >
+                게스트 회원가입
+              </button>
             </p>
           </form>
         </AuthPopover>
@@ -239,8 +249,18 @@ export function SiteAuthNav({ participant, headerTheme = "light" }: Props) {
               disabled={signupPending}
               className="w-full site-btn-primary py-2.5 text-sm disabled:opacity-60"
             >
-              {signupPending ? "처리 중…" : "가입하기"}
+              {signupPending ? "처리 중…" : "게스트 가입하기"}
             </button>
+            <p className="text-center text-xs text-brand-700/80">
+              직원·관리자 계정이 필요하면{" "}
+              <Link
+                href={`/admin/signup?next=${encodeURIComponent(returnPath)}`}
+                className="font-medium text-accent-600 hover:underline"
+                onClick={() => setPanel(null)}
+              >
+                직원 회원가입
+              </Link>
+            </p>
           </form>
         </AuthPopover>
       ) : null}

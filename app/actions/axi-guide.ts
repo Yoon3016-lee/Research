@@ -1,8 +1,9 @@
 "use server";
 
-import { askAxiGuide } from "@/lib/axi/ask";
-import { canViewResponseScript } from "@/lib/roles";
+import { askAxiGuide, type AxiAskMode } from "@/lib/axi/ask";
+import { canUseAxi } from "@/lib/axi/access";
 import { getSurveyParticipant } from "@/lib/participant";
+import { getSiteHomepageConfig } from "@/lib/site-homepage";
 
 export type AskAxiActionResult =
   | { ok: true; answer: string }
@@ -10,18 +11,26 @@ export type AskAxiActionResult =
 
 export async function askAxiAction(input: {
   question: string;
+  mode?: AxiAskMode;
   surveyTitle: string;
   scriptContext: string;
   ksicCode?: string;
   ksicName?: string;
 }): Promise<AskAxiActionResult> {
-  const participant = await getSurveyParticipant();
-  if (participant.mode !== "staff" || !canViewResponseScript(participant.role)) {
-    return { ok: false, error: "AXI는 직원 로그인 후 이용할 수 있습니다." };
+  const [participant, homepage] = await Promise.all([
+    getSurveyParticipant(),
+    getSiteHomepageConfig(),
+  ]);
+
+  if (!canUseAxi(participant, homepage.axiAllowedRoles)) {
+    return { ok: false, error: "AXI를 사용할 권한이 없습니다." };
   }
+
+  const mode: AxiAskMode = input.mode === "survey" ? "survey" : "general";
 
   return askAxiGuide({
     question: input.question ?? "",
+    mode,
     surveyTitle: input.surveyTitle ?? "",
     scriptContext: input.scriptContext ?? "",
     ksicCode: input.ksicCode ?? "",

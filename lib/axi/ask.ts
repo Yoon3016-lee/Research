@@ -6,7 +6,25 @@ import {
 } from "@/lib/survey-ai/llm";
 import { formatKsicContext } from "@/lib/survey-ai/ksic";
 
-const AXI_SYSTEM_PROMPT = `당신은 AXI입니다. 전화·설문 조사 직원을 돕는 짧은 가이드 AI입니다.
+export type AxiAskMode = "general" | "survey";
+
+const AXI_SYSTEM_GENERAL = `당신은 AXI입니다. Research Hub 공개 사이트에서 직원·조사원을 돕는 짧은 가이드 AI입니다.
+
+역할:
+- 사이트·설문 참여·문의 등 플랫폼 이용 안내
+- 조사·설문에서 자주 쓰는 용어·보기의 일반적 의미 설명
+- 업무에 도움이 되는 짧고 실용적인 안내
+
+규칙 (필수):
+- 한국어로만 답변
+- 반드시 완전한 1~2문장만 출력 (의미 전달에 필요한 길이, 대략 40~120자)
+- 답을 중간에 끊지 말 것. 한 단어만 출력 금지
+- 목록·번호·불릿·마크다운·서론·맺음말 금지
+- 특정 설문의 KSIC·업종 전제가 없으므로 보편적인 조사·플랫폼 맥락으로 답함
+- 설문 설계·법무·의료·개인정보 처리 요청은 "해당 문의는 AXI 안내 범위를 벗어납니다." 한 문장으로만 답함
+- 모르는 내용은 추측하지 말고 짧게 모른다고 안내`;
+
+const AXI_SYSTEM_SURVEY = `당신은 AXI입니다. 전화·설문 조사 직원을 돕는 짧은 가이드 AI입니다.
 
 역할:
 - 단어·용어의 뜻 설명
@@ -56,7 +74,13 @@ function normalizeAxiAnswer(raw: string): string {
   if (text.length > 200) {
     // 문장 중간 절단보다 끝 문장 단위 우선
     const cut = text.slice(0, 197);
-    const lastStop = Math.max(cut.lastIndexOf("."), cut.lastIndexOf("!"), cut.lastIndexOf("?"), cut.lastIndexOf("다 "), cut.lastIndexOf("요 "));
+    const lastStop = Math.max(
+      cut.lastIndexOf("."),
+      cut.lastIndexOf("!"),
+      cut.lastIndexOf("?"),
+      cut.lastIndexOf("다 "),
+      cut.lastIndexOf("요 "),
+    );
     text = lastStop > 40 ? cut.slice(0, lastStop + 1).trim() : `${cut}…`;
   }
   return text;
@@ -78,6 +102,7 @@ export type AxiAskResult =
 
 export async function askAxiGuide(params: {
   question: string;
+  mode?: AxiAskMode;
   surveyTitle: string;
   scriptContext: string;
   ksicCode?: string;
@@ -96,48 +121,65 @@ export async function askAxiGuide(params: {
     return { ok: false, error: llm.error };
   }
 
-  const ksicCode = (params.ksicCode ?? "").trim();
-  const ksicName = (params.ksicName ?? "").trim();
+  const mode: AxiAskMode = params.mode === "survey" ? "survey" : "general";
+  const systemPrompt = mode === "survey" ? AXI_SYSTEM_SURVEY : AXI_SYSTEM_GENERAL;
 
-  let ksicBlock = "";
-  if (ksicCode || ksicName) {
-    try {
-      if (ksicCode) {
-        ksicBlock = await formatKsicContext(ksicCode, ksicName);
-      } else {
-        ksicBlock = `업종명: ${ksicName}`;
+  let userPrompt: string;
+
+  if (mode === "survey") {
+    const ksicCode = (params.ksicCode ?? "").trim();
+    const ksicName = (params.ksicName ?? "").trim();
+
+    let ksicBlock = "";
+    if (ksicCode || ksicName) {
+      try {
+        if (ksicCode) {
+          ksicBlock = await formatKsicContext(ksicCode, ksicName);
+        } else {
+          ksicBlock = `업종명: ${ksicName}`;
+        }
+      } catch {
+        ksicBlock = [
+          ksicCode ? `KSIC 코드: ${ksicCode}` : "",
+          ksicName ? `업종명: ${ksicName}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n");
       }
-    } catch {
-      ksicBlock = [
-        ksicCode ? `KSIC 코드: ${ksicCode}` : "",
-        ksicName ? `업종명: ${ksicName}` : "",
-      ]
-        .filter(Boolean)
-        .join("\n");
     }
-  }
 
-  const userPrompt = [
-    `설문 제목: ${params.surveyTitle.trim() || "(없음)"}`,
-    "",
-    "## 설문 KSIC·업종 (답변 시 우선 참고)",
-    ksicBlock || "(이 설문에 KSIC가 등록되지 않음)",
-    "",
-    "## 참고 스크립트·문항 (일부, 질문과 관련될 때만 활용)",
-    clip(params.scriptContext, MAX_CONTEXT_LEN) || "(스크립트 없음)",
-    "",
-    "## 직원 질문",
-    question,
-    "",
-    ksicBlock
-      ? "KSIC·업종 맥락을 반영해 완전한 문장 1~2개로만 답하세요. 한 단어만 쓰지 마세요."
-      : "완전한 문장 1~2개로만 답하세요. 한 단어만 쓰지 마세요.",
-  ].join("\n");
+    userPrompt = [
+      `설문 제목: ${params.surveyTitle.trim() || "(없음)"}`,
+      "",
+      "## 설문 KSIC·업종 (답변 시 우선 참고)",
+      ksicBlock || "(이 설문에 KSIC가 등록되지 않음)",
+      "",
+      "## 참고 스크립트·문항 (일부, 질문과 관련될 때만 활용)",
+      clip(params.scriptContext, MAX_CONTEXT_LEN) || "(스크립트 없음)",
+      "",
+      "## 직원 질문",
+      question,
+      "",
+      ksicBlock
+        ? "KSIC·업종 맥락을 반영해 완전한 문장 1~2개로만 답하세요. 한 단어만 쓰지 마세요."
+        : "완전한 문장 1~2개로만 답하세요. 한 단어만 쓰지 마세요.",
+    ].join("\n");
+  } else {
+    userPrompt = [
+      "## 상황",
+      "직원이 Research Hub 공개 사이트를 이용 중입니다. 특정 설문 화면이 아니므로 KSIC·업종 전제 없이 보편적으로 안내하세요.",
+      "",
+      "## 직원 질문",
+      question,
+      "",
+      "완전한 문장 1~2개로만 답하세요. 한 단어만 쓰지 마세요.",
+    ].join("\n");
+  }
 
   try {
     const raw = await completeSurveyAiText({
       config: llm,
-      systemPrompt: AXI_SYSTEM_PROMPT,
+      systemPrompt,
       userPrompt,
       temperature: 0.3,
       // Gemini 2.5 thinking이 예산을 잡아먹어 답이 잘리지 않도록 여유 확보
@@ -165,7 +207,7 @@ export async function askAxiGuide(params: {
       try {
         const raw = await completeSurveyAiText({
           config: llm,
-          systemPrompt: AXI_SYSTEM_PROMPT,
+          systemPrompt,
           userPrompt,
           temperature: 0.3,
           maxTokens: 1024,

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
 import { Sparkles } from "lucide-react";
+import { useAxiSite } from "@/components/site/AxiSiteContext";
 import { AxiGuidePanel } from "@/components/site/AxiGuidePanel";
 
 const ICON_SIZE = 80;
@@ -24,7 +25,6 @@ function defaultPos(): Pos {
   if (typeof window === "undefined") {
     return { x: 0, y: 200 };
   }
-  // 화면 우측 여백 (콘텐츠 밖 오른쪽)
   return clampPos(window.innerWidth - ICON_SIZE - EDGE_GAP, window.innerHeight * 0.42);
 }
 
@@ -40,21 +40,8 @@ function readStoredPos(): Pos | null {
   }
 }
 
-type Props = {
-  surveyTitle: string;
-  scriptContext: string;
-  axiIconUrl: string | null;
-  ksicCode?: string;
-  ksicName?: string;
-};
-
-export function AxiFloatingLauncher({
-  surveyTitle,
-  scriptContext,
-  axiIconUrl,
-  ksicCode = "",
-  ksicName = "",
-}: Props) {
+export function AxiFloatingLauncher() {
+  const { axiIconUrl, page } = useAxiSite();
   const [pos, setPos] = useState<Pos>(defaultPos);
   const [open, setOpen] = useState(false);
   const [ready, setReady] = useState(false);
@@ -177,10 +164,11 @@ export function AxiFloatingLauncher({
           aria-label="AXI"
         >
           <AxiGuidePanel
-            surveyTitle={surveyTitle}
-            scriptContext={scriptContext}
-            ksicCode={ksicCode}
-            ksicName={ksicName}
+            mode={page.mode}
+            surveyTitle={page.surveyTitle}
+            scriptContext={page.scriptContext}
+            ksicCode={page.ksicCode}
+            ksicName={page.ksicName}
             axiIconUrl={axiIconUrl}
             onClose={() => setOpen(false)}
             embedded

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { parseAxiAllowedRoles } from "@/lib/axi/access";
 import { requireSuperAdmin } from "@/lib/require-super-admin";
 import { parseSiteNameFontKey } from "@/lib/site-name-fonts";
 import { deleteSiteMediaFile, uploadSiteMediaFile } from "@/lib/site-media-upload";
@@ -344,6 +345,42 @@ export async function deleteSiteAxiIconAction(
   }
 
   await deleteSiteMediaFile(current?.axi_icon_storage_path as string | undefined);
+
+  revalidateSite();
+  return { ok: true };
+}
+
+export async function updateSiteAxiAllowedRolesAction(
+  _prev: SiteHomepageActionState,
+  formData: FormData,
+): Promise<SiteHomepageActionState> {
+  await requireSuperAdmin();
+
+  const selected = formData.getAll("axi_roles").map((v) => String(v));
+  if (selected.length === 0) {
+    return { error: "AXI를 사용할 대상을 하나 이상 선택하세요." };
+  }
+
+  const roles = parseAxiAllowedRoles(selected);
+
+  const admin = createSupabaseServiceRoleClient();
+  const { error } = await admin
+    .from("site_settings")
+    .update({
+      axi_allowed_roles: roles,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", 1);
+
+  if (error) {
+    if (error.message.includes("axi_allowed_roles")) {
+      return {
+        error:
+          "DB에 axi_allowed_roles 컬럼이 없습니다. supabase/migrations/20260409500000_site_settings_axi_allowed_roles.sql 을 실행하세요.",
+      };
+    }
+    return { error: error.message };
+  }
 
   revalidateSite();
   return { ok: true };

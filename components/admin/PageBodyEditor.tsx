@@ -1,8 +1,9 @@
 "use client";
 
 import { useId, useRef, useState, useTransition } from "react";
-import { FileImage, FileText, Loader2 } from "lucide-react";
+import { FileImage, FileText, Loader2, MapPin } from "lucide-react";
 import { uploadSitePageAssetAction } from "@/app/actions/site-page-assets";
+import { buildMapLink } from "@/lib/site-page-body";
 
 type Props = {
   name?: string;
@@ -23,10 +24,22 @@ export function PageBodyEditor({
   const draftKeyRef = useRef(draftKeyProp ?? reactId.replace(/:/g, ""));
   const [body, setBody] = useState(defaultValue);
   const [imageHref, setImageHref] = useState("");
+  const [mapLabel, setMapLabel] = useState("오시는 길");
+  const [mapUrl, setMapUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const imageInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
+
+  const insertMapLink = () => {
+    setError(null);
+    const snippet = buildMapLink(mapUrl, mapLabel);
+    if (!snippet) {
+      setError("지도 링크는 http:// 또는 https:// 로 시작하는 URL이어야 합니다.");
+      return;
+    }
+    setBody((prev) => `${prev}${snippet}`);
+  };
 
   const upload = (file: File, href?: string) => {
     setError(null);
@@ -80,6 +93,42 @@ export function PageBodyEditor({
           형식으로 수정할 수 있습니다.
         </p>
       </div>
+      <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2.5 space-y-2">
+        <p className="text-xs font-medium text-zinc-700">지도 링크 삽입</p>
+        <label className="block text-xs">
+          <span className="text-zinc-600">표시 문구</span>
+          <input
+            type="text"
+            value={mapLabel}
+            onChange={(e) => setMapLabel(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-1.5 text-sm"
+            placeholder="예: 서울특별시 … (본사)"
+          />
+        </label>
+        <label className="block text-xs">
+          <span className="text-zinc-600">지도 URL</span>
+          <input
+            type="url"
+            value={mapUrl}
+            onChange={(e) => setMapUrl(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-1.5 text-sm"
+            placeholder="카카오맵·구글맵·네이버지도 공유 링크"
+          />
+        </label>
+        <p className="text-[11px] leading-relaxed text-zinc-500">
+          삽입 후 본문에{" "}
+          <code className="rounded bg-zinc-100 px-1">[map:표시문구](지도URL)</code>{" "}
+          형식으로 들어갑니다. 공개 페이지에서 클릭 시 새 창으로 지도가 열립니다.
+        </p>
+        <button
+          type="button"
+          onClick={insertMapLink}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50"
+        >
+          <MapPin className="h-3.5 w-3.5" aria-hidden />
+          지도 링크 삽입
+        </button>
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <input
           ref={imageInputRef}
@@ -131,8 +180,8 @@ export function PageBodyEditor({
         </button>
       </div>
       <p className="text-xs text-zinc-500">
-        업로드 후 본문에 자동 삽입됩니다. 공개 페이지에서 이미지·PDF가 표시됩니다. (최대
-        10MB)
+        업로드·삽입 후 본문에 반영됩니다. 공개 페이지에서 이미지·PDF·지도 링크가
+        표시됩니다. (파일 최대 10MB)
       </p>
       {error ? (
         <p className="text-xs text-red-600" role="alert">

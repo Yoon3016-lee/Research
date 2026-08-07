@@ -1,10 +1,12 @@
 import { BannerWidthVar } from "@/components/site/BannerWidthVar";
+import { AxiSiteHost } from "@/components/site/AxiSiteContext";
 import { NavGuideBanner, type NavGuideItem } from "@/components/site/NavGuideBanner";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteNameFontLinks } from "@/components/site/SiteNameFontLinks";
 import { SiteVisualFrame } from "@/components/site/SiteVisualFrame";
 import { kopubBatang, kopubDotum } from "@/lib/kopub-fonts";
+import { canUseAxi } from "@/lib/axi/access";
 import { getSurveyParticipant } from "@/lib/participant";
 import { getPublicAdminLinkConfig } from "@/lib/public-admin-link";
 import { getSiteHomepageConfig } from "@/lib/site-homepage";
@@ -32,6 +34,19 @@ export default async function SiteLayout({
       guideMediaType: g.guideMediaType ?? "pdf",
     }));
 
+  const showAxi = canUseAxi(participant, homepage.axiAllowedRoles);
+
+  const shell = (
+    <>
+      <SiteHeader homepage={homepage} adminLink={adminLink} participant={participant} />
+      <SiteVisualFrame>
+        <NavGuideBanner items={guideItems} />
+        {children}
+      </SiteVisualFrame>
+      <SiteFooter siteName={homepage.siteName} groups={homepage.groups} />
+    </>
+  );
+
   return (
     <>
       <SiteNameFontLinks fontKey={homepage.siteNameFont} />
@@ -40,12 +55,11 @@ export default async function SiteLayout({
         className={`site-public ${kopubDotum.variable} ${kopubBatang.variable} flex min-h-screen flex-col`}
         style={{ ["--font-site-ui" as string]: homepage.siteNameFontFamily }}
       >
-        <SiteHeader homepage={homepage} adminLink={adminLink} participant={participant} />
-        <SiteVisualFrame>
-          <NavGuideBanner items={guideItems} />
-          {children}
-        </SiteVisualFrame>
-        <SiteFooter siteName={homepage.siteName} groups={homepage.groups} />
+        {showAxi ? (
+          <AxiSiteHost axiIconUrl={homepage.axiIconUrl}>{shell}</AxiSiteHost>
+        ) : (
+          shell
+        )}
       </div>
     </>
   );

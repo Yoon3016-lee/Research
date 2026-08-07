@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ExternalLink, MapPin } from "lucide-react";
 import { normalizeImageHref, parseSitePageBody } from "@/lib/site-page-body";
 
 type Props = {
@@ -7,6 +8,44 @@ type Props = {
   /** fullBleed: 좌우 여백 없이 이미지가 화면 전체 폭으로 표시 */
   layout?: "default" | "fullBleed";
 };
+
+function MapLinkBlock({
+  label,
+  url,
+  fullBleed,
+}: {
+  label: string;
+  url: string;
+  fullBleed: boolean;
+}) {
+  return (
+    <div
+      className={
+        fullBleed
+          ? "site-container mx-auto w-full max-w-[var(--site-content-max)] py-4"
+          : undefined
+      }
+    >
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group flex items-start gap-3 rounded-xl border border-brand-900/10 bg-white px-4 py-3.5 text-brand-900 shadow-sm transition hover:border-accent-400/60 hover:bg-brand-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-900/30"
+      >
+        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-900/5 text-brand-800 group-hover:bg-accent-400/15">
+          <MapPin className="h-4 w-4" aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-medium leading-snug">{label}</span>
+          <span className="mt-1 inline-flex items-center gap-1 text-sm text-brand-700/70 group-hover:text-accent-600">
+            지도에서 열기
+            <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+          </span>
+        </span>
+      </a>
+    </div>
+  );
+}
 
 function PageImage({
   url,
@@ -131,6 +170,11 @@ export function SitePageBody({
               href={seg.href}
               fullBleed={fullBleed}
             />
+          );
+        }
+        if (seg.type === "map") {
+          return (
+            <MapLinkBlock key={i} label={seg.label} url={seg.url} fullBleed={fullBleed} />
           );
         }
         return (

@@ -1,6 +1,10 @@
 import "server-only";
 
 import {
+  DEFAULT_AXI_ALLOWED_ROLES,
+  parseAxiAllowedRoles,
+} from "@/lib/axi/access";
+import {
   DEFAULT_SITE_NAME_FONT,
   getSiteNameFontOption,
   parseSiteNameFontKey,
@@ -37,8 +41,10 @@ export type SiteHomepageConfig = {
   siteNameFont: SiteNameFontKey;
   siteNameFontFamily: string;
   logoUrl: string | null;
-  /** 설문 화면 AXI 플로팅 아이콘 */
+  /** 설문·공개 사이트 AXI 플로팅 아이콘 */
   axiIconUrl: string | null;
+  /** AXI를 사용할 수 있는 역할 키 (anonymous + profiles.role) */
+  axiAllowedRoles: string[];
   groups: SiteNavGroup[];
 };
 
@@ -55,6 +61,7 @@ const DEFAULT_CONFIG: SiteHomepageConfig = {
   siteNameFontFamily: getSiteNameFontOption(DEFAULT_SITE_NAME_FONT).fontFamily,
   logoUrl: null,
   axiIconUrl: null,
+  axiAllowedRoles: [...DEFAULT_AXI_ALLOWED_ROLES],
   groups: [
     { key: "intro", label: "회사 소개", sortOrder: 0, items: [], guidePdfUrl: null, guideMediaType: null, href: "" },
     { key: "survey", label: "설문 조사", sortOrder: 1, items: [], guidePdfUrl: null, guideMediaType: null, href: "" },
@@ -74,56 +81,76 @@ export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
     logo_url?: string;
     site_name_font?: string;
     axi_icon_url?: string | null;
+    axi_allowed_roles?: string[] | null;
   } | null = null;
   let settingsError: { message: string } | null = null;
 
-  const settingsWithAxi = await admin
+  const settingsWithAxiRoles = await admin
     .from("site_settings")
-    .select("site_name, logo_url, site_name_font, axi_icon_url")
+    .select("site_name, logo_url, site_name_font, axi_icon_url, axi_allowed_roles")
     .eq("id", 1)
     .maybeSingle();
 
-  if (settingsWithAxi.error?.message.includes("axi_icon_url")) {
-    const settingsWithFont = await admin
+  if (settingsWithAxiRoles.error?.message.includes("axi_allowed_roles")) {
+    const settingsWithAxi = await admin
       .from("site_settings")
-      .select("site_name, logo_url, site_name_font")
+      .select("site_name, logo_url, site_name_font, axi_icon_url")
       .eq("id", 1)
       .maybeSingle();
 
-    if (settingsWithFont.error?.message.includes("site_name_font")) {
-      const settingsWithLogo = await admin
+    if (settingsWithAxi.error?.message.includes("axi_icon_url")) {
+      const settingsWithFont = await admin
         .from("site_settings")
-        .select("site_name, logo_url")
+        .select("site_name, logo_url, site_name_font")
         .eq("id", 1)
         .maybeSingle();
 
-      if (settingsWithLogo.error?.message.includes("logo_url")) {
+      if (settingsWithFont.error?.message.includes("site_name_font")) {
+        const settingsWithLogo = await admin
+          .from("site_settings")
+          .select("site_name, logo_url")
+          .eq("id", 1)
+          .maybeSingle();
+
+        if (settingsWithLogo.error?.message.includes("logo_url")) {
+          const fallback = await admin
+            .from("site_settings")
+            .select("site_name")
+            .eq("id", 1)
+            .maybeSingle();
+          settings = fallback.data;
+          settingsError = fallback.error;
+        } else {
+          settings = settingsWithLogo.data;
+          settingsError = settingsWithLogo.error;
+        }
+      } else if (settingsWithFont.error?.message.includes("logo_url")) {
         const fallback = await admin
           .from("site_settings")
-          .select("site_name")
+          .select("site_name, site_name_font")
           .eq("id", 1)
           .maybeSingle();
         settings = fallback.data;
         settingsError = fallback.error;
       } else {
-        settings = settingsWithLogo.data;
-        settingsError = settingsWithLogo.error;
+        settings = settingsWithFont.data;
+        settingsError = settingsWithFont.error;
       }
-    } else if (settingsWithFont.error?.message.includes("logo_url")) {
-      const fallback = await admin
-        .from("site_settings")
-        .select("site_name, site_name_font")
-        .eq("id", 1)
-        .maybeSingle();
-      settings = fallback.data;
-      settingsError = fallback.error;
     } else {
-      settings = settingsWithFont.data;
-      settingsError = settingsWithFont.error;
+      settings = settingsWithAxi.data;
+      settingsError = settingsWithAxi.error;
     }
+  } else if (settingsWithAxiRoles.error?.message.includes("axi_icon_url")) {
+    const settingsWithFont = await admin
+      .from("site_settings")
+      .select("site_name, logo_url, site_name_font")
+      .eq("id", 1)
+      .maybeSingle();
+    settings = settingsWithFont.data;
+    settingsError = settingsWithFont.error;
   } else {
-    settings = settingsWithAxi.data;
-    settingsError = settingsWithAxi.error;
+    settings = settingsWithAxiRoles.data;
+    settingsError = settingsWithAxiRoles.error;
   }
 
   const [groupsResult, { data: items, error: itemsError }] = await Promise.all([
@@ -193,6 +220,7 @@ export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
   const logoUrl = logoRaw || null;
   const axiIconRaw = (settings?.axi_icon_url as string | undefined)?.trim();
   const axiIconUrl = axiIconRaw || null;
+  const axiAllowedRoles = parseAxiAllowedRoles(settings?.axi_allowed_roles);
 
   const itemRows = (items ?? []) as {
     id: string;
@@ -238,7 +266,15 @@ export async function getSiteHomepageConfig(): Promise<SiteHomepageConfig> {
         }))
       : DEFAULT_CONFIG.groups;
 
-  return { siteName, siteNameFont, siteNameFontFamily, logoUrl, axiIconUrl, groups: builtGroups };
+  return {
+    siteName,
+    siteNameFont,
+    siteNameFontFamily,
+    logoUrl,
+    axiIconUrl,
+    axiAllowedRoles,
+    groups: builtGroups,
+  };
 }
 
 export async function getSitePagesByIds(ids: string[]): Promise<Record<string, SitePage>> {
