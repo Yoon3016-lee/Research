@@ -1,10 +1,15 @@
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { SurveyAiGenerator } from "@/components/admin/SurveyAiGenerator";
+import { getSiteHomepageConfig } from "@/lib/site-homepage";
 
 export const metadata = { title: "AI 설문 생성" };
 
-export default function SurveyAiGeneratePage() {
+export const dynamic = "force-dynamic";
+
+export default async function SurveyAiGeneratePage() {
+  const homepage = await getSiteHomepageConfig();
+
   return (
     <>
       <AdminHeader
@@ -17,7 +22,7 @@ export default function SurveyAiGeneratePage() {
             ← 설문 목록
           </Link>
         </p>
-        <SurveyAiGenerator />
+        <SurveyAiGenerator axiIconUrl={homepage.axiIconUrl} />
       </div>
     </>
   );

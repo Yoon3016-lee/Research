@@ -6,13 +6,16 @@ import {
   generateSurveyAiAction,
   getSurveyAiConfigAction,
   lookupKsicAction,
+  recommendKsicFromUnstructuredAction,
   searchKsicAction,
   validateKsicExternalAction,
 } from "@/app/actions/generate-survey-ai";
 import { KsicHierarchyDialog } from "@/components/admin/KsicHierarchyDialog";
 import { KsicSelectSection } from "@/components/admin/KsicSelectSection";
+import { KsicUnstructuredRecommendDialog } from "@/components/admin/KsicUnstructuredRecommendDialog";
 import type { KsicExternalValidation } from "@/lib/ksic-external/types";
 import type { KsicEntry } from "@/lib/ksic-types";
+import type { KsicRecommendCandidate } from "@/lib/survey-ai/ksic-recommend-types";
 import {
   SURVEY_AI_DRAFT_STORAGE_KEY,
   type SurveyAiBrief,
@@ -48,7 +51,11 @@ const emptyBrief = (): SurveyAiBrief => ({
   previousProposals: [],
 });
 
-export function SurveyAiGenerator() {
+export function SurveyAiGenerator({
+  axiIconUrl = null,
+}: {
+  axiIconUrl?: string | null;
+}) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("input");
   const [brief, setBrief] = useState<SurveyAiBrief>(emptyBrief);
@@ -68,6 +75,16 @@ export function SurveyAiGenerator() {
   const [ksicValidationLoading, setKsicValidationLoading] = useState(false);
   const [ksicSearching, startKsicSearch] = useTransition();
   const [pending, startTransition] = useTransition();
+  const [recommendOpen, setRecommendOpen] = useState(false);
+  const [recommendText, setRecommendText] = useState("");
+  const [recommendCandidates, setRecommendCandidates] = useState<
+    KsicRecommendCandidate[]
+  >([]);
+  const [recommendError, setRecommendError] = useState<string | null>(null);
+  const [recommendEmptyMessage, setRecommendEmptyMessage] = useState<string | null>(
+    null,
+  );
+  const [recommendLoading, startRecommend] = useTransition();
 
   useEffect(() => {
     void getSurveyAiConfigAction().then((c) => {
@@ -113,6 +130,51 @@ export function SurveyAiGenerator() {
     setKsicQuery(`${entry.code} ${entry.name}`);
     setKsicResults([]);
     void runKsicExternalValidation(entry.code);
+  };
+
+  const handleRecommendKsic = () => {
+    setRecommendError(null);
+    setRecommendEmptyMessage(null);
+    startRecommend(async () => {
+      const result = await recommendKsicFromUnstructuredAction(
+        recommendText,
+        "admin",
+      );
+      if (result.status === "unauthorized" || result.status === "limit_exceeded") {
+        setRecommendCandidates([]);
+        setRecommendEmptyMessage(null);
+        setRecommendError(result.message);
+        return;
+      }
+      if (result.status === "error") {
+        setRecommendCandidates([]);
+        setRecommendEmptyMessage(null);
+        setRecommendError(result.error);
+        return;
+      }
+      if (result.status === "empty") {
+        setRecommendCandidates([]);
+        setRecommendError(null);
+        setRecommendEmptyMessage(result.message);
+        return;
+      }
+      setRecommendCandidates(result.candidates);
+      setRecommendError(null);
+      setRecommendEmptyMessage(null);
+    });
+  };
+
+  const selectRecommendCandidate = (candidate: KsicRecommendCandidate) => {
+    selectKsic({
+      code: candidate.code,
+      name: candidate.name,
+      levelName: candidate.levelName,
+      pathKo: candidate.pathKo,
+      levelNumber: candidate.code.length <= 1 ? 1 : candidate.code.length <= 2 ? 2 : 5,
+      childCount: 0,
+      matchedExample: candidate.matchedExample,
+    });
+    setRecommendOpen(false);
   };
 
   const openKsicPicker = () => {
@@ -271,6 +333,8 @@ export function SurveyAiGenerator() {
             onCodeBlur={() => void handleKsicCodeBlur()}
             externalValidation={ksicExternalValidation}
             externalValidationLoading={ksicValidationLoading}
+            onOpenRecommend={() => setRecommendOpen(true)}
+            axiIconUrl={axiIconUrl}
           />
 
           <section className="admin-card p-6">
@@ -546,6 +610,21 @@ export function SurveyAiGenerator() {
         resetKey={ksicPickerKey}
         selectedCode={brief.ksicCode.trim() || undefined}
         onSelect={selectKsic}
+      />
+
+      <KsicUnstructuredRecommendDialog
+        open={recommendOpen}
+        onClose={() => setRecommendOpen(false)}
+        text={recommendText}
+        onTextChange={setRecommendText}
+        loading={recommendLoading}
+        error={recommendError}
+        emptyMessage={recommendEmptyMessage}
+        candidates={recommendCandidates}
+        onRecommend={handleRecommendKsic}
+        onSelectCandidate={selectRecommendCandidate}
+        channel="admin"
+        axiIconUrl={axiIconUrl}
       />
 
       {error ? (

@@ -24,8 +24,9 @@ type Props = {
 };
 
 function AxiAvatar({ axiIconUrl, size = "md" }: { axiIconUrl?: string | null; size?: "sm" | "md" }) {
-  const dim = size === "md" ? "h-9 w-9" : "h-8 w-8";
-  const icon = size === "md" ? "h-5 w-5" : "h-4 w-4";
+  // 기존 md h-9/h-5, sm h-8/h-4 → ×1.3
+  const dim = size === "md" ? "h-[2.925rem] w-[2.925rem]" : "h-[2.6rem] w-[2.6rem]";
+  const icon = size === "md" ? "h-[1.625rem] w-[1.625rem]" : "h-5 w-5";
   if (axiIconUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
