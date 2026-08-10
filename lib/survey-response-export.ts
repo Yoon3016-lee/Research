@@ -4,7 +4,11 @@ import * as XLSX from "xlsx";
 import { normalizeSurveyRef, isUuid } from "@/lib/survey-slug";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 import {
-  isLikert7Value,
+  clampLikertScaleSize,
+  isLikertScaleValue,
+  likertScaleValues,
+} from "@/lib/likert-scale";
+import {
   isStarRatingValue,
   QUESTION_TYPE_LABELS,
   type QuestionType,
@@ -27,6 +31,7 @@ type QuestionRow = {
   order_index: number;
   prompt: string;
   question_type: string;
+  max_selections: number | null;
 };
 
 type OptionRow = {
@@ -55,6 +60,7 @@ export type QuestionExportMeta = {
   prompt: string;
   type: QuestionType;
   typeLabel: string;
+  scaleSize: number;
   options: { id: string; index: number; label: string; isOther?: boolean }[];
 };
 
@@ -132,10 +138,10 @@ function parseTextMulti(answer: unknown): string | null {
   return filled.join(" | ");
 }
 
-function parseLikert7(answer: unknown): number | null {
+function parseLikertScale(answer: unknown, scaleSize: number): number | null {
   if (!answer || typeof answer !== "object") return null;
   const value = (answer as { value?: number }).value;
-  if (value == null || !isLikert7Value(value)) return null;
+  if (value == null || !isLikertScaleValue(value, scaleSize)) return null;
   return value;
 }
 
@@ -146,13 +152,13 @@ function parseRank(answer: unknown): string[] {
   return ids.map((id) => id?.trim()).filter(Boolean) as string[];
 }
 
-function parseLikertMulti(answer: unknown): Record<string, number> {
+function parseLikertMulti(answer: unknown, scaleSize: number): Record<string, number> {
   if (!answer || typeof answer !== "object") return {};
   const values = (answer as { values?: Record<string, number> }).values;
   if (!values || typeof values !== "object") return {};
   const out: Record<string, number> = {};
   for (const [optionId, value] of Object.entries(values)) {
-    if (isLikert7Value(value)) out[optionId] = value;
+    if (isLikertScaleValue(value, scaleSize)) out[optionId] = value;
   }
   return out;
 }
@@ -184,6 +190,7 @@ function formatAnswer(
   type: QuestionType,
   answer: unknown,
   options: QuestionExportMeta["options"],
+  scaleSize: number,
 ): { code: string; label: string } {
   if (type === "mc_single" || type === "dropdown") {
     const optionId = parseMcSingle(answer);
@@ -229,7 +236,7 @@ function formatAnswer(
   }
 
   if (type === "likert_7") {
-    const value = parseLikert7(answer);
+    const value = parseLikertScale(answer, scaleSize);
     if (value == null) return { code: "", label: "" };
     return { code: String(value), label: `${value}점` };
   }
@@ -249,7 +256,7 @@ function formatAnswer(
   }
 
   if (type === "likert_multi") {
-    const values = parseLikertMulti(answer);
+    const values = parseLikertMulti(answer, scaleSize);
     const entries = Object.entries(values);
     if (entries.length === 0) return { code: "", label: "" };
     const codes: string[] = [];
@@ -299,12 +306,12 @@ function formatAnswer(
   return { code: "", label: "" };
 }
 
-function buildScaleOptions(type: QuestionType): QuestionExportMeta["options"] {
+function buildScaleOptions(type: QuestionType, scaleSize: number): QuestionExportMeta["options"] {
   if (type === "likert_7") {
-    return Array.from({ length: 7 }, (_, i) => ({
-      id: `scale-${i + 1}`,
+    return likertScaleValues(scaleSize).map((v, i) => ({
+      id: `scale-${v}`,
       index: i + 1,
-      label: `${i + 1}점`,
+      label: `${v}점`,
     }));
   }
   if (type === "star_rating") {
@@ -326,7 +333,7 @@ async function loadExportDataset(ref: string): Promise<ExportDataset | null> {
 
   const { data: qRows, error: qError } = await admin
     .from("survey_questions")
-    .select("id, order_index, prompt, question_type")
+    .select("id, order_index, prompt, question_type, max_selections")
     .eq("survey_id", survey.id)
     .order("order_index", { ascending: true });
 
@@ -372,9 +379,10 @@ async function loadExportDataset(ref: string): Promise<ExportDataset | null> {
 
   const questions: QuestionExportMeta[] = questionRows.map((q, i) => {
     const type = q.question_type as QuestionType;
+    const scaleSize = clampLikertScaleSize(q.max_selections);
     const dbOptions = optionsByQuestion.get(q.id) ?? [];
     const options =
-      dbOptions.length > 0 ? dbOptions : buildScaleOptions(type);
+      dbOptions.length > 0 ? dbOptions : buildScaleOptions(type, scaleSize);
     return {
       questionId: q.id,
       questionNumber: i + 1,
@@ -382,6 +390,7 @@ async function loadExportDataset(ref: string): Promise<ExportDataset | null> {
       prompt: q.prompt,
       type,
       typeLabel: QUESTION_TYPE_LABELS[type] ?? type,
+      scaleSize,
       options,
     };
   });
@@ -428,7 +437,7 @@ async function loadExportDataset(ref: string): Promise<ExportDataset | null> {
     for (const [questionId, answer] of rawAnswers) {
       const q = questionById.get(questionId);
       if (!q) continue;
-      answers.set(questionId, formatAnswer(q.type, answer, q.options));
+      answers.set(questionId, formatAnswer(q.type, answer, q.options, q.scaleSize));
     }
 
     return {

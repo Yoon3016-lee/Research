@@ -8,7 +8,12 @@ import {
   type QuestionFrequencyStats,
   type SurveyResponseStats,
 } from "@/lib/survey-response-stats-shared";
-import { LIKERT_7_VALUES, isLikert7Value, isStarRatingValue, type QuestionType } from "@/lib/survey-types";
+import {
+  clampLikertScaleSize,
+  isLikertScaleValue,
+  likertScaleValues,
+} from "@/lib/likert-scale";
+import { isStarRatingValue, type QuestionType } from "@/lib/survey-types";
 
 export {
   NO_ANSWER_LABEL,
@@ -38,6 +43,7 @@ type QuestionRow = {
   prompt: string;
   question_type: string;
   allow_skip: boolean;
+  max_selections: number | null;
 };
 
 type OptionRow = {
@@ -175,10 +181,10 @@ function parseTextSingle(answer: unknown): string | null {
   return t.length > 0 ? t : null;
 }
 
-function parseLikert7(answer: unknown): number | null {
+function parseLikertScale(answer: unknown, scaleSize: number): number | null {
   if (!answer || typeof answer !== "object") return null;
   const value = (answer as { value?: number }).value;
-  if (value == null || !isLikert7Value(value)) return null;
+  if (value == null || !isLikertScaleValue(value, scaleSize)) return null;
   return value;
 }
 
@@ -210,13 +216,17 @@ function parseRank(answer: unknown, optionLabels: Map<string, string>): string |
   return parts.join(" · ");
 }
 
-function parseLikertMulti(answer: unknown, optionLabels: Map<string, string>): string | null {
+function parseLikertMulti(
+  answer: unknown,
+  optionLabels: Map<string, string>,
+  scaleSize: number,
+): string | null {
   if (!answer || typeof answer !== "object") return null;
   const values = (answer as { values?: Record<string, number> }).values;
   if (!values || typeof values !== "object") return null;
   const parts: string[] = [];
   for (const [optionId, value] of Object.entries(values)) {
-    if (!isLikert7Value(value)) continue;
+    if (!isLikertScaleValue(value, scaleSize)) continue;
     const label = optionLabels.get(optionId) ?? optionId.slice(0, 8);
     parts.push(`${label}: ${value}점`);
   }
@@ -245,7 +255,7 @@ export async function getSurveyResponseStats(ref: string): Promise<SurveyRespons
 
   const { data: qRows, error: qError } = await admin
     .from("survey_questions")
-    .select("id, order_index, prompt, question_type, allow_skip")
+    .select("id, order_index, prompt, question_type, allow_skip, max_selections")
     .eq("survey_id", survey.id)
     .order("order_index", { ascending: true });
 
@@ -420,18 +430,20 @@ export async function getSurveyResponseStats(ref: string): Promise<SurveyRespons
     }
 
     if (type === "likert_7") {
+      const scaleSize = clampLikertScaleSize(q.max_selections);
+      const scaleValues = likertScaleValues(scaleSize);
       const counts = new Map<number, BucketCounts>();
-      for (const v of LIKERT_7_VALUES) {
+      for (const v of scaleValues) {
         counts.set(v, emptyCounts());
       }
       for (const a of answers) {
-        const value = parseLikert7(a.answer);
+        const value = parseLikertScale(a.answer, scaleSize);
         if (value == null) continue;
         const c = counts.get(value) ?? emptyCounts();
         bump(c, a.kind);
         counts.set(value, c);
       }
-      const entries = LIKERT_7_VALUES.map((v) => ({
+      const entries = scaleValues.map((v) => ({
         key: String(v),
         label: `${v}점`,
         counts: counts.get(v) ?? emptyCounts(),
@@ -478,9 +490,10 @@ export async function getSurveyResponseStats(ref: string): Promise<SurveyRespons
     }
 
     if (type === "likert_multi") {
+      const scaleSize = clampLikertScaleSize(q.max_selections);
       const counts = new Map<string, BucketCounts>();
       for (const a of answers) {
-        const label = parseLikertMulti(a.answer, optionLabels);
+        const label = parseLikertMulti(a.answer, optionLabels, scaleSize);
         if (!label) continue;
         const c = counts.get(label) ?? emptyCounts();
         bump(c, a.kind);

@@ -8,6 +8,7 @@ import {
   type DraftQuestion,
   type QuestionType,
 } from "@/lib/survey-types";
+import { clampLikertScaleSize, normalizeLikertScaleLabels } from "@/lib/likert-scale";
 import type {
   SurveyAiAdditionalQuestionIdea,
   SurveyAiImprovementNote,
@@ -51,6 +52,21 @@ function normalizeRawQuestion(raw: SurveyAiRawQuestion, index: number): DraftQue
 
   if (typeof raw.maxSelections === "number" && Number.isFinite(raw.maxSelections)) {
     q.maxSelections = Math.max(1, Math.floor(raw.maxSelections));
+  }
+
+  if (raw.type === "likert_7" || raw.type === "likert_multi") {
+    q.maxSelections = clampLikertScaleSize(q.maxSelections);
+    if (Array.isArray(raw.likertScaleLabels)) {
+      q.likertScaleLabels = normalizeLikertScaleLabels(
+        raw.likertScaleLabels.map((l) => (typeof l === "string" ? l : String(l))),
+        q.maxSelections,
+      );
+    }
+    if (raw.type === "likert_7") {
+      q.options = [];
+      q.optionIds = [];
+      q.optionEndsSurvey = [];
+    }
   }
 
   if (typeof raw.textLineCount === "number" && Number.isFinite(raw.textLineCount)) {

@@ -13,6 +13,7 @@ import type {
   PublicSurveyQuestion,
   SurveyAnswerInput,
 } from "@/lib/survey-public";
+import { clampLikertScaleSize } from "@/lib/likert-scale";
 import {
   likertMultiValuesFromRecord,
 } from "@/components/site/LikertMultiInput";
@@ -339,7 +340,10 @@ export function SurveyResponseForm({
         out.push({
           questionId: q.id,
           type: "likert_multi",
-          values: likertMultiValuesFromRecord(likertMulti[q.id] ?? {}),
+          values: likertMultiValuesFromRecord(
+            likertMulti[q.id] ?? {},
+            clampLikertScaleSize(q.maxSelections),
+          ),
         });
       } else if (q.type === "star_rating") {
         const value = starRating[q.id];

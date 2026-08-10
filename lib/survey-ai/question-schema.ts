@@ -42,9 +42,9 @@ function describeFieldsForType(type: QuestionType): string {
     case "text_multi":
       return "options = 항목 주제 라벨 (string[], 1개 이상). 연락처 문항과 동일하게 줄마다 라벨+입력";
     case "likert_7":
-      return "options [0]=1점 라벨, [1]=7점 라벨 (선택, 빈 문자열 가능)";
+      return "options 불필요. maxSelections=척도 크기(2~10, 기본 5). likertScaleLabels=점수별 라벨(string[], index0=1점)";
     case "likert_multi":
-      return "options = 평가 항목 (string[], 2개 이상)";
+      return "options=평가 항목(string[], 2개 이상). maxSelections=척도 크기. likertScaleLabels=점수별 라벨";
     case "star_rating":
       return "options 불필요 (0~5점 별점)";
     case "info_media":

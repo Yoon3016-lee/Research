@@ -2,6 +2,12 @@ import "server-only";
 
 import { parseStoredVisibilityRules } from "@/lib/survey-visibility";
 import type { CreateSurveyPayload, DraftQuestion, QuestionType } from "@/lib/survey-types";
+import {
+  clampLikertScaleSize,
+  legacyLikertEndpointLabels,
+  normalizeLikertScaleLabels,
+  parseLikertScaleLabelsFromDb,
+} from "@/lib/likert-scale";
 import { normalizeStoredDate } from "@/lib/survey-period";
 import { isUuid, normalizeSurveyRef } from "@/lib/survey-slug";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
@@ -47,6 +53,7 @@ type QuestionRow = {
   visibility_rules?: unknown;
   max_selections: number | null;
   text_line_count: number | null;
+  likert_scale_labels?: unknown;
   info_body?: string | null;
   media_url?: string | null;
   media_path?: string | null;
@@ -184,7 +191,7 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
   const { data: qRowsRaw, error: qError } = await admin
     .from("survey_questions")
     .select(
-      "id, order_index, prompt, question_type, allow_skip, staff_only, visibility_rules, max_selections, text_line_count, info_body, media_url, media_path, media_type",
+      "id, order_index, prompt, question_type, allow_skip, staff_only, visibility_rules, max_selections, text_line_count, likert_scale_labels, info_body, media_url, media_path, media_type",
     )
     .eq("survey_id", surveyRow.id)
     .order("order_index", { ascending: true });
@@ -200,7 +207,19 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
     const fallback = await admin
       .from("survey_questions")
       .select(
-        "id, order_index, prompt, question_type, allow_skip, staff_only, visibility_rules, max_selections, text_line_count",
+        "id, order_index, prompt, question_type, allow_skip, staff_only, visibility_rules, max_selections, text_line_count, likert_scale_labels",
+      )
+      .eq("survey_id", surveyRow.id)
+      .order("order_index", { ascending: true });
+    questions = (fallback.data ?? []) as QuestionRow[];
+    if (fallback.error) {
+      console.error("[loadSurveyForEdit] questions:", fallback.error.message);
+    }
+  } else if (qError?.message.includes("likert_scale_labels")) {
+    const fallback = await admin
+      .from("survey_questions")
+      .select(
+        "id, order_index, prompt, question_type, allow_skip, staff_only, visibility_rules, max_selections, text_line_count, info_body, media_url, media_path, media_type",
       )
       .eq("survey_id", surveyRow.id)
       .order("order_index", { ascending: true });
@@ -305,10 +324,26 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
     const otherEnabled =
       (type === "mc_single" || type === "mc_multi") && Boolean(otherLabel);
     const optionCountForMax = opts.length + (otherEnabled ? 1 : 0);
-    const resolvedOptions =
-      type === "likert_7"
-        ? [opts[0] ?? "", opts[1] ?? ""]
-        : opts.length > 0
+
+    let likertScaleLabels: string[] = [];
+    let resolvedOptions: string[];
+    let resolvedIds: (string | null)[];
+
+    if (type === "likert_7") {
+      const scaleSize = clampLikertScaleSize(q.max_selections);
+      const parsed = parseLikertScaleLabelsFromDb(q.likert_scale_labels);
+      if (parsed) {
+        likertScaleLabels = normalizeLikertScaleLabels(parsed, scaleSize);
+      } else if (opts.length > 0) {
+        likertScaleLabels = legacyLikertEndpointLabels(opts, q.max_selections ?? 7);
+      } else {
+        likertScaleLabels = normalizeLikertScaleLabels([], scaleSize);
+      }
+      resolvedOptions = [];
+      resolvedIds = [];
+    } else {
+      resolvedOptions =
+        opts.length > 0
           ? opts
           : type === "mc_single" ||
               type === "mc_multi" ||
@@ -326,12 +361,27 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
                   )
                 : ["", ""]
             : [];
-    const resolvedIds =
-      type === "likert_7"
-        ? [ids[0] ?? null, ids[1] ?? null]
-        : opts.length > 0
+      resolvedIds =
+        opts.length > 0
           ? resolvedOptions.map((_, i) => ids[i] ?? null)
           : resolvedOptions.map(() => null);
+
+      if (type === "likert_multi") {
+        const scaleSize = clampLikertScaleSize(q.max_selections);
+        const parsed = parseLikertScaleLabelsFromDb(q.likert_scale_labels);
+        likertScaleLabels = parsed
+          ? normalizeLikertScaleLabels(parsed, scaleSize)
+          : normalizeLikertScaleLabels([], scaleSize);
+      }
+    }
+
+    const maxSelections =
+      type === "rank"
+        ? (q.max_selections ?? Math.min(3, opts.length || 3))
+        : type === "likert_7" || type === "likert_multi"
+          ? clampLikertScaleSize(q.max_selections)
+          : (q.max_selections ?? Math.min(2, optionCountForMax || 2));
+
     return {
       clientId: q.id,
       type,
@@ -345,10 +395,8 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
       otherOptionEnabled: otherEnabled,
       otherOptionLabel: otherLabel?.trim() || "기타",
       otherOptionId: otherEnabled ? (entry?.otherId ?? null) : null,
-      maxSelections:
-        type === "rank"
-          ? (q.max_selections ?? Math.min(3, opts.length || 3))
-          : (q.max_selections ?? Math.min(2, optionCountForMax || 2)),
+      maxSelections,
+      likertScaleLabels,
       textLineCount:
         type === "text_multi"
           ? Math.max(1, resolvedOptions.filter((o) => o.trim()).length || q.text_line_count || 2)

@@ -1,5 +1,6 @@
 import type { PublicSurveyDetail, SurveyAnswerInput } from "@/lib/survey-public";
-import { isLikert7Value, isStarRatingValue } from "@/lib/survey-types";
+import { clampLikertScaleSize, isLikertScaleValue } from "@/lib/likert-scale";
+import { isStarRatingValue } from "@/lib/survey-types";
 import {
   branchingSnapshotFromAnswers,
   buildParticipantDisplayNumbers,
@@ -105,12 +106,13 @@ function validateOneAnswer(
 
   if (q.type === "likert_7") {
     if (a.type !== "likert_7") return null;
+    const scaleSize = clampLikertScaleSize(q.maxSelections);
     const empty = a.value == null || Number.isNaN(a.value);
     if (empty && !q.allowSkip) {
-      return `문항 ${n}: 1~7 중 하나를 선택하세요.`;
+      return `문항 ${n}: 1~${scaleSize} 중 하나를 선택하세요.`;
     }
-    if (!empty && !isLikert7Value(a.value)) {
-      return `문항 ${n}: 1~7 사이의 값만 선택할 수 있습니다.`;
+    if (!empty && !isLikertScaleValue(a.value, scaleSize)) {
+      return `문항 ${n}: 1~${scaleSize} 사이의 값만 선택할 수 있습니다.`;
     }
   }
 
@@ -145,6 +147,7 @@ function validateOneAnswer(
 
   if (q.type === "likert_multi") {
     if (a.type !== "likert_multi") return null;
+    const scaleSize = clampLikertScaleSize(q.maxSelections);
     const values = a.values ?? {};
     const answered = q.options.filter((o) => {
       const v = values[o.id];
@@ -154,15 +157,15 @@ function validateOneAnswer(
       return `문항 ${n}: 모든 항목에 척도를 선택하세요.`;
     }
     if (!q.allowSkip && answered.length < q.options.length) {
-      return `문항 ${n}: ${q.options.length}개 항목 모두 1~7 중 하나를 선택하세요.`;
+      return `문항 ${n}: ${q.options.length}개 항목 모두 1~${scaleSize} 중 하나를 선택하세요.`;
     }
     for (const [optionId, value] of Object.entries(values)) {
       if (value == null || Number.isNaN(value)) continue;
       if (!q.options.some((o) => o.id === optionId)) {
         return `문항 ${n}: 잘못된 항목이 포함되어 있습니다.`;
       }
-      if (!isLikert7Value(value)) {
-        return `문항 ${n}: 1~7 사이의 값만 선택할 수 있습니다.`;
+      if (!isLikertScaleValue(value, scaleSize)) {
+        return `문항 ${n}: 1~${scaleSize} 사이의 값만 선택할 수 있습니다.`;
       }
     }
   }

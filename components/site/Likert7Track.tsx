@@ -1,51 +1,58 @@
 "use client";
 
 import { Fragment, useCallback, useRef, useState } from "react";
-import { LIKERT_7_VALUES, isLikert7Value } from "@/lib/survey-types";
+import {
+  clampLikertScaleSize,
+  displayLikertPointLabel,
+  likertScaleValues,
+  likertValueFromClientX,
+  normalizeLikertScaleLabels,
+} from "@/lib/likert-scale";
 
-const COL = "w-8 sm:w-9";
-
-export function likert7ValueFromClientX(
-  clientX: number,
-  track: HTMLElement | null,
-): number | null {
-  if (!track) return null;
-  const rect = track.getBoundingClientRect();
-  if (rect.width <= 0) return null;
-  const t = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
-  const n = Math.round(t * (LIKERT_7_VALUES.length - 1)) + 1;
-  return isLikert7Value(n) ? n : null;
-}
-
-type Likert7TrackProps = {
+type LikertScaleTrackProps = {
   namePrefix: string;
+  scaleSize: number;
+  scaleLabels?: string[];
   value: number | null;
   disabled: boolean;
   onChange: (value: number) => void;
   ariaLabel: string;
   showBracket?: boolean;
   showNumberRow?: boolean;
+  /** 다중척도 테이블 등 좁은 칸 */
+  compact?: boolean;
 };
 
-export function Likert7Track({
+export function LikertScaleTrack({
   namePrefix,
+  scaleSize,
+  scaleLabels = [],
   value,
   disabled,
   onChange,
   ariaLabel,
   showBracket = true,
   showNumberRow = true,
-}: Likert7TrackProps) {
+  compact = false,
+}: LikertScaleTrackProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const dragActiveRef = useRef(false);
   const [dragging, setDragging] = useState(false);
+  const size = clampLikertScaleSize(scaleSize);
+  const labels = normalizeLikertScaleLabels(scaleLabels, size);
+  const values = likertScaleValues(size);
+  const colClass = compact
+    ? "min-w-[2rem] max-w-[4.5rem] flex-1"
+    : size > 7
+      ? "w-7 sm:w-8"
+      : "w-8 sm:w-9";
 
   const applyPointerX = useCallback(
     (clientX: number) => {
-      const next = likert7ValueFromClientX(clientX, trackRef.current);
+      const next = likertValueFromClientX(clientX, trackRef.current, size);
       if (next != null) onChange(next);
     },
-    [onChange],
+    [onChange, size],
   );
 
   const endDrag = useCallback((target: HTMLElement, pointerId: number) => {
@@ -102,17 +109,21 @@ export function Likert7Track({
                 : value != null
                   ? "cursor-grab"
                   : "cursor-pointer"
-          }`}
+          } ${compact ? "w-full min-w-0" : ""}`}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerCancel}
         >
-          {LIKERT_7_VALUES.map((n, index) => {
+          {values.map((n, index) => {
             const selected = value === n;
+            const pointLabel = displayLikertPointLabel(index, labels);
+            const hasCustomLabel = Boolean(labels[index]?.trim());
             return (
               <Fragment key={n}>
-                <label className={`pointer-events-none flex ${COL} flex-col items-center`}>
+                <label
+                  className={`pointer-events-none flex ${colClass} flex-col items-center px-0.5`}
+                >
                   <input
                     type="radio"
                     name={namePrefix}
@@ -138,15 +149,25 @@ export function Likert7Track({
                     />
                   </span>
                   {showNumberRow ? (
-                    <span className="mt-1.5 text-[11px] font-medium tabular-nums leading-none text-zinc-500">
-                      {n}
+                    <span
+                      className={`mt-1.5 text-center leading-tight text-zinc-600 ${
+                        hasCustomLabel
+                          ? "max-w-full text-[10px] font-medium"
+                          : "text-[11px] font-medium tabular-nums"
+                      }`}
+                    >
+                      {pointLabel}
                     </span>
                   ) : (
-                    <span className="sr-only">{n}점</span>
+                    <span className="sr-only">{pointLabel}</span>
                   )}
-                  {showNumberRow ? <span className="sr-only">{n}점</span> : null}
+                  {showNumberRow ? (
+                    <span className="sr-only">
+                      {n}점{hasCustomLabel ? ` (${labels[index]})` : ""}
+                    </span>
+                  ) : null}
                 </label>
-                {index < LIKERT_7_VALUES.length - 1 ? (
+                {index < values.length - 1 ? (
                   <span
                     className="pointer-events-none mt-[0.35rem] shrink-0 px-0.5 text-sm leading-none text-zinc-400 sm:px-1"
                     aria-hidden
@@ -170,4 +191,16 @@ export function Likert7Track({
       </div>
     </div>
   );
+}
+
+/** @deprecated LikertScaleTrack 사용 */
+export const Likert7Track = LikertScaleTrack;
+
+/** @deprecated likertValueFromClientX 사용 */
+export function likert7ValueFromClientX(
+  clientX: number,
+  track: HTMLElement | null,
+  scaleSize = 7,
+): number | null {
+  return likertValueFromClientX(clientX, track, scaleSize);
 }

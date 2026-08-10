@@ -15,7 +15,7 @@ export const QUESTION_TYPES = [
   "contact_fields",
 ] as const;
 
-/** 리커트 7점 척도 값 */
+/** 리커트 7점 척도 값 (레거시·하위 호환) */
 export const LIKERT_7_VALUES = [1, 2, 3, 4, 5, 6, 7] as const;
 export type Likert7Value = (typeof LIKERT_7_VALUES)[number];
 
@@ -35,7 +35,7 @@ export const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
   mc_multi: "객관식 (다중 선택)",
   text_single: "주관식 (텍스트)",
   text_multi: "주관식 (다중)",
-  likert_7: "리커트 척도 (1~7)",
+  likert_7: "리커트 척도",
   dropdown: "드롭다운",
   rank: "순위 선택",
   likert_multi: "척도 (다중)",
@@ -50,10 +50,10 @@ export const QUESTION_TYPE_DESCRIPTIONS: Record<QuestionType, string> = {
   mc_multi: "보기 중 여러 개 선택 · 최대 개수를 지정합니다.",
   text_single: "짧은 서술·한 줄 답변을 받습니다.",
   text_multi: "줄마다 주제(라벨)를 두고 각각 텍스트를 입력받습니다.",
-  likert_7: "1(낮음)부터 7(높음)까지 하나를 고릅니다.",
+  likert_7: "척도 크기(2~10)와 점수별 라벨을 설정합니다. 기본 5점.",
   dropdown: "설정한 선택지를 드롭다운에서 고릅니다.",
   rank: "선택지를 누른 순서대로 1순위, 2순위…를 매깁니다.",
-  likert_multi: "한 문항 안에서 여러 항목 각각 1~7 척도로 평가합니다.",
+  likert_multi: "여러 항목 각각에 척도(크기·라벨 설정 가능)로 평가합니다.",
   star_rating: "별 5개 중 0.5점 단위로 평가합니다.",
   info_media:
     "페이지 안내·문항 설명용입니다. 응답 입력·문항 번호 없이 설문지에만 표시됩니다.",
@@ -101,6 +101,8 @@ export type DraftQuestion = {
   mediaPath: string | null;
   /** info_media: image | video */
   mediaType: SurveyInfoMediaType | null;
+  /** likert_7·likert_multi: 척도 점수별 라벨 (index 0 = 1점). maxSelections = 척도 크기 */
+  likertScaleLabels: string[];
 };
 
 export function createDraftQuestion(type: QuestionType): DraftQuestion {
@@ -128,6 +130,7 @@ export function createDraftQuestion(type: QuestionType): DraftQuestion {
     mediaUrl: null,
     mediaPath: null,
     mediaType: null,
+    likertScaleLabels: [],
   };
 
   if (
@@ -156,9 +159,15 @@ export function createDraftQuestion(type: QuestionType): DraftQuestion {
     base.textLineCount = base.options.filter((o) => o.trim()).length || 2;
   }
   if (type === "likert_7") {
-    base.options = ["", ""];
-    base.optionIds = [null, null];
-    base.optionEndsSurvey = [false, false];
+    base.maxSelections = 5;
+    base.likertScaleLabels = ["", "", "", "", ""];
+    base.options = [];
+    base.optionIds = [];
+    base.optionEndsSurvey = [];
+  }
+  if (type === "likert_multi") {
+    base.maxSelections = 5;
+    base.likertScaleLabels = ["", "", "", "", ""];
   }
   if (type === "info_media") {
     base.allowSkip = true;
@@ -227,7 +236,7 @@ export function labelSuggestsSurveyEnd(label: string): boolean {
   return /조사\s*종료/.test(label);
 }
 
-/** likert_7: options[0]=1점 라벨, options[1]=7점 라벨 (선택) */
+/** @deprecated likert_7는 likertScaleLabels 사용 */
 export function likertEndpointLabels(options: string[]): {
   minLabel: string | null;
   maxLabel: string | null;

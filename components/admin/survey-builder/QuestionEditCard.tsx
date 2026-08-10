@@ -18,6 +18,7 @@ import {
   type QuestionVisibilityCondition,
 } from "@/lib/survey-visibility";
 import { InfoMediaEditFields } from "@/components/admin/survey-builder/InfoMediaEditFields";
+import { LikertScaleSettings } from "@/components/admin/survey-builder/LikertScaleSettings";
 
 type Props = {
   q: DraftQuestion;
@@ -527,8 +528,7 @@ export function QuestionEditCard({
           <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3">
             <p className="text-sm font-medium text-zinc-800">척도 평가 항목</p>
             <p className="mt-0.5 text-xs text-zinc-500">
-              한 문항 안에서 각각 1~7 척도로 평가할 항목입니다. (예: 교육 만족도,
-              교육 친절도)
+              한 문항 안에서 각 항목을 척도로 평가합니다. (예: 교육 만족도, 교육 친절도)
             </p>
             <div className="mt-3 space-y-2">
               {q.options.map((opt, oi) => (
@@ -552,6 +552,11 @@ export function QuestionEditCard({
             >
               + 항목 추가
             </button>
+            <LikertScaleSettings
+              scaleSize={q.maxSelections}
+              labels={q.likertScaleLabels}
+              onChange={onChange}
+            />
           </div>
         )}
 
@@ -567,39 +572,16 @@ export function QuestionEditCard({
 
         {q.type === "likert_7" && (
           <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3">
-            <p className="text-sm font-medium text-zinc-800">1~7 리커트 척도</p>
+            <p className="text-sm font-medium text-zinc-800">리커트 척도</p>
             <p className="mt-0.5 text-xs text-zinc-500">
-              응답자는 1(낮음)부터 7(높음) 중 하나를 선택합니다. 양끝 설명은
-              선택 사항입니다.
+              응답자는 설정한 척도 범위 중 하나를 선택합니다. 점수별 라벨은 선택
+              사항입니다.
             </p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <label className="block text-sm">
-                <span className="font-medium text-zinc-700">1점 라벨 (선택)</span>
-                <input
-                  value={q.options[0] ?? ""}
-                  onChange={(e) => {
-                    const opts = [...(q.options.length >= 2 ? q.options : ["", ""])];
-                    opts[0] = e.target.value;
-                    onChange(patchDraftOptions(q, opts));
-                  }}
-                  className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                  placeholder="예: 전혀 그렇지 않다"
-                />
-              </label>
-              <label className="block text-sm">
-                <span className="font-medium text-zinc-700">7점 라벨 (선택)</span>
-                <input
-                  value={q.options[1] ?? ""}
-                  onChange={(e) => {
-                    const opts = [...(q.options.length >= 2 ? q.options : ["", ""])];
-                    opts[1] = e.target.value;
-                    onChange(patchDraftOptions(q, opts));
-                  }}
-                  className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                  placeholder="예: 매우 그렇다"
-                />
-              </label>
-            </div>
+            <LikertScaleSettings
+              scaleSize={q.maxSelections}
+              labels={q.likertScaleLabels}
+              onChange={onChange}
+            />
           </div>
         )}
 

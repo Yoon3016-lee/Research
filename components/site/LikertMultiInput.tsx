@@ -1,17 +1,35 @@
 "use client";
 
-import { LIKERT_7_VALUES, isLikert7Value } from "@/lib/survey-types";
+import {
+  clampLikertScaleSize,
+  DEFAULT_LIKERT_SCALE_SIZE,
+  isLikertScaleValue,
+  likertScaleValues,
+  normalizeLikertScaleLabels,
+} from "@/lib/likert-scale";
 import type { PublicSurveyOption } from "@/lib/survey-public";
-import { Likert7Track } from "@/components/site/Likert7Track";
+import { LikertScaleTrack } from "@/components/site/Likert7Track";
 
 type Props = {
   options: PublicSurveyOption[];
+  scaleSize?: number | null;
+  scaleLabels?: string[];
   values: Record<string, number | null>;
   disabled: boolean;
   onChange: (optionId: string, value: number) => void;
 };
 
-export function LikertMultiInput({ options, values, disabled, onChange }: Props) {
+export function LikertMultiInput({
+  options,
+  scaleSize = DEFAULT_LIKERT_SCALE_SIZE,
+  scaleLabels = [],
+  values,
+  disabled,
+  onChange,
+}: Props) {
+  const size = clampLikertScaleSize(scaleSize);
+  const labels = normalizeLikertScaleLabels(scaleLabels, size);
+  const scaleValues = likertScaleValues(size);
   const hasAnyValue = options.some((opt) => values[opt.id] != null);
 
   return (
@@ -25,15 +43,21 @@ export function LikertMultiInput({ options, values, disabled, onChange }: Props)
         <thead>
           <tr className="border-b border-zinc-200 text-xs text-zinc-500">
             <th className="py-2 pr-3 text-left font-medium">항목</th>
-            <th className="px-1 py-2 text-center font-normal" colSpan={LIKERT_7_VALUES.length}>
-              1 (낮음) — 7 (높음)
+            <th
+              className="px-1 py-2 text-center font-normal"
+              colSpan={scaleValues.length}
+            >
+              1 — {size} 척도
             </th>
           </tr>
-          <tr className="border-b border-zinc-100 text-[10px] tabular-nums text-zinc-400">
+          <tr className="border-b border-zinc-100 text-[10px] text-zinc-500">
             <th className="py-1 pr-3" />
-            {LIKERT_7_VALUES.map((n) => (
-              <th key={n} className="w-8 px-0.5 py-1 text-center font-normal">
-                {n}
+            {labels.map((label, index) => (
+              <th
+                key={index}
+                className="min-w-[2rem] max-w-[4.5rem] px-0.5 py-1 text-center font-normal leading-tight"
+              >
+                {label.trim() || index + 1}
               </th>
             ))}
           </tr>
@@ -47,15 +71,18 @@ export function LikertMultiInput({ options, values, disabled, onChange }: Props)
               >
                 {opt.label}
               </th>
-              <td colSpan={LIKERT_7_VALUES.length} className="py-2 pl-1">
-                <Likert7Track
+              <td colSpan={scaleValues.length} className="py-2 pl-1">
+                <LikertScaleTrack
                   namePrefix={`likert_multi_${opt.id}`}
+                  scaleSize={size}
+                  scaleLabels={labels}
                   value={values[opt.id] ?? null}
                   disabled={disabled}
                   onChange={(value) => onChange(opt.id, value)}
-                  ariaLabel={`${opt.label} — 1부터 7까지`}
+                  ariaLabel={`${opt.label} — 1부터 ${size}까지`}
                   showBracket={false}
                   showNumberRow={false}
+                  compact
                 />
               </td>
             </tr>
@@ -68,10 +95,12 @@ export function LikertMultiInput({ options, values, disabled, onChange }: Props)
 
 export function likertMultiValuesFromRecord(
   record: Record<string, number | null>,
+  scaleSize = DEFAULT_LIKERT_SCALE_SIZE,
 ): Record<string, number> {
+  const size = clampLikertScaleSize(scaleSize);
   const out: Record<string, number> = {};
   for (const [k, v] of Object.entries(record)) {
-    if (v != null && isLikert7Value(v)) out[k] = v;
+    if (v != null && isLikertScaleValue(v, size)) out[k] = v;
   }
   return out;
 }

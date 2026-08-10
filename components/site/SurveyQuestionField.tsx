@@ -1,6 +1,7 @@
 "use client";
 
 import type { PublicSurveyQuestion } from "@/lib/survey-public";
+import { formatSurveyOptionMarker } from "@/lib/survey-option-marker";
 import { QUESTION_TYPE_LABELS } from "@/lib/survey-types";
 import { Likert7Input } from "@/components/site/Likert7Input";
 import { LikertMultiInput } from "@/components/site/LikertMultiInput";
@@ -115,8 +116,8 @@ export function SurveyQuestionField({
                     }}
                     className="mt-1 shrink-0"
                   />
-                  <span className="mt-px shrink-0 text-[0.8125rem] font-semibold tabular-nums text-zinc-500">
-                    {optIndex + 1}.
+                  <span className="mt-px shrink-0 text-[0.9375rem] font-semibold tabular-nums text-zinc-600">
+                    {formatSurveyOptionMarker(optIndex)}
                   </span>
                   <span className="text-[0.8125rem] leading-relaxed text-zinc-700">{opt.label}</span>
                 </label>
@@ -197,7 +198,8 @@ export function SurveyQuestionField({
         <Likert7Input
           questionId={q.id}
           prompt={q.prompt}
-          options={q.options}
+          scaleSize={q.maxSelections}
+          scaleLabels={q.likertScaleLabels}
           value={state.likert7[q.id] ?? null}
           disabled={pending}
           onChange={(value) => onLikert7(q.id, value)}
@@ -214,7 +216,7 @@ export function SurveyQuestionField({
           <option value="">선택하세요</option>
           {q.options.map((opt, optIndex) => (
             <option key={opt.id} value={opt.id}>
-              {optIndex + 1}. {opt.label}
+              {formatSurveyOptionMarker(optIndex)} {opt.label}
             </option>
           ))}
         </select>
@@ -233,6 +235,8 @@ export function SurveyQuestionField({
       {q.type === "likert_multi" && (
         <LikertMultiInput
           options={q.options}
+          scaleSize={q.maxSelections}
+          scaleLabels={q.likertScaleLabels}
           values={state.likertMulti[q.id] ?? {}}
           disabled={pending}
           onChange={(optionId, value) => onLikertMulti(q.id, optionId, value)}

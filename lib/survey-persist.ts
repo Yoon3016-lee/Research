@@ -1,5 +1,11 @@
 import "server-only";
 
+import {
+  clampLikertScaleSize,
+  MAX_LIKERT_SCALE_SIZE,
+  MIN_LIKERT_SCALE_SIZE,
+  normalizeLikertScaleLabels,
+} from "@/lib/likert-scale";
 import type { DraftQuestion, QuestionType } from "@/lib/survey-types";
 import { validateVisibilityRules } from "@/lib/survey-visibility";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -54,6 +60,12 @@ export function validateQuestion(
     const rankCount = q.maxSelections;
     if (rankCount < 1 || rankCount > opts.length) {
       return `문항 ${index + 1}: 순위 개수는 1~선택지 개수(${opts.length}) 사이여야 합니다.`;
+    }
+  }
+  if (q.type === "likert_7" || q.type === "likert_multi") {
+    const scaleSize = clampLikertScaleSize(q.maxSelections);
+    if (scaleSize < MIN_LIKERT_SCALE_SIZE || scaleSize > MAX_LIKERT_SCALE_SIZE) {
+      return `문항 ${index + 1}: 척도 크기는 ${MIN_LIKERT_SCALE_SIZE}~${MAX_LIKERT_SCALE_SIZE} 사이여야 합니다.`;
     }
   }
   if (q.type === "likert_multi") {
@@ -129,6 +141,12 @@ function buildQuestionRow(
     row.media_path = q.mediaPath?.trim() || null;
     row.media_type = q.mediaType;
   }
+  if (q.type === "likert_7" || q.type === "likert_multi") {
+    const scaleSize = clampLikertScaleSize(q.maxSelections);
+    row.max_selections = scaleSize;
+    const labels = normalizeLikertScaleLabels(q.likertScaleLabels, scaleSize);
+    row.likert_scale_labels = labels.some((l) => l.trim()) ? labels : null;
+  }
 
   return row;
 }
@@ -150,6 +168,23 @@ function isMediaColumnError(message: string): boolean {
     message.includes("media_type") ||
     message.includes("info_media") ||
     message.includes("contact_fields")
+  );
+}
+
+function isLikertColumnError(message: string): boolean {
+  return message.includes("likert_scale_labels");
+}
+
+function stripLikertColumns(row: Record<string, unknown>): Record<string, unknown> {
+  const legacy = { ...row };
+  delete legacy.likert_scale_labels;
+  return legacy;
+}
+
+function likertColumnMigrationHint(): string {
+  return (
+    "DB에 리커트 척도 라벨 컬럼(likert_scale_labels)이 없습니다. " +
+    "supabase/migrations/20260410100000_survey_likert_scale_labels.sql 을 실행하세요."
   );
 }
 
@@ -230,20 +265,6 @@ async function insertOptionsForNewQuestion(
     }
   }
 
-  if (q.type === "likert_7") {
-    const min = q.options[0]?.trim() ?? "";
-    const max = q.options[1]?.trim() ?? "";
-    const opts: { question_id: string; order_index: number; label: string }[] = [];
-    if (min) opts.push({ question_id: questionId, order_index: 0, label: min });
-    if (max) opts.push({ question_id: questionId, order_index: 1, label: max });
-    if (opts.length > 0) {
-      const { error: oErr } = await admin.from("survey_question_options").insert(opts);
-      if (oErr) {
-        return oErr.message;
-      }
-    }
-  }
-
   return null;
 }
 
@@ -252,7 +273,7 @@ async function syncOptionsPreservingIds(
   questionId: string,
   q: DraftQuestion,
 ): Promise<string | null> {
-  if (!OPTION_TYPES.includes(q.type) && q.type !== "likert_7") {
+  if (!OPTION_TYPES.includes(q.type)) {
     const { error } = await admin
       .from("survey_question_options")
       .delete()
@@ -299,52 +320,7 @@ async function syncOptionsPreservingIdsWithRows(
   const keepIds = new Set<string>();
   const usedExisting = new Set<string>();
 
-  if (q.type === "likert_7") {
-    const endpoints = [
-      { order_index: 0, label: q.options[0]?.trim() ?? "", preferredId: q.optionIds?.[0] ?? null },
-      { order_index: 1, label: q.options[1]?.trim() ?? "", preferredId: q.optionIds?.[1] ?? null },
-    ].filter((e) => e.label);
-
-    for (const ep of endpoints) {
-      const byId =
-        ep.preferredId && !usedExisting.has(ep.preferredId)
-          ? existing.find((o) => o.id === ep.preferredId)
-          : undefined;
-      const byOrder =
-        !byId
-          ? existing.find(
-              (o) => !o.is_other && !usedExisting.has(o.id) && o.order_index === ep.order_index,
-            )
-          : undefined;
-      const match = byId ?? byOrder;
-      if (match) {
-        usedExisting.add(match.id);
-        keepIds.add(match.id);
-        const { error } = await admin
-          .from("survey_question_options")
-          .update({
-            label: ep.label,
-            order_index: ep.order_index,
-            is_other: false,
-          })
-          .eq("id", match.id);
-        if (error) return error.message;
-      } else {
-        const { data, error } = await admin
-          .from("survey_question_options")
-          .insert({
-            question_id: questionId,
-            order_index: ep.order_index,
-            label: ep.label,
-            is_other: false,
-          })
-          .select("id")
-          .single();
-        if (error) return error.message;
-        if (data?.id) keepIds.add(data.id as string);
-      }
-    }
-  } else {
+  {
     const paired = q.options
       .map((label, order_index) => ({
         label: label.trim(),
@@ -537,6 +513,19 @@ export async function persistSurveyQuestions(
       qErr = legacy.error;
     }
 
+    if (qErr && isLikertColumnError(qErr.message)) {
+      if (q.type === "likert_7" || q.type === "likert_multi") {
+        return likertColumnMigrationHint();
+      }
+      const legacy = await admin
+        .from("survey_questions")
+        .insert(stripLikertColumns(row))
+        .select("id")
+        .single();
+      qRow = legacy.data;
+      qErr = legacy.error;
+    }
+
     if (qErr || !qRow) {
       return qErr?.message ?? "문항 저장에 실패했습니다.";
     }
@@ -628,6 +617,17 @@ export async function persistSurveyQuestionsUpdate(
           .eq("survey_id", surveyId);
         uErr = retry.error;
       }
+      if (uErr && isLikertColumnError(uErr.message)) {
+        if (q.type === "likert_7" || q.type === "likert_multi") {
+          return likertColumnMigrationHint();
+        }
+        const retry = await admin
+          .from("survey_questions")
+          .update(stripLikertColumns(row))
+          .eq("id", q.clientId)
+          .eq("survey_id", surveyId);
+        uErr = retry.error;
+      }
       if (uErr) return uErr.message;
       questionId = q.clientId;
     } else {
@@ -653,6 +653,23 @@ export async function persistSurveyQuestionsUpdate(
             UUID_RE.test(q.clientId)
               ? { id: q.clientId, ...stripMediaColumns(row) }
               : stripMediaColumns(row),
+          )
+          .select("id")
+          .single();
+        qRow = legacy.data;
+        qErr = legacy.error;
+      }
+
+      if (qErr && isLikertColumnError(qErr.message)) {
+        if (q.type === "likert_7" || q.type === "likert_multi") {
+          return likertColumnMigrationHint();
+        }
+        const legacy = await admin
+          .from("survey_questions")
+          .insert(
+            UUID_RE.test(q.clientId)
+              ? { id: q.clientId, ...stripLikertColumns(row) }
+              : stripLikertColumns(row),
           )
           .select("id")
           .single();

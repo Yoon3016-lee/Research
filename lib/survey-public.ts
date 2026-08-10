@@ -1,6 +1,12 @@
 import "server-only";
 
 import type { QuestionType } from "@/lib/survey-types";
+import {
+  clampLikertScaleSize,
+  legacyLikertEndpointLabels,
+  normalizeLikertScaleLabels,
+  parseLikertScaleLabelsFromDb,
+} from "@/lib/likert-scale";
 import { resolveSurveyStatus, normalizeStoredDate } from "@/lib/survey-period";
 import {
   parseStoredVisibilityRules,
@@ -30,6 +36,8 @@ export type PublicSurveyQuestion = {
   visibilityRules: ResolvedVisibilityRule[];
   maxSelections: number | null;
   textLineCount: number | null;
+  /** likert_7·likert_multi: 척도 점수별 라벨 */
+  likertScaleLabels: string[];
   options: PublicSurveyOption[];
   infoBody: string | null;
   mediaUrl: string | null;
@@ -221,6 +229,7 @@ type QuestionRow = {
   visibility_rules?: unknown;
   max_selections: number | null;
   text_line_count: number | null;
+  likert_scale_labels?: unknown;
   info_body?: string | null;
   media_url?: string | null;
   media_type?: string | null;
@@ -255,10 +264,27 @@ function mapQuestions(
 
   return qRows.map((q) => {
     const storedRules = parseStoredVisibilityRules(q.visibility_rules);
+    const type = q.question_type as QuestionType;
+    const rowOptions = optionsByQuestion.get(q.id) ?? [];
+    let likertScaleLabels: string[] = [];
+    if (type === "likert_7" || type === "likert_multi") {
+      const parsed = parseLikertScaleLabelsFromDb(q.likert_scale_labels);
+      const scaleSize = clampLikertScaleSize(q.max_selections);
+      if (parsed) {
+        likertScaleLabels = normalizeLikertScaleLabels(parsed, scaleSize);
+      } else if (type === "likert_7" && rowOptions.length > 0) {
+        likertScaleLabels = legacyLikertEndpointLabels(
+          rowOptions.map((o) => o.label),
+          q.max_selections ?? 7,
+        );
+      } else {
+        likertScaleLabels = normalizeLikertScaleLabels([], scaleSize);
+      }
+    }
     return {
       id: q.id,
       orderIndex: q.order_index,
-      type: q.question_type as QuestionType,
+      type,
       prompt: q.prompt,
       allowSkip: q.allow_skip,
       staffOnly: q.staff_only ?? false,
@@ -267,9 +293,13 @@ function mapQuestions(
         storedRules,
         questionsByOrder,
       ),
-      maxSelections: q.max_selections,
+      maxSelections:
+        type === "likert_7" || type === "likert_multi"
+          ? clampLikertScaleSize(q.max_selections)
+          : q.max_selections,
       textLineCount: q.text_line_count,
-      options: optionsByQuestion.get(q.id) ?? [],
+      likertScaleLabels,
+      options: type === "likert_7" ? [] : rowOptions,
       infoBody: q.info_body?.trim() || null,
       mediaUrl: q.media_url?.trim() || null,
       mediaType:
@@ -289,7 +319,7 @@ async function loadQuestionsForSurvey(
   const { data: questions, error: qError } = await client
     .from("survey_questions")
     .select(
-      "id, order_index, prompt, question_type, allow_skip, staff_only, visibility_rules, max_selections, text_line_count, info_body, media_url, media_type",
+      "id, order_index, prompt, question_type, allow_skip, staff_only, visibility_rules, max_selections, text_line_count, likert_scale_labels, info_body, media_url, media_type",
     )
     .eq("survey_id", surveyId)
     .order("order_index", { ascending: true });

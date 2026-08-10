@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { SurveyAnswerInput } from "@/lib/survey-public";
+import type { SurveyAnswerInput, PublicSurveyDetail } from "@/lib/survey-public";
 import { getPublicSurveyBySlug } from "@/lib/survey-public";
-import { isLikert7Value, isStarRatingValue, type QuestionType } from "@/lib/survey-types";
+import { clampLikertScaleSize, isLikertScaleValue } from "@/lib/likert-scale";
+import { isStarRatingValue } from "@/lib/survey-types";
 import { deleteCatiDraft } from "@/lib/cati-drafts";
 import { getSurveyParticipant, resolveRespondentForInsert } from "@/lib/participant";
 import { validateSurveyAnswers } from "@/lib/survey-validate-answers";
@@ -21,9 +22,11 @@ export type SubmitSurveyState =
   | { ok: true; after: SubmitSurveyAfter; error?: undefined };
 
 function toAnswerJson(
-  qType: QuestionType,
+  q: PublicSurveyDetail["questions"][number],
   a: SurveyAnswerInput,
 ): Record<string, unknown> | null {
+  const qType = q.type;
+  const scaleSize = clampLikertScaleSize(q.maxSelections);
   if (qType === "mc_single" && a.type === "mc_single") {
     if (!a.optionId?.trim()) return null;
     const otherText = a.otherText?.trim();
@@ -59,7 +62,7 @@ function toAnswerJson(
     return { lines };
   }
   if (qType === "likert_7" && a.type === "likert_7") {
-    if (a.value == null || !isLikert7Value(a.value)) return null;
+    if (a.value == null || !isLikertScaleValue(a.value, scaleSize)) return null;
     return { value: a.value };
   }
   if (qType === "dropdown" && a.type === "dropdown") {
@@ -74,7 +77,7 @@ function toAnswerJson(
   if (qType === "likert_multi" && a.type === "likert_multi") {
     const values: Record<string, number> = {};
     for (const [k, v] of Object.entries(a.values ?? {})) {
-      if (v != null && isLikert7Value(v)) values[k] = v;
+      if (v != null && isLikertScaleValue(v, scaleSize)) values[k] = v;
     }
     if (Object.keys(values).length === 0) return null;
     return { values };
@@ -185,7 +188,7 @@ export async function submitSurveyResponseAction(
     }
     const a = answers.find((x) => x.questionId === q.id);
     if (!a) continue;
-    const json = toAnswerJson(q.type, a);
+    const json = toAnswerJson(q, a);
     if (json) {
       rows.push({ response_id: responseId, question_id: q.id, answer: json });
     }

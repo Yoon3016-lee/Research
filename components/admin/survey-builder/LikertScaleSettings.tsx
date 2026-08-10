@@ -1,0 +1,73 @@
+"use client";
+
+import {
+  MAX_LIKERT_SCALE_SIZE,
+  MIN_LIKERT_SCALE_SIZE,
+  clampLikertScaleSize,
+  normalizeLikertScaleLabels,
+} from "@/lib/likert-scale";
+import type { DraftQuestion } from "@/lib/survey-types";
+
+type Props = {
+  scaleSize: number;
+  labels: string[];
+  onChange: (patch: Partial<DraftQuestion>) => void;
+};
+
+export function LikertScaleSettings({ scaleSize, labels, onChange }: Props) {
+  const size = clampLikertScaleSize(scaleSize);
+  const normalized = normalizeLikertScaleLabels(labels, size);
+
+  const setSize = (nextRaw: number) => {
+    const next = clampLikertScaleSize(nextRaw);
+    onChange({
+      maxSelections: next,
+      likertScaleLabels: normalizeLikertScaleLabels(labels, next),
+    });
+  };
+
+  const setLabel = (index: number, text: string) => {
+    const next = [...normalized];
+    next[index] = text;
+    onChange({ likertScaleLabels: next });
+  };
+
+  return (
+    <div className="mt-4 space-y-4 border-t border-emerald-100 pt-4">
+      <label className="block">
+        <span className="text-sm font-medium text-zinc-800">척도 크기</span>
+        <p className="mt-0.5 text-xs text-zinc-500">
+          {MIN_LIKERT_SCALE_SIZE}~{MAX_LIKERT_SCALE_SIZE}점. 기본 5점.
+        </p>
+        <input
+          type="number"
+          min={MIN_LIKERT_SCALE_SIZE}
+          max={MAX_LIKERT_SCALE_SIZE}
+          value={size}
+          onChange={(e) => setSize(Number(e.target.value) || MIN_LIKERT_SCALE_SIZE)}
+          className="mt-2 w-28 rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+        />
+      </label>
+
+      <div>
+        <p className="text-sm font-medium text-zinc-800">점수별 라벨 (선택)</p>
+        <p className="mt-0.5 text-xs text-zinc-500">
+          비워 두면 응답 화면에 점수(1, 2, …)만 표시됩니다.
+        </p>
+        <div className="mt-3 space-y-2">
+          {normalized.map((label, i) => (
+            <label key={i} className="flex items-center gap-2 text-sm">
+              <span className="w-8 shrink-0 font-medium text-zinc-600">{i + 1}점</span>
+              <input
+                value={label}
+                onChange={(e) => setLabel(i, e.target.value)}
+                className="min-w-0 flex-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/15"
+                placeholder={`${i + 1}점 라벨`}
+              />
+            </label>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

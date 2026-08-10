@@ -5,6 +5,7 @@ import {
   type DraftQuestion,
   type QuestionType,
 } from "@/lib/survey-types";
+import { clampLikertScaleSize, normalizeLikertScaleLabels } from "@/lib/likert-scale";
 import type { SurveyAiDraftPayload } from "@/lib/survey-ai/types";
 
 function isQuestionType(value: string): value is QuestionType {
@@ -56,6 +57,14 @@ export function rehydrateDraftQuestion(raw: Partial<DraftQuestion> & { type?: st
       typeof raw.maxSelections === "number" && Number.isFinite(raw.maxSelections)
         ? raw.maxSelections
         : base.maxSelections,
+    likertScaleLabels: Array.isArray(raw.likertScaleLabels)
+      ? normalizeLikertScaleLabels(
+          raw.likertScaleLabels.map((l) => String(l)),
+          clampLikertScaleSize(
+            typeof raw.maxSelections === "number" ? raw.maxSelections : base.maxSelections,
+          ),
+        )
+      : base.likertScaleLabels,
     textLineCount:
       typeof raw.textLineCount === "number" && Number.isFinite(raw.textLineCount)
         ? raw.textLineCount
