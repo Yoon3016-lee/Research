@@ -66,7 +66,7 @@ export default async function EditSurveyByQueryPage({ searchParams }: Props) {
         title="설문 편집"
         description={
           responseCount > 0
-            ? "응답이 있는 설문은 저장 시 새 버전이 생성되고 기존 설문은 종료됩니다."
+            ? "응답이 있는 설문은 문항을 바꾸면 새 버전이 생성됩니다. 기간·제목 등만 수정하면 기존 설문이 유지됩니다."
             : "기본 정보와 문항을 수정한 뒤 저장합니다."
         }
       />

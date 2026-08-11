@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
+import { AdminSurveyStatusBadge } from "@/components/admin/AdminSurveyIconActions";
 import { SurveyDeleteButton } from "@/components/admin/SurveyDeleteButton";
 import { SurveyScriptsLauncher } from "@/components/admin/SurveyScriptsLauncher";
 import { SurveyTemplateImportButton } from "@/components/admin/SurveyTemplateImportButton";
+import type { SurveyStatus } from "@/lib/survey-list-types";
 import { getAdminSurveys } from "@/lib/surveys-db";
 import { listSharedResponseScripts } from "@/lib/shared-scripts";
 import { listSurveyResponseScriptsForAdmin } from "@/lib/survey-scripts-admin";
@@ -11,6 +13,43 @@ import { ExternalLink, Plus, Pencil, GitBranch, Sparkles, PackageOpen, Users, Li
 export const metadata = { title: "설문 관리" };
 
 export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 10;
+
+const STATUS_FILTERS = [
+  { value: "진행중", label: "진행중" },
+  { value: "예정", label: "예정" },
+  { value: "종료", label: "종료" },
+  { value: "all", label: "전체" },
+] as const;
+
+type StatusFilterValue = SurveyStatus | "all";
+
+function parseStatusFilter(raw: string | undefined): StatusFilterValue {
+  if (raw === "진행중" || raw === "예정" || raw === "종료") return raw;
+  return "all";
+}
+
+function parsePage(raw: string | undefined, totalPages: number): number {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(totalPages, Math.floor(n));
+}
+
+function surveysListHref(opts: {
+  status?: StatusFilterValue;
+  page?: number;
+}): string {
+  const params = new URLSearchParams();
+  if (opts.status && opts.status !== "all") {
+    params.set("status", opts.status);
+  }
+  if (opts.page && opts.page > 1) {
+    params.set("page", String(opts.page));
+  }
+  const q = params.toString();
+  return q ? `/admin/surveys?${q}` : "/admin/surveys";
+}
 
 export default async function AdminSurveysPage({
   searchParams,
@@ -22,15 +61,38 @@ export default async function AdminSurveysPage({
     from?: string;
     deleted?: string;
     scripts?: string;
+    status?: string;
+    page?: string;
   }>;
 }) {
-  const { created, updated, forked, from, deleted, scripts } = await searchParams;
+  const {
+    created,
+    updated,
+    forked,
+    from,
+    deleted,
+    scripts,
+    status: statusParam,
+    page: pageParam,
+  } = await searchParams;
   const scriptsOpen = scripts === "open" || scripts === "1";
+  const statusFilter = parseStatusFilter(statusParam);
   const [adminSurveys, sharedScripts, surveyScripts] = await Promise.all([
     getAdminSurveys(),
     listSharedResponseScripts(),
     listSurveyResponseScriptsForAdmin(),
   ]);
+  const filteredSurveys =
+    statusFilter === "all"
+      ? adminSurveys
+      : adminSurveys.filter((s) => s.status === statusFilter);
+
+  const totalCount = filteredSurveys.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const currentPage = parsePage(pageParam, totalPages);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const pagedSurveys = filteredSurveys.slice(pageStart, pageStart + PAGE_SIZE);
+  const showPagination = totalCount > PAGE_SIZE;
 
   return (
     <>
@@ -105,13 +167,39 @@ export default async function AdminSurveysPage({
           </div>
 
           <div className="admin-card mt-6 overflow-hidden">
-            <div className="border-b border-brand-900/8 px-4 py-3">
-              <h2 id="surveys-list-heading" className="text-sm font-semibold text-brand-900">
-                설문 목록
-              </h2>
-              <p className="mt-0.5 text-xs text-brand-700/80">
-                각 설문의 「배포 관리」에서 이메일·문자 초대 문구를 작성·발송합니다.
-              </p>
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-brand-900/8 px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <h2 id="surveys-list-heading" className="text-sm font-semibold text-brand-900">
+                  설문 목록
+                </h2>
+                <p className="mt-0.5 text-xs text-brand-700/80">
+                  각 설문의 「배포 관리」에서 이메일·문자 초대 문구를 작성·발송합니다.
+                </p>
+              </div>
+              <fieldset className="shrink-0">
+                <legend className="sr-only">설문 상태 필터</legend>
+                <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="설문 상태">
+                  {STATUS_FILTERS.map((opt) => {
+                    const selected = statusFilter === opt.value;
+                    const href = surveysListHref({ status: opt.value });
+                    return (
+                      <Link
+                        key={opt.value}
+                        href={href}
+                        role="radio"
+                        aria-checked={selected}
+                        className={
+                          selected
+                            ? "rounded-lg border border-brand-900/20 bg-brand-900 px-2.5 py-1 text-xs font-semibold text-white"
+                            : "rounded-lg border border-brand-900/12 bg-white px-2.5 py-1 text-xs font-medium text-brand-800 hover:bg-surface"
+                        }
+                      >
+                        {opt.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </fieldset>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[640px] text-left text-sm">
@@ -141,7 +229,17 @@ export default async function AdminSurveysPage({
                       </td>
                     </tr>
                   ) : null}
-                  {adminSurveys.map((s) => (
+                  {adminSurveys.length > 0 && filteredSurveys.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-12 text-center text-sm text-brand-700">
+                        선택한 상태의 설문이 없습니다.{" "}
+                        <Link href="/admin/surveys" className="admin-link">
+                          전체 보기
+                        </Link>
+                      </td>
+                    </tr>
+                  ) : null}
+                  {pagedSurveys.map((s) => (
                     <tr key={s.id} className="transition hover:bg-surface/60">
                       <td className="max-w-[13rem] px-4 py-3 align-middle sm:max-w-[16rem]">
                         <p
@@ -155,9 +253,7 @@ export default async function AdminSurveysPage({
                         </p>
                       </td>
                       <td className="whitespace-nowrap px-6 py-3 align-middle sm:px-8">
-                        <span className="rounded-full bg-brand-900/6 px-2 py-0.5 text-xs font-medium text-brand-800">
-                          {s.status}
-                        </span>
+                        <AdminSurveyStatusBadge status={s.status} />
                       </td>
                       <td className="whitespace-nowrap px-6 py-3 align-middle tabular-nums text-brand-800 sm:px-8">
                         {s.responses.toLocaleString()}
@@ -228,6 +324,67 @@ export default async function AdminSurveysPage({
                 </tbody>
               </table>
             </div>
+            {showPagination ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-brand-900/8 px-4 py-3">
+                <p className="text-xs text-brand-700/80">
+                  전체 {totalCount.toLocaleString()}건 · {currentPage}/{totalPages}페이지
+                  (페이지당 {PAGE_SIZE}건)
+                </p>
+                <nav className="flex flex-wrap items-center gap-1" aria-label="설문 목록 페이지">
+                  <Link
+                    href={surveysListHref({
+                      status: statusFilter,
+                      page: Math.max(1, currentPage - 1),
+                    })}
+                    aria-disabled={currentPage <= 1}
+                    className={
+                      currentPage <= 1
+                        ? "pointer-events-none rounded-lg border border-brand-900/8 px-2.5 py-1 text-xs text-brand-700/40"
+                        : "rounded-lg border border-brand-900/12 bg-white px-2.5 py-1 text-xs font-medium text-brand-800 hover:bg-surface"
+                    }
+                  >
+                    이전
+                  </Link>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                    const selected = page === currentPage;
+                    return (
+                      <Link
+                        key={page}
+                        href={surveysListHref({ status: statusFilter, page })}
+                        aria-current={selected ? "page" : undefined}
+                        className={
+                          selected
+                            ? "rounded-lg border border-brand-900/20 bg-brand-900 px-2.5 py-1 text-xs font-semibold text-white"
+                            : "rounded-lg border border-brand-900/12 bg-white px-2.5 py-1 text-xs font-medium text-brand-800 hover:bg-surface"
+                        }
+                      >
+                        {page}
+                      </Link>
+                    );
+                  })}
+                  <Link
+                    href={surveysListHref({
+                      status: statusFilter,
+                      page: Math.min(totalPages, currentPage + 1),
+                    })}
+                    aria-disabled={currentPage >= totalPages}
+                    className={
+                      currentPage >= totalPages
+                        ? "pointer-events-none rounded-lg border border-brand-900/8 px-2.5 py-1 text-xs text-brand-700/40"
+                        : "rounded-lg border border-brand-900/12 bg-white px-2.5 py-1 text-xs font-medium text-brand-800 hover:bg-surface"
+                    }
+                  >
+                    다음
+                  </Link>
+                </nav>
+              </div>
+            ) : totalCount > 0 ? (
+              <div className="border-t border-brand-900/8 px-4 py-3">
+                <p className="text-xs text-brand-700/80">
+                  전체 {totalCount.toLocaleString()}건
+                </p>
+              </div>
+            ) : null}
           </div>
         </section>
       </div>

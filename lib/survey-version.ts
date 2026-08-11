@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomUUID } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { CreateSurveyPayload } from "@/lib/survey-types";
+import type { CreateSurveyPayload, DraftQuestion } from "@/lib/survey-types";
 import { buildSurveyPeriodPersist } from "@/lib/survey-period";
 import { persistSurveyQuestions } from "@/lib/survey-persist";
 import { cloneQuestionsAsTemplate } from "@/lib/survey-template";
@@ -39,6 +39,52 @@ export function makeSurveySlugFromTitle(title: string): string {
   return `${base}-${randomUUID().slice(0, 8)}`;
 }
 
+/**
+ * 응답 보존을 위해 문항 구조·내용이 바뀌었는지 비교합니다.
+ * 제목·기간 등 설문 메타는 제외합니다.
+ */
+export function surveyQuestionsContentEqual(
+  a: DraftQuestion[],
+  b: DraftQuestion[],
+): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (normalizeQuestionFingerprint(a[i]) !== normalizeQuestionFingerprint(b[i])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function normalizeQuestionFingerprint(q: DraftQuestion): string {
+  const options = (q.options ?? []).map((o) => o.trim());
+  const ends = q.optionEndsSurvey ?? [];
+  return JSON.stringify({
+    clientId: q.clientId,
+    type: q.type,
+    prompt: q.prompt.trim(),
+    allowSkip: Boolean(q.allowSkip),
+    staffOnly: Boolean(q.staffOnly),
+    visibilityRules: (q.visibilityRules ?? []).map((r) => ({
+      sourceOrderIndex: r.sourceOrderIndex,
+      optionIndex: r.optionIndex,
+    })),
+    options,
+    optionEndsSurvey: options.map((_, i) => Boolean(ends[i])),
+    otherOptionEnabled: Boolean(q.otherOptionEnabled),
+    otherOptionLabel: (q.otherOptionLabel ?? "기타").trim() || "기타",
+    maxSelections: q.maxSelections ?? null,
+    textLineCount: q.textLineCount ?? null,
+    infoBody: (q.infoBody ?? "").trim(),
+    mediaUrl: q.mediaUrl?.trim() || null,
+    mediaPath: q.mediaPath?.trim() || null,
+    mediaType: q.mediaType ?? null,
+    likertScaleLabels: (q.likertScaleLabels ?? []).map((l) =>
+      typeof l === "string" ? l.trim() : "",
+    ),
+  });
+}
+
 export async function surveyHasStoredResponses(
   admin: SupabaseClient,
   surveyId: string,
@@ -68,7 +114,8 @@ function isVersionColumnError(message: string): boolean {
 }
 
 /**
- * 응답이 있는 설문 수정: 새 설문·문항 ID로 생성하고 기존 설문은 종료·비공개로 보존합니다.
+ * 응답이 있는 설문에서 문항이 바뀐 경우: 새 설문·문항 ID로 생성하고
+ * 기존 설문은 종료·비공개로 보존합니다.
  */
 export async function forkSurveyOnEdit(
   admin: SupabaseClient,

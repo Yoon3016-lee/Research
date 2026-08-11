@@ -6,9 +6,11 @@ import {
   BarChart3,
   ClipboardList,
   DatabaseBackup,
+  ExternalLink,
   Globe,
   LayoutDashboard,
   LogOut,
+  Mail,
   MessageSquare,
   ShieldCheck,
   Users,
@@ -147,6 +149,16 @@ export function AdminSidebar({ email, role }: Props) {
             홈페이지 관리
           </Link>
         ) : null}
+        <a
+          href="https://go.whoisworks.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={navLinkClass(false, "sky")}
+        >
+          <Mail className="h-5 w-5 shrink-0" aria-hidden />
+          <span className="min-w-0 flex-1 truncate">Mail Page</span>
+          <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden />
+        </a>
       </nav>
       <div className="space-y-1 border-t border-brand-900/8 p-3">
         <form action={logoutAction}>

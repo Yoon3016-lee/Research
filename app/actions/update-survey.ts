@@ -5,7 +5,12 @@ import type { CreateSurveyPayload } from "@/lib/survey-types";
 import { buildSurveyPeriodPersist } from "@/lib/survey-period";
 import { normalizeSurveyRef } from "@/lib/survey-slug";
 import { persistSurveyQuestionsUpdate, validateQuestion } from "@/lib/survey-persist";
-import { forkSurveyOnEdit, surveyHasStoredResponses } from "@/lib/survey-version";
+import {
+  forkSurveyOnEdit,
+  surveyHasStoredResponses,
+  surveyQuestionsContentEqual,
+} from "@/lib/survey-version";
+import { loadSurveyForEdit } from "@/lib/surveys-admin";
 import { requireAdminPanelAccess } from "@/lib/require-admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -89,22 +94,35 @@ export async function updateSurveyAction(
     existing.response_count ?? 0,
   );
 
+  let questionsUnchangedWithResponses = false;
+
   if (hasResponses) {
-    const forkResult = await forkSurveyOnEdit(admin, existing, payload, {
-      createdBy: userId,
-    });
-    if (!forkResult.ok) {
-      return { error: forkResult.error };
+    const loaded = await loadSurveyForEdit(normalizedSlug);
+    const existingQuestions =
+      loaded.ok && loaded.bundle ? loaded.bundle.questions : null;
+    const questionsChanged =
+      !existingQuestions ||
+      !surveyQuestionsContentEqual(existingQuestions, payload.questions);
+
+    if (questionsChanged) {
+      const forkResult = await forkSurveyOnEdit(admin, existing, payload, {
+        createdBy: userId,
+      });
+      if (!forkResult.ok) {
+        return { error: forkResult.error };
+      }
+
+      revalidatePaths(normalizedSlug, forkResult.slug, forkResult.previousSlug);
+
+      return {
+        ok: true,
+        slug: forkResult.slug,
+        forked: true,
+        previousSlug: forkResult.previousSlug,
+      };
     }
-
-    revalidatePaths(normalizedSlug, forkResult.slug, forkResult.previousSlug);
-
-    return {
-      ok: true,
-      slug: forkResult.slug,
-      forked: true,
-      previousSlug: forkResult.previousSlug,
-    };
+    // 문항 동일 → 제목·기간 등 메타만 기존 설문에 반영 (버전 분기 없음)
+    questionsUnchangedWithResponses = true;
   }
 
   const { error: updateError } = await admin
@@ -129,13 +147,16 @@ export async function updateSurveyAction(
     return { error: formatSurveyUpdateError(updateError.message) };
   }
 
-  const persistError = await persistSurveyQuestionsUpdate(
-    admin,
-    surveyId,
-    payload.questions,
-  );
-  if (persistError) {
-    return { error: persistError };
+  // 응답 있는 설문에서 문항이 같으면 문항/보기 ID를 건드리지 않음
+  if (!questionsUnchangedWithResponses) {
+    const persistError = await persistSurveyQuestionsUpdate(
+      admin,
+      surveyId,
+      payload.questions,
+    );
+    if (persistError) {
+      return { error: persistError };
+    }
   }
 
   revalidatePaths(normalizedSlug);

@@ -58,15 +58,16 @@ const STATUS_SORT: Record<SurveyStatus, number> = {
   종료: 2,
 };
 
+function compareSurveyRowsByStatusThenUpdated(a: SurveyRow, b: SurveyRow): number {
+  const byStatus =
+    (STATUS_SORT[a.status as SurveyStatus] ?? 99) -
+    (STATUS_SORT[b.status as SurveyStatus] ?? 99);
+  if (byStatus !== 0) return byStatus;
+  return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+}
+
 function sortPublicSurveys(rows: SurveyRow[]): OngoingSurvey[] {
-  return [...rows]
-    .sort((a, b) => {
-      const byStatus =
-        STATUS_SORT[a.status as SurveyStatus] - STATUS_SORT[b.status as SurveyStatus];
-      if (byStatus !== 0) return byStatus;
-      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
-    })
-    .map(mapToOngoing);
+  return [...rows].sort(compareSurveyRowsByStatusThenUpdated).map(mapToOngoing);
 }
 
 /** 공개 `/surveys` — 노출 설정된 진행중·예정 설문 (참여는 진행중만) */
@@ -131,7 +132,9 @@ export async function getAdminSurveys(): Promise<AdminSurveyRow[]> {
 
     if (error) throw error;
     if (!data?.length) return [];
-    return (data as SurveyRow[]).map(mapToAdmin);
+    return [...(data as SurveyRow[])]
+      .sort(compareSurveyRowsByStatusThenUpdated)
+      .map(mapToAdmin);
   } catch (err) {
     console.error("[getAdminSurveys]", err);
     return [];

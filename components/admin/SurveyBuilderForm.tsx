@@ -216,10 +216,11 @@ export function SurveyBuilderForm({
         ) : null}
         {isEdit && responseCount > 0 ? (
           <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-            이 설문에 응답이 {responseCount.toLocaleString()}건 있습니다. 저장하면{" "}
-            <strong>새 설문(새 slug·문항 ID)</strong>이 생성되고, 현재 설문은{" "}
-            <strong>종료·비공개</strong>로 보존됩니다. 이전 설문 제목에는{" "}
-            <strong>(숨김)</strong>이 붙고, 편집 중인 제목은 새 설문에 적용됩니다.
+            이 설문에 응답이 {responseCount.toLocaleString()}건 있습니다.{" "}
+            <strong>문항을 변경</strong>해 저장하면 새 설문(새 slug·문항 ID)이 생성되고
+            현재 설문은 종료·비공개로 보존됩니다.{" "}
+            <strong>제목·기간·목표·공개 설정</strong>만 바꾸면 기존 설문이 그대로
+            유지됩니다.
           </p>
         ) : null}
         {isEdit && successorSlug ? (

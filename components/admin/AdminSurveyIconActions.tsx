@@ -63,14 +63,14 @@ export function AdminSurveyIconActions({ slug, status }: Props) {
 }
 
 function statusBadgeClass(status: SurveyStatus): string {
-  const base = "rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap";
+  const base = "rounded-full px-2 py-0.5 text-xs font-semibold whitespace-nowrap";
   if (status === "진행중") {
-    return `${base} bg-emerald-50 text-emerald-800`;
+    return `${base} border border-green-300 bg-green-100 text-green-900`;
   }
   if (status === "예정") {
-    return `${base} bg-amber-50 text-amber-900`;
+    return `${base} border border-yellow-300 bg-yellow-100 text-yellow-950`;
   }
-  return `${base} bg-brand-900/6 text-brand-800`;
+  return `${base} border border-brand-900/10 bg-brand-900/6 text-brand-800`;
 }
 
 export function AdminSurveyStatusBadge({ status }: { status: SurveyStatus }) {

@@ -8,7 +8,7 @@ import { createSupabaseAdminFromEnv } from "./lib/supabase-admin.mjs";
 loadProjectEnv();
 
 const slug = process.argv[2]?.trim();
-const count = Math.max(1, Math.min(100, Number(process.argv[3]) || 10));
+const count = Math.max(1, Math.min(5000, Number(process.argv[3]) || 10));
 
 if (!slug) {
   console.error("사용법: node scripts/seed-survey-responses.mjs <slug> [건수]");
