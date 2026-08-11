@@ -5,6 +5,14 @@ import { BarChart2, BarChart3, PieChart } from "lucide-react";
 import type { FrequencyBucket, QuestionFrequencyStats, SurveyResponseStats } from "@/lib/survey-response-stats-shared";
 import { NO_ANSWER_LABEL } from "@/lib/survey-response-stats-shared";
 import { QUESTION_TYPE_LABELS } from "@/lib/survey-types";
+import {
+  FREQ_GUEST_H_CLASS,
+  FREQ_GUEST_V_CLASS,
+  FREQ_STAFF_H_CLASS,
+  FREQ_STAFF_V_CLASS,
+  ProgressGradientBar,
+  progressBarIntensity,
+} from "@/components/admin/ProgressGradientBar";
 
 type Props = {
   stats: Extract<SurveyResponseStats, { ok: true }>;
@@ -39,11 +47,17 @@ function RespondentLegend() {
   return (
     <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-600">
       <span className="inline-flex items-center gap-1.5">
-        <span className="h-2.5 w-2.5 rounded-sm bg-blue-600" aria-hidden />
+        <span
+          className="h-2.5 w-2.5 rounded-sm bg-gradient-to-r from-blue-800 to-sky-400"
+          aria-hidden
+        />
         직원
       </span>
       <span className="inline-flex items-center gap-1.5">
-        <span className="h-2.5 w-2.5 rounded-sm bg-amber-400" aria-hidden />
+        <span
+          className="h-2.5 w-2.5 rounded-sm bg-gradient-to-r from-amber-700 to-amber-300"
+          aria-hidden
+        />
         게스트
       </span>
     </div>
@@ -104,18 +118,20 @@ function RespondentDistributionBar({
   const scale = maxTotal > 0 ? 100 / maxTotal : 0;
   const staffW = staffCount * scale;
   const guestW = guestCount * scale;
+  const intensity = progressBarIntensity(total, maxTotal);
 
   return (
     <div
-      className="flex h-2 min-w-[4rem] overflow-hidden rounded-full bg-zinc-100"
+      className="flex h-2.5 min-w-[4rem] overflow-hidden rounded-full bg-zinc-100"
       role="presentation"
       title={`직원 ${staffCount} · 게스트 ${guestCount}`}
+      style={{ opacity: intensity }}
     >
       {staffCount > 0 ? (
-        <div className="h-full bg-blue-600" style={{ width: `${staffW}%` }} />
+        <div className={FREQ_STAFF_H_CLASS} style={{ width: `${staffW}%` }} />
       ) : null}
       {guestCount > 0 ? (
-        <div className="h-full bg-amber-400" style={{ width: `${guestW}%` }} />
+        <div className={FREQ_GUEST_H_CLASS} style={{ width: `${guestW}%` }} />
       ) : null}
     </div>
   );
@@ -200,6 +216,7 @@ function VerticalChart({ q }: { q: QuestionFrequencyStats }) {
                 b.count > 0 ? (b.staffCount / b.count) * totalH : 0;
               const guestH =
                 b.count > 0 ? (b.guestCount / b.count) * totalH : 0;
+              const intensity = progressBarIntensity(b.count, maxTotal);
               return (
                 <div
                   key={b.key}
@@ -215,17 +232,20 @@ function VerticalChart({ q }: { q: QuestionFrequencyStats }) {
                   >
                     <div
                       className="flex w-full flex-col-reverse"
-                      style={{ height: Math.max(totalH, b.count > 0 ? 2 : 0) }}
+                      style={{
+                        height: Math.max(totalH, b.count > 0 ? 2 : 0),
+                        opacity: intensity,
+                      }}
                     >
                       {staffH > 0 ? (
                         <div
-                          className="w-full bg-blue-600"
+                          className={FREQ_STAFF_V_CLASS}
                           style={{ height: staffH }}
                         />
                       ) : null}
                       {guestH > 0 ? (
                         <div
-                          className="w-full bg-amber-400"
+                          className={FREQ_GUEST_V_CLASS}
                           style={{ height: guestH }}
                         />
                       ) : null}
@@ -430,6 +450,11 @@ function QuestionFrequencyCard({
   displayLabel: string;
   chartType: ChartType;
 }) {
+  const answerRate =
+    q.totalSubmissions > 0
+      ? Math.round((q.answeredCount / q.totalSubmissions) * 100)
+      : 0;
+
   return (
     <article className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -451,8 +476,18 @@ function QuestionFrequencyCard({
         <p className="text-xs text-zinc-500 tabular-nums">
           응답 {q.answeredCount.toLocaleString()} / 제출{" "}
           {q.totalSubmissions.toLocaleString()}
+          <span className="ml-1.5 font-medium text-zinc-700">{answerRate}%</span>
         </p>
       </div>
+
+      {q.type !== "info_media" ? (
+        <ProgressGradientBar
+          percent={answerRate}
+          label={`${displayLabel} 응답률 ${answerRate}%`}
+          className="mt-3"
+          trackClassName="bg-zinc-100"
+        />
+      ) : null}
 
       {chartType === "horizontal" ? (
         <div className="mt-3">

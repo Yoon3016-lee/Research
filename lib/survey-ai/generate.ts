@@ -79,8 +79,12 @@ function parseSurveyAiResponse(content: string): SurveyAiGenerateResult {
       status: "error",
       error:
         skipped.length > 0
-          ? skipped.join("\n\n")
-          : "생성된 설문안이 없습니다.",
+          ? [
+              "생성된 설문안이 형식 검증에 모두 실패했습니다. 아래를 확인한 뒤 「다시 생성」을 눌러 주세요.",
+              "",
+              ...skipped,
+            ].join("\n")
+          : "생성된 설문안이 없습니다. 「다시 생성」을 눌러 주세요.",
     };
   }
 

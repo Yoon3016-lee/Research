@@ -89,7 +89,9 @@ export function SurveyQuestionField({
           ) : null}
         </div>
       </div>
-      <p className="mt-2 text-xl font-semibold leading-snug text-zinc-900">{q.prompt}</p>
+      {q.type !== "info_media" ? (
+        <p className="mt-2 text-xl font-semibold leading-snug text-zinc-900">{q.prompt}</p>
+      ) : null}
 
       {(q.type === "mc_single" || q.type === "mc_multi") && (
         <ul className="mt-4 space-y-2">

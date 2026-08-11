@@ -73,6 +73,25 @@ function normalizeRawQuestion(raw: SurveyAiRawQuestion, index: number): DraftQue
     q.textLineCount = Math.max(raw.type === "text_multi" ? 2 : 1, Math.floor(raw.textLineCount));
   }
 
+  if (raw.type === "info_media") {
+    const fromField =
+      typeof raw.infoBody === "string" ? raw.infoBody.trim() : "";
+    const promptRaw = typeof raw.prompt === "string" ? raw.prompt.trim() : "";
+    const strippedPrompt = promptRaw.replace(/^SQ[\d.-]+\.\s*/i, "").trim();
+    if (fromField) {
+      q.infoBody = fromField;
+    } else {
+      // AI가 infoBody를 빼고 prompt만 넣는 경우 → 번호 제거 후 본문으로 사용
+      q.infoBody =
+        strippedPrompt && strippedPrompt !== "안내"
+          ? strippedPrompt
+          : "본 조사에 협조해 주셔서 감사합니다. 아래 안내에 따라 응답해 주시기 바랍니다.";
+    }
+    // 안내 문항은 SQ 번호·별도 질문 문구 없음 (고정 표기)
+    q.prompt = "안내";
+    q.allowSkip = true;
+  }
+
   if (Array.isArray(raw.visibilityRules)) {
     q.visibilityRules = raw.visibilityRules
       .filter(
@@ -111,7 +130,11 @@ export function formatCatiResponseScript(
   for (let i = 0; i < questions.length; i++) {
     const q = questions[i];
     const script = questionScripts.find((s) => s.orderIndex === i);
-    const block: string[] = [`【문항 ${i + 1}】 ${q.prompt.trim()}`];
+    const heading =
+      q.type === "info_media"
+        ? `【안내】 ${(q.infoBody.trim().slice(0, 80) || "글/그림/영상")}${q.infoBody.trim().length > 80 ? "…" : ""}`
+        : `【문항 ${i + 1}】 ${q.prompt.trim()}`;
+    const block: string[] = [heading];
 
     if (script?.interviewerScript?.trim()) {
       block.push(`▶ 조사원 멘트: ${script.interviewerScript.trim()}`);
@@ -121,7 +144,7 @@ export function formatCatiResponseScript(
         if (c.trim()) block.push(`⚠ 주의: ${c.trim()}`);
       }
     }
-    if (q.allowSkip) block.push("※ 무응답 허용 문항");
+    if (q.type !== "info_media" && q.allowSkip) block.push("※ 무응답 허용 문항");
     if (q.staffOnly) block.push("※ 직원 전용 문항 (게스트 비표시)");
 
     parts.push(block.join("\n"), "");

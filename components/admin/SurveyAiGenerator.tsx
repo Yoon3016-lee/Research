@@ -633,17 +633,37 @@ export function SurveyAiGenerator({
           role="alert"
         >
           <p>{error}</p>
-          {step === "input" ? (
+          <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => runGenerate(brief)}
+              onClick={() => {
+                setError(null);
+                runGenerate({
+                  ...brief,
+                  revisionFeedback: "",
+                  previousProposals: [],
+                });
+              }}
               disabled={pending}
-              className="mt-3 inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-900 hover:bg-red-50 disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-900 hover:bg-red-50 disabled:opacity-60"
             >
               {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : null}
               다시 생성
             </button>
-          ) : null}
+            {step !== "input" ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setStep("input");
+                }}
+                disabled={pending}
+                className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-900 hover:bg-red-50 disabled:opacity-60"
+              >
+                입력 수정
+              </button>
+            ) : null}
+          </div>
         </div>
       ) : null}
     </div>

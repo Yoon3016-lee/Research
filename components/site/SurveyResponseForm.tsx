@@ -8,6 +8,7 @@ import {
   type SubmitSurveyAfter,
 } from "@/app/actions/submit-survey-response";
 import { SurveyQuestionField } from "@/components/site/SurveyQuestionField";
+import { ProgressGradientBar } from "@/components/admin/ProgressGradientBar";
 import type {
   PublicSurveyDetail,
   PublicSurveyQuestion,
@@ -640,19 +641,12 @@ export function SurveyResponseForm({
           </span>
           <span>{progressPercent}%</span>
         </div>
-        <div
-          className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-200"
-          role="progressbar"
-          aria-valuenow={stepIndex + 1}
-          aria-valuemin={1}
-          aria-valuemax={visibleQuestions.length}
-          aria-label="설문 진행률"
-        >
-          <div
-            className="h-full rounded-full bg-indigo-500 transition-all duration-300"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
+        <ProgressGradientBar
+          percent={progressPercent}
+          label={`설문 진행률 ${progressPercent}% (${stepIndex + 1}/${visibleQuestions.length})`}
+          className="mt-2"
+          trackClassName="bg-zinc-200"
+        />
       </div>
 
       {currentQuestion

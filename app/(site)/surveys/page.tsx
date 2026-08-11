@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Calendar, ChevronRight, Clock, Users } from "lucide-react";
+import { ProgressGradientBar } from "@/components/admin/ProgressGradientBar";
 import { SiteContainer } from "@/components/site/SiteContainer";
 import {
   findSiteNavGuideMatch,
@@ -121,18 +122,11 @@ export default async function SurveysPage() {
                             <span>진행률</span>
                             <span>{pct}%</span>
                           </div>
-                          <div
-                            className="mt-1 h-2 overflow-hidden rounded-full bg-brand-900/8"
-                            role="progressbar"
-                            aria-valuenow={pct}
-                            aria-valuemin={0}
-                            aria-valuemax={100}
-                          >
-                            <div
-                              className="h-full rounded-full bg-brand-800 transition-[width]"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
+                          <ProgressGradientBar
+                            percent={pct}
+                            label={`${s.title} 진행률 ${pct}%`}
+                            className="mt-1"
+                          />
                         </div>
                       ) : (
                         <p className="mt-4 inline-flex items-center gap-1.5 text-sm text-amber-900/90">

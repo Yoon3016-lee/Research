@@ -56,8 +56,8 @@ export function InfoMediaEditFields({ q, onChange }: Props) {
       <div>
         <p className="text-sm font-medium text-zinc-900">안내 내용</p>
         <p className="mt-0.5 text-xs text-zinc-500">
-          응답 입력 없이 설문 대상에게 보여 줄 글·그림·영상입니다. 본문과 미디어 중
-          하나 이상 필요합니다.
+          다음 문항에 대한 안내문입니다. 질문 문구·SQ 번호 없이 안내 본문(과 선택적
+          미디어)만 표시됩니다. 본문과 미디어 중 하나 이상 필요합니다.
         </p>
       </div>
       <label className="block text-sm">

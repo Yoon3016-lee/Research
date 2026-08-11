@@ -57,7 +57,7 @@ clarifications.question 작성 규칙 (필수):
       "ksicRelevance": "해당 KSIC와의 연관성·적합성 설명",
       "openingScript": "조사 시작 시 CATI 조사원 멘트",
       "closingScript": "조사 종료 멘트",
-      "questions": [ /* 문항 배열 — 본문항·분기를 합쳐 약 18~22개(평균 20개) */ ],
+      "questions": [ /* 문항 배열 — 본문항·분기 합쳐 약 18~22개. 유형 다양·likert는 likertScaleLabels 필수 */ ],
       "questionScripts": [
         {
           "orderIndex": 0,
@@ -85,9 +85,10 @@ clarifications.question 작성 규칙 (필수):
 
 ## 문항 번호·구성 (전문 조사표 형식 — 필수)
 - questions 배열 순서 = 조사표 진행 순서 (orderIndex 0부터)
-- 모든 prompt는 반드시 조사표 번호로 시작:
+- **응답을 받는 문항**의 prompt는 반드시 조사표 번호로 시작:
   - 본문항: \`SQ1. \`, \`SQ2. \`, \`SQ3. \` … (연속 번호)
   - 조건 분기 하위문항: 부모 번호에 하이픈 하위 번호 — \`SQ6-1. \`, \`SQ6-2. \` …
+- **예외: type "info_media"(글/그림/영상)** — 다음 문항에 대한 안내문 역할이므로 **SQ 번호를 붙이지 않음**. prompt는 항상 \`"안내"\` 고정. 안내 텍스트는 **infoBody에만** 작성. SQ 번호 매길 때 info_media는 번호를 소비하지 않음(앞 응답 문항이 SQ2면, info_media 다음 응답 문항은 SQ3).
 - 예:
   - SQ6. (본문항, 조건분기 출처) — mc_single/dropdown
   - SQ6-1. — SQ6의 특정 보기 선택 시에만 표시 (visibilityRules로 연결)
@@ -106,8 +107,41 @@ clarifications.question 작성 규칙 (필수):
 - 너무 짧은 스크리닝-only 안(10개 미만)이나 과도한 장문(25개 초과)은 지양
 - 설문 성격에 따라 구성은 달라질 수 있으나, 평균 분량 목표는 유지
 
+## 문항 유형 활용 (필수)
+앱에 등록된 **모든 문항 유형을 조사 목적에 맞게 최대한 골고루** 활용하세요. mc_single만 반복하는 단조로운 구성은 지양합니다.
+
+각 proposal(약 20문항)마다 아래 유형을 **가능한 한 모두 포함**하되, 조사 주제·CATI 실무에 무리가 없는 범위에서 배치하세요:
+- mc_single, mc_multi — 선택·필터·스크리닝·분기 출처
+- dropdown — 보기가 많거나 긴 목록(지역·업종·규모 등)
+- rank — 중요도·우선순위 비교
+- likert_7 — 단일 척도(만족·동의·인지 등). **maxSelections + likertScaleLabels(1~N점 각각) 필수**
+- likert_multi — 여러 하위 항목 동일 척도 평가. **options + maxSelections + likertScaleLabels 필수**
+- star_rating — 전반적 만족·추천 의향 등 별점
+- text_single — 짧은 서술·기타 의견
+- text_multi — 여러 주제별 서술(항목 라벨을 options에)
+- info_media — 조사 안내·용어 정의·주의사항(응답 없음, 0~2문항). **SQ 번호 금지**. prompt는 \`"안내"\` 고정. **반드시 infoBody에 안내 본문 작성**(빈 문자열 금지). media 필드는 넣지 않음
+- contact_fields — 연락처·이름 등 **목적상 필요할 때만**, 사용 시 **반드시 questions 배열의 마지막 문항**으로 배치
+
+유형별 최소 권장(각 proposal):
+- 객관식 계열(mc_single·mc_multi·dropdown) 합계 6~10문항
+- 척도·평가(likert_7·likert_multi·star_rating) 합계 4~8문항
+- rank 1~2문항, text_single 또는 text_multi 1~3문항
+- info_media 0~2문항(쓸 경우 infoBody 필수·SQ 번호 없음), contact_fields 0~1문항(마지막)
+
+info_media 작성 예:
+- "type": "info_media", "prompt": "안내", "infoBody": "이어서 영업 환경에 대한 문항이 제시됩니다. 최근 1년 경험을 기준으로 응답해 주시기 바랍니다.", "allowSkip": true
+- 잘못된 예: "prompt": "SQ3. 조사 안내" (info_media에 SQ 번호 사용 금지)
+
+리커트 척도 작성 시:
+- maxSelections 미지정 시 5점 척도 사용
+- likertScaleLabels는 **1점~N점 각 선택지마다** 응답 화면에 표시할 텍스트. 배열 길이 = maxSelections
+- 예(likert_7): "maxSelections": 5, "likertScaleLabels": ["전혀 그렇지 않다", "그렇지 않다", "보통", "그렇다", "매우 그렇다"]
+- 예(likert_multi): "options": ["품질", "가격", "서비스"], "maxSelections": 5, "likertScaleLabels": ["매우 낮음", "낮음", "보통", "높음", "매우 높음"]
+- likert_7에 options로 양끝 라벨만 넣는 **구 방식은 사용 금지**
+
 ## 생성 규칙
-- proposals는 서로 다른 접근(예: 핵심 지표 중심 / 심층 탐색 / 균형형)으로 ${proposalCount}개 생성하되, **모두 SQ 번호·SQ1 스크리닝·약 20문항 분량**을 준수
+- proposals는 **조사 설계 접근(조사 기준)** 이 서로 다르도록 ${proposalCount}개 생성하세요. 예: **핵심 지표 중심** / **심층 탐색** / **균형형**. 3안의 차별은 문항 유형 비중이 아니라 **측정 초점·문항 깊이·조사 목적 달성 방식** 등 설계 방향으로 둡니다.
+- **모든 안** SQ 번호·SQ1 스크리닝·약 20문항 분량을 준수하고, 위 「문항 유형 활용」 규칙(등록 유형 최대한 활용·연락처 마지막·리커트 likertScaleLabels)도 **안마다 동일하게** 적용하세요. 특정 안만 척도·서술 등 유형 비중을 몰아주지 마세요.
 - 각 proposal마다 rationale·ksicRelevance는 관리자가 선택 근거로 쓸 수 있게 충실히 작성
 - 각 proposal마다 improvements 2~4개: 현재 설문안의 한계·누락·CATI 현장에서 보완할 점을 area·detail로 제시
 - 각 proposal마다 additionalQuestions 2~5개: 조사 목적 달성을 위해 추가로 넣으면 좋은 문항 방향. suggestedType은 문항 스키마의 type 값만 사용
@@ -167,8 +201,8 @@ export function buildSurveyAiUserPrompt(brief: SurveyAiBrief, ksicBlock: string)
     : "";
 
   const closing = isRevision
-    ? "위 정보를 바탕으로 전문 조사표 형식(SQ1 스크리닝 시작, SQ 번호·분기 하위번호, 문항 약 20개)의 **새로운** 설문안을 생성하세요."
-    : "위 정보를 바탕으로 전문 조사표 형식(SQ1 스크리닝 시작, SQ 번호·분기 하위번호, 문항 약 20개)의 설문안을 생성하세요.\n정보가 부족하면 clarifications를 「… 내용 보완이 필요합니다.」 형식으로 반환하세요.";
+    ? "위 정보를 바탕으로 전문 조사표 형식(SQ1 스크리닝 시작, SQ 번호·분기 하위번호, 문항 약 20개, **등록된 문항 유형 최대한 활용·리커트는 점수별 likertScaleLabels 포함**)의 **새로운** 설문안을 생성하세요."
+    : "위 정보를 바탕으로 전문 조사표 형식(SQ1 스크리닝 시작, SQ 번호·분기 하위번호, 문항 약 20개, **등록된 문항 유형 최대한 활용·리커트는 점수별 likertScaleLabels 포함**)의 설문안을 생성하세요.\n정보가 부족하면 clarifications를 「… 내용 보완이 필요합니다.」 형식으로 반환하세요.";
 
   return `## KSIC·산업 정보
 ${ksicBlock}

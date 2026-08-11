@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CalendarClock, TrendingUp } from "lucide-react";
 import type { SurveyProgressItem, SurveyScheduleAlert } from "@/lib/admin-dashboard";
+import { ProgressGradientBar } from "@/components/admin/ProgressGradientBar";
 
 export function DashboardProgressSection({ items }: { items: SurveyProgressItem[] }) {
   return (
@@ -32,19 +33,11 @@ export function DashboardProgressSection({ items }: { items: SurveyProgressItem[
                   {percent}%
                 </span>
               </div>
-              <div
-                className="mt-2 h-2 overflow-hidden rounded-full bg-brand-900/8"
-                role="progressbar"
-                aria-valuenow={percent}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label={`${survey.title} 진행률 ${percent}%`}
-              >
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-brand-800 to-accent-500 transition-[width]"
-                  style={{ width: `${percent}%` }}
-                />
-              </div>
+              <ProgressGradientBar
+                percent={percent}
+                label={`${survey.title} 진행률 ${percent}%`}
+                className="mt-2"
+              />
             </li>
           ))}
         </ul>

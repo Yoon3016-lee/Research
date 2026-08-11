@@ -64,6 +64,8 @@ export type SurveyAiRawQuestion = {
   optionEndsSurvey?: boolean[];
   maxSelections?: number;
   likertScaleLabels?: string[];
+  /** info_media: 안내 본문 (필수). media는 관리자 업로드 */
+  infoBody?: string;
   textLineCount?: number;
   visibilityRules?: { sourceOrderIndex: number; optionIndex: number }[];
 };

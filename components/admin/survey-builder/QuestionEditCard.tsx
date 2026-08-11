@@ -189,17 +189,19 @@ export function QuestionEditCard({
       </div>
 
       <div className="space-y-4 p-4">
-        <label className="block">
-          <span className="text-sm font-medium text-zinc-800">질문 *</span>
-          <textarea
-            required
-            value={q.prompt}
-            onChange={(e) => onChange({ prompt: e.target.value })}
-            rows={3}
-            className="mt-1.5 w-full rounded-xl border border-zinc-200 bg-zinc-50/30 px-3 py-2.5 text-sm leading-relaxed text-zinc-900 placeholder:text-zinc-400 outline-none transition focus:border-indigo-300 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
-            placeholder="응답자에게 보여질 질문을 입력하세요."
-          />
-        </label>
+        {q.type !== "info_media" ? (
+          <label className="block">
+            <span className="text-sm font-medium text-zinc-800">질문 *</span>
+            <textarea
+              required
+              value={q.prompt}
+              onChange={(e) => onChange({ prompt: e.target.value })}
+              rows={3}
+              className="mt-1.5 w-full rounded-xl border border-zinc-200 bg-zinc-50/30 px-3 py-2.5 text-sm leading-relaxed text-zinc-900 placeholder:text-zinc-400 outline-none transition focus:border-indigo-300 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+              placeholder="응답자에게 보여질 질문을 입력하세요."
+            />
+          </label>
+        ) : null}
 
         <details className="group rounded-xl border border-zinc-200 bg-zinc-50/30">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-sm font-medium text-zinc-800 select-none [&::-webkit-details-marker]:hidden">

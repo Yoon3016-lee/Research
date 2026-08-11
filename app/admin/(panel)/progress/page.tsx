@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
+import { ProgressGradientBar } from "@/components/admin/ProgressGradientBar";
 import { SurveyWorkloadSection } from "@/components/admin/SurveyWorkloadBreakdown";
 import { SurveyFrequencyBreakdown } from "@/components/admin/SurveyFrequencyBreakdown";
 import { getSurveyResponseStats } from "@/lib/survey-response-stats";
@@ -102,18 +103,12 @@ export default async function AdminProgressPage({
                         </span>
                         <span>{pct}%</span>
                       </div>
-                      <div
-                        className="mt-1 h-2 overflow-hidden rounded-full bg-zinc-100"
-                        role="progressbar"
-                        aria-valuenow={pct}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                      >
-                        <div
-                          className="h-full rounded-full bg-indigo-600"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
+                      <ProgressGradientBar
+                        percent={pct}
+                        label={`${s.title} 진행률 ${pct}%`}
+                        className="mt-1"
+                        trackClassName="bg-zinc-100"
+                      />
                     </div>
 
                     {isSelected ? (
