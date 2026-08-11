@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
-import { ProgressGradientBar } from "@/components/admin/ProgressGradientBar";
+import { ProgressGradientBar, progressToneFromStatus } from "@/components/admin/ProgressGradientBar";
 import { SurveyWorkloadSection } from "@/components/admin/SurveyWorkloadBreakdown";
 import { SurveyFrequencyBreakdown } from "@/components/admin/SurveyFrequencyBreakdown";
 import { getSurveyResponseStats } from "@/lib/survey-response-stats";
@@ -108,6 +108,7 @@ export default async function AdminProgressPage({
                         label={`${s.title} 진행률 ${pct}%`}
                         className="mt-1"
                         trackClassName="bg-zinc-100"
+                        tone={progressToneFromStatus(s.status)}
                       />
                     </div>
 
@@ -119,7 +120,10 @@ export default async function AdminProgressPage({
 
                         <div>
                           {stats?.ok ? (
-                            <SurveyFrequencyBreakdown stats={stats} />
+                            <SurveyFrequencyBreakdown
+                              stats={stats}
+                              tone={progressToneFromStatus(s.status)}
+                            />
                           ) : stats &&
                             !stats.ok &&
                             stats.reason === "not_configured" ? (

@@ -1,11 +1,29 @@
-/** 관리자 진행률 막대 — 가로 그라데이션(왼쪽 어두움 → 오른쪽 밝음) */
+/** 관리자·공개 진행률 막대 — 가로 그라데이션(왼쪽 어두움 → 오른쪽 밝음) */
+
+export type ProgressBarTone = "active" | "completed";
+
+/** 설문 상태 → 막대 색 톤 (종료=완료 파란 계열, 그 외=진행 주황·노랑) */
+export function progressToneFromStatus(status: string | null | undefined): ProgressBarTone {
+  return status === "종료" ? "completed" : "active";
+}
+
+const GRADIENTS: Record<ProgressBarTone, string> = {
+  // 진행중: 주황 → 노랑
+  active:
+    "linear-gradient(90deg, #c2410c 0%, #ea580c 32%, #f59e0b 68%, #fde047 100%)",
+  // 완료(종료): 파랑 → 하늘색
+  completed:
+    "linear-gradient(90deg, #1e40af 0%, #2563eb 32%, #0ea5e9 68%, #7dd3fc 100%)",
+};
 
 /**
  * 0~100% 전체 구간에 가로 그라데이션을 두고,
  * 채워진 너비만큼만 보이도록 background-size를 맞춤.
- * (짧을 때 어두운 쪽, 높아질수록 밝은 끝단이 드러남)
  */
-export function progressFillStyle(percent: number): {
+export function progressFillStyle(
+  percent: number,
+  tone: ProgressBarTone = "active",
+): {
   width: string;
   backgroundImage: string;
   backgroundSize: string;
@@ -16,9 +34,7 @@ export function progressFillStyle(percent: number): {
   const sizeX = pct > 0 ? `${(100 / pct) * 100}%` : "100%";
   return {
     width: `${pct}%`,
-    // brand-800 → slate → accent-500 → accent-400
-    backgroundImage:
-      "linear-gradient(90deg, #1e293b 0%, #334155 35%, #a68b5b 70%, #c4a574 100%)",
+    backgroundImage: GRADIENTS[tone],
     backgroundSize: `${sizeX} 100%`,
     backgroundRepeat: "no-repeat",
     backgroundPosition: "left center",
@@ -26,8 +42,11 @@ export function progressFillStyle(percent: number): {
 }
 
 /** @deprecated progressFillStyle 사용 */
-export function progressFillGradient(percent: number): string {
-  return progressFillStyle(percent).backgroundImage;
+export function progressFillGradient(
+  percent: number,
+  tone: ProgressBarTone = "active",
+): string {
+  return progressFillStyle(percent, tone).backgroundImage;
 }
 
 /** 빈도 막대: 직원(파랑) · 게스트(호박) — 가로/세로 그라데이션 */
@@ -50,8 +69,13 @@ type ProgressGradientBarProps = {
   percent: number;
   label?: string;
   className?: string;
-  /** 트랙 배경. 기본 brand 톤, 목록 카드는 bg-zinc-100 권장 */
+  /** 트랙 배경 */
   trackClassName?: string;
+  /**
+   * active = 진행중 (주황→노랑)
+   * completed = 완료/종료 (파랑→하늘)
+   */
+  tone?: ProgressBarTone;
 };
 
 export function ProgressGradientBar({
@@ -59,6 +83,7 @@ export function ProgressGradientBar({
   label,
   className = "",
   trackClassName = "bg-brand-900/8",
+  tone = "active",
 }: ProgressGradientBarProps) {
   const pct = Math.min(100, Math.max(0, Math.round(percent)));
   return (
@@ -72,7 +97,7 @@ export function ProgressGradientBar({
     >
       <div
         className="h-full rounded-full transition-[width] duration-300"
-        style={progressFillStyle(pct)}
+        style={progressFillStyle(pct, tone)}
       />
     </div>
   );

@@ -12,10 +12,13 @@ import {
   FREQ_STAFF_V_CLASS,
   ProgressGradientBar,
   progressBarIntensity,
+  type ProgressBarTone,
 } from "@/components/admin/ProgressGradientBar";
 
 type Props = {
   stats: Extract<SurveyResponseStats, { ok: true }>;
+  /** 설문 상태 톤 — 종료면 completed(파랑), 아니면 active(주황) */
+  tone?: ProgressBarTone;
 };
 
 type ChartType = "horizontal" | "vertical" | "pie";
@@ -445,10 +448,12 @@ function QuestionFrequencyCard({
   q,
   displayLabel,
   chartType,
+  tone,
 }: {
   q: QuestionFrequencyStats;
   displayLabel: string;
   chartType: ChartType;
+  tone: ProgressBarTone;
 }) {
   const answerRate =
     q.totalSubmissions > 0
@@ -486,6 +491,7 @@ function QuestionFrequencyCard({
           label={`${displayLabel} 응답률 ${answerRate}%`}
           className="mt-3"
           trackClassName="bg-zinc-100"
+          tone={tone}
         />
       ) : null}
 
@@ -515,7 +521,7 @@ function QuestionFrequencyCard({
   );
 }
 
-export function SurveyFrequencyBreakdown({ stats }: Props) {
+export function SurveyFrequencyBreakdown({ stats, tone = "active" }: Props) {
   const [chartType, setChartType] = useState<ChartType>("horizontal");
   const answerableCount = stats.questions.filter((q) => q.type !== "info_media").length;
   let answerableIndex = 0;
@@ -573,6 +579,7 @@ export function SurveyFrequencyBreakdown({ stats }: Props) {
               q={q}
               displayLabel={displayLabel}
               chartType={chartType}
+              tone={tone}
             />
           );
         })

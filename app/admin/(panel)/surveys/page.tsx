@@ -117,9 +117,15 @@ export default async function AdminSurveysPage({
               <table className="w-full min-w-[640px] text-left text-sm">
                 <thead className="border-b border-brand-900/8 bg-surface/80">
                   <tr>
-                    <th className="px-4 py-3 font-semibold text-brand-800">설문</th>
-                    <th className="px-4 py-3 font-semibold text-brand-800">상태</th>
-                    <th className="px-4 py-3 font-semibold text-brand-800">응답</th>
+                    <th className="w-[26%] max-w-[13rem] px-4 py-3 font-semibold text-brand-800">
+                      설문
+                    </th>
+                    <th className="whitespace-nowrap px-6 py-3 font-semibold text-brand-800 sm:px-8">
+                      상태
+                    </th>
+                    <th className="whitespace-nowrap px-6 py-3 font-semibold text-brand-800 sm:px-8">
+                      응답
+                    </th>
                     <th className="px-4 py-3 font-semibold text-brand-800">최근 수정</th>
                     <th className="px-4 py-3 font-semibold text-brand-800">작업</th>
                   </tr>
@@ -137,16 +143,23 @@ export default async function AdminSurveysPage({
                   ) : null}
                   {adminSurveys.map((s) => (
                     <tr key={s.id} className="transition hover:bg-surface/60">
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-brand-900">{s.title}</p>
-                        <p className="text-xs text-brand-700/80">ID · {s.id}</p>
+                      <td className="max-w-[13rem] px-4 py-3 align-middle sm:max-w-[16rem]">
+                        <p
+                          className="truncate text-sm font-medium text-brand-900"
+                          title={s.title}
+                        >
+                          {s.title}
+                        </p>
+                        <p className="mt-0.5 truncate text-[0.6875rem] text-brand-700/80" title={s.id}>
+                          ID · {s.id}
+                        </p>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="whitespace-nowrap px-6 py-3 align-middle sm:px-8">
                         <span className="rounded-full bg-brand-900/6 px-2 py-0.5 text-xs font-medium text-brand-800">
                           {s.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 tabular-nums text-brand-800">
+                      <td className="whitespace-nowrap px-6 py-3 align-middle tabular-nums text-brand-800 sm:px-8">
                         {s.responses.toLocaleString()}
                       </td>
                       <td className="px-4 py-3 text-brand-700">{s.updatedAt}</td>

@@ -646,6 +646,7 @@ export function SurveyResponseForm({
           label={`설문 진행률 ${progressPercent}% (${stepIndex + 1}/${visibleQuestions.length})`}
           className="mt-2"
           trackClassName="bg-zinc-200"
+          tone="completed"
         />
       </div>
 

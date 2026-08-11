@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Calendar, ChevronRight, Clock, Users } from "lucide-react";
-import { ProgressGradientBar } from "@/components/admin/ProgressGradientBar";
+import { ProgressGradientBar, progressToneFromStatus } from "@/components/admin/ProgressGradientBar";
 import { SiteContainer } from "@/components/site/SiteContainer";
 import {
   findSiteNavGuideMatch,
@@ -126,6 +126,7 @@ export default async function SurveysPage() {
                             percent={pct}
                             label={`${s.title} 진행률 ${pct}%`}
                             className="mt-1"
+                            tone={progressToneFromStatus(s.status)}
                           />
                         </div>
                       ) : (

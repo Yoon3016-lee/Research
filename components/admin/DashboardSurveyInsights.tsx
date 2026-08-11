@@ -37,6 +37,7 @@ export function DashboardProgressSection({ items }: { items: SurveyProgressItem[
                 percent={percent}
                 label={`${survey.title} 진행률 ${percent}%`}
                 className="mt-2"
+                tone="active"
               />
             </li>
           ))}
