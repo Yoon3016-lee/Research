@@ -1,9 +1,16 @@
 import "server-only";
 
 import { mergeEmailBody } from "@/lib/survey-email-merge";
+import {
+  EMAIL_SEND_BATCH_SIZE,
+  EMAIL_SEND_COOLDOWN_MS,
+  formatCooldownLabel,
+  EMAIL_SEND_INTERVAL_MS,
+  formatCooldownWait,
+  sleep,
+} from "@/lib/survey-email-rate";
 import type { EmailSampleRow } from "@/lib/survey-email-shared";
 import { sendPlainTextEmail } from "@/lib/survey-email-send";
-import { ensureBatchInviteTokens } from "@/lib/survey-invite-token";
 import type { ParticipationFormat } from "@/lib/survey-participation-format";
 import type { SurveySampleUploadWarnings } from "@/lib/survey-sample-types";
 import { isUuid, normalizeSurveyRef } from "@/lib/survey-slug";
@@ -191,8 +198,32 @@ export type BulkEmailSendResult = {
   sent: number;
   failed: number;
   skippedNoLink: number;
+  /** 아직 발송 완료되지 않은 표본 수(재시도·다음 배치 대상) */
+  remaining: number;
   errors: string[];
+  warnings: string[];
 };
+
+async function countRecentBulkSmtpAttempts(surveyId: string): Promise<{
+  count: number;
+  oldestAt: Date | null;
+}> {
+  const admin = createSupabaseServiceRoleClient();
+  const since = new Date(Date.now() - EMAIL_SEND_COOLDOWN_MS).toISOString();
+  const { data, error } = await admin
+    .from("survey_email_sends")
+    .select("created_at")
+    .eq("survey_id", surveyId)
+    .eq("kind", "bulk")
+    .gte("created_at", since)
+    .order("created_at", { ascending: true });
+
+  if (error || !data) return { count: 0, oldestAt: null };
+  return {
+    count: data.length,
+    oldestAt: data[0]?.created_at ? new Date(data[0].created_at as string) : null,
+  };
+}
 
 export async function sendSurveyBulkEmails(params: {
   surveyRef: string;
@@ -203,7 +234,7 @@ export async function sendSurveyBulkEmails(params: {
   testSampleId?: string;
   confirmMissingLinks?: boolean;
 }): Promise<
-  | { ok: true; result: BulkEmailSendResult; warnings?: string[] }
+  | { ok: true; result: BulkEmailSendResult }
   | { ok: false; error: string; missingLinkCount?: number }
 > {
   const surveyId = await resolveSurveyId(params.surveyRef);
@@ -234,6 +265,9 @@ export async function sendSurveyBulkEmails(params: {
     if (targets.length === 0) {
       return { ok: false, error: "선택한 표본을 찾을 수 없습니다." };
     }
+  } else {
+    // 이미 발송 완료된 표본은 건너뛰고 이어서 발송
+    targets = targets.filter((r) => r.sendStatus !== "sent");
   }
 
   const missingLinkCount = targets.filter((r) => !r.inviteToken).length;
@@ -249,23 +283,58 @@ export async function sendSurveyBulkEmails(params: {
     sent: 0,
     failed: 0,
     skippedNoLink: 0,
+    remaining: 0,
     errors: [],
+    warnings: [],
   };
 
-  for (const row of targets) {
-    if (!row.inviteToken) {
-      result.skippedNoLink++;
-      continue;
+  let sendBudget = targets.length;
+  if (params.kind === "bulk") {
+    const recent = await countRecentBulkSmtpAttempts(surveyId);
+    if (recent.count >= EMAIL_SEND_BATCH_SIZE) {
+      const waitMs = recent.oldestAt
+        ? Math.max(
+            0,
+            recent.oldestAt.getTime() + EMAIL_SEND_COOLDOWN_MS - Date.now(),
+          )
+        : EMAIL_SEND_COOLDOWN_MS;
+      return {
+        ok: false,
+        error: `후이즈 발송 한도 보호: 최근 ${formatCooldownLabel()} 내 ${recent.count}건을 처리했습니다. ${formatCooldownWait(waitMs)} 후 다시 일괄 발송하세요. (1회 최대 ${EMAIL_SEND_BATCH_SIZE}건 · 1초 1건)`,
+      };
     }
-    if (!row.email.trim()) {
+    sendBudget = Math.min(
+      targets.length,
+      EMAIL_SEND_BATCH_SIZE - recent.count,
+      EMAIL_SEND_BATCH_SIZE,
+    );
+  }
+
+  /** SMTP를 호출한(또는 호출할) 유효 대상만 예산에 포함 */
+  const queue = targets.filter((r) => r.inviteToken && r.email.trim());
+  const deferred = Math.max(0, queue.length - sendBudget);
+  const toSend = queue.slice(0, sendBudget);
+  result.skippedNoLink = targets.filter((r) => !r.inviteToken).length;
+  for (const row of targets) {
+    if (row.inviteToken && !row.email.trim()) {
       result.failed++;
       result.errors.push(`${row.uid}: 이메일 없음`);
-      continue;
     }
+  }
+
+  if (deferred > 0) {
+    result.warnings.push(
+      `후이즈 제한 보호로 이번 실행은 ${toSend.length}건만 발송합니다. 남은 ${deferred}건은 약 ${formatCooldownLabel()} 후 다시 일괄 발송하세요.`,
+    );
+  }
+
+  for (let i = 0; i < toSend.length; i++) {
+    const row = toSend[i]!;
+    if (i > 0) await sleep(EMAIL_SEND_INTERVAL_MS);
 
     const body = await mergeEmailBody(params.template, {
       slug: survey.slug as string,
-      token: row.inviteToken,
+      token: row.inviteToken as string,
       uid: row.uid,
       nameColumn: list.nameColumn,
       rowData: row.rowData,
@@ -316,6 +385,12 @@ export async function sendSurveyBulkEmails(params: {
           .eq("id", row.id);
       }
     }
+  }
+
+  if (params.kind === "bulk") {
+    const originalPending = list.rows.filter((r) => r.sendStatus !== "sent").length;
+    result.remaining = Math.max(0, originalPending - result.sent);
+    // 한도(deferred) 경고는 위에서만 표시. 전부 실패해도 쿨다운 대기로 오해하지 않게 함.
   }
 
   if (params.kind === "bulk" && result.sent > 0 && !survey.samples_locked_at) {

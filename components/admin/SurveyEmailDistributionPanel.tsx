@@ -9,7 +9,10 @@ import {
 } from "@/app/actions/survey-email-distribute";
 import { AdminSurveyStatusBadge } from "@/components/admin/AdminSurveyIconActions";
 import type { EmailSampleRow } from "@/lib/survey-email-shared";
-import { defaultEmailInviteTemplate } from "@/lib/survey-email-shared";
+import {
+  defaultEmailInviteTemplate,
+  plainTextToEmailHtmlFragment,
+} from "@/lib/survey-email-shared";
 import type { SurveyStatus } from "@/lib/survey-list-types";
 
 type Props = {
@@ -103,7 +106,18 @@ export function SurveyEmailDistributionPanel({
       setMessage(
         kind === "test"
           ? "테스트 메일을 발송했습니다."
-          : `발송 완료: ${result.sent}건 · 실패 ${result.failed}건 · 링크 없음 ${result.skippedNoLink}건`,
+          : [
+              `발송 완료: ${result.sent}건 · 실패 ${result.failed}건 · 링크 없음 ${result.skippedNoLink}건`,
+              result.remaining > 0 && result.sent > 0
+                ? `· 남은 ${result.remaining}건`
+                : "",
+              ...(result.warnings ?? []),
+              ...(result.errors?.length
+                ? ["실패 사유:", ...result.errors.slice(0, 8)]
+                : []),
+            ]
+              .filter(Boolean)
+              .join("\n"),
       );
       router.refresh();
     });
@@ -147,8 +161,8 @@ export function SurveyEmailDistributionPanel({
       <section className="admin-card p-6">
         <h3 className="text-sm font-semibold text-brand-900">메일 본문</h3>
         <p className="mt-1 text-xs text-brand-700/80">
-          (OOO님) · {"{{이름}}"} · {"{{링크}}"} · {"{{열글자}}"}(Excel 열) 사용 가능. 제목에는 머지
-          없음.
+          평문으로 편집합니다. 미리보기·발송은 HTML로 변환되며 URL은 클릭 가능합니다. (OOO님) ·{" "}
+          {"{{이름}}"} · {"{{링크}}"} · {"{{열글자}}"}(Excel 열) 사용 가능. 제목에는 머지 없음.
         </p>
         <label className="mt-4 block">
           <span className="admin-label">제목</span>
@@ -159,10 +173,13 @@ export function SurveyEmailDistributionPanel({
           />
         </label>
         <label className="mt-4 block">
-          <span className="admin-label">본문 (텍스트)</span>
+          <span className="admin-label">본문 (평문)</span>
           <textarea
             value={template}
-            onChange={(e) => setTemplate(e.target.value)}
+            onChange={(e) => {
+              setTemplate(e.target.value);
+              setPreviewBody(null);
+            }}
             rows={12}
             className="admin-input mt-1.5 font-mono text-[13px] leading-relaxed"
           />
@@ -197,9 +214,23 @@ export function SurveyEmailDistributionPanel({
           </button>
         </div>
         {previewBody ? (
-          <pre className="mt-4 whitespace-pre-wrap rounded-xl border border-brand-900/8 bg-surface/50 p-4 text-sm">
-            {previewBody}
-          </pre>
+          <div className="mt-4 space-y-3">
+            <p className="text-xs font-medium text-brand-800">HTML 미리보기 (발송 형태)</p>
+            <div
+              className="rounded-xl border border-brand-900/8 bg-white p-4 text-sm [&_a]:text-blue-700 [&_a]:underline"
+              dangerouslySetInnerHTML={{
+                __html: plainTextToEmailHtmlFragment(previewBody),
+              }}
+            />
+            <details className="text-xs text-brand-700/80">
+              <summary className="cursor-pointer select-none font-medium text-brand-800">
+                평문 원문
+              </summary>
+              <pre className="mt-2 whitespace-pre-wrap rounded-xl border border-brand-900/8 bg-surface/50 p-3 font-mono text-[13px]">
+                {previewBody}
+              </pre>
+            </details>
+          </div>
         ) : null}
       </section>
 
@@ -224,7 +255,14 @@ export function SurveyEmailDistributionPanel({
                     <span className="ml-1 text-xs text-red-600">형식 오류</span>
                   ) : null}
                 </td>
-                <td className="px-2 py-2">{SEND_STATUS_LABELS[r.sendStatus]}</td>
+                <td className="px-2 py-2">
+                  <div>{SEND_STATUS_LABELS[r.sendStatus]}</div>
+                  {r.sendStatus === "failed" && r.sendError ? (
+                    <p className="mt-0.5 max-w-xs text-xs leading-snug text-red-700">
+                      {r.sendError}
+                    </p>
+                  ) : null}
+                </td>
                 <td className="px-2 py-2">{r.responded ? "응답완료" : "미응답"}</td>
               </tr>
             ))}
@@ -238,7 +276,13 @@ export function SurveyEmailDistributionPanel({
         </p>
       ) : null}
       {message ? (
-        <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+        <p
+          className={`whitespace-pre-line rounded-xl border px-4 py-3 text-sm ${
+            message.includes("실패 사유") || /실패\s+[1-9]/.test(message)
+              ? "border-amber-200 bg-amber-50 text-amber-950"
+              : "border-emerald-200 bg-emerald-50 text-emerald-900"
+          }`}
+        >
           {message}
         </p>
       ) : null}
@@ -267,6 +311,10 @@ export function SurveyEmailDistributionPanel({
           일괄 발송
         </button>
       </div>
+      <p className="text-xs text-brand-700/80">
+        일괄 발송은 후이즈 제한 보호로 1초당 1건 · 회당 최대 400건이며, 이후 약 10초 뒤 이어서
+        발송할 수 있습니다. (테스트용 쿨다운)
+      </p>
       {stats.missingLink > 0 ? (
         <p className="text-xs text-amber-800">
           링크 없음 {stats.missingLink}건 — 표본 활성화·토큰 생성을 확인하세요.

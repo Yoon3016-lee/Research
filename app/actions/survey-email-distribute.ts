@@ -30,7 +30,9 @@ export async function sendSurveyEmailAction(params: {
       sent: number;
       failed: number;
       skippedNoLink: number;
+      remaining: number;
       errors: string[];
+      warnings: string[];
     }
   | { ok: false; error: string; missingLinkCount?: number }
 > {
@@ -62,7 +64,9 @@ export async function sendSurveyEmailAction(params: {
     sent: result.result.sent,
     failed: result.result.failed,
     skippedNoLink: result.result.skippedNoLink,
+    remaining: result.result.remaining,
     errors: result.result.errors,
+    warnings: result.result.warnings,
   };
 }
 

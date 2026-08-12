@@ -16,6 +16,9 @@ export const metadata = { title: "배포 관리" };
 
 export const dynamic = "force-dynamic";
 
+/** 일괄 발송 최대 400건 × 1초 ≈ 7분 + 여유 */
+export const maxDuration = 800;
+
 type Props = {
   searchParams: Promise<{ slug?: string }>;
 };

@@ -77,3 +77,42 @@ export function mergeEmailBodyWithLink(
 
   return out;
 }
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/** 평문 → HTML 본문 조각 (미리보기용, 문서 래퍼 없음) */
+export function plainTextToEmailHtmlFragment(text: string): string {
+  const escaped = escapeHtml(text);
+  const withBreaks = escaped.replace(/\r\n|\r|\n/g, "<br>\n");
+  return withBreaks.replace(/(https?:\/\/[^\s<]+)/gi, (rawUrl) => {
+    let href = rawUrl;
+    let trailing = "";
+    while (/[.,;:!?)\]}>]$/.test(href)) {
+      trailing = `${href.slice(-1)}${trailing}`;
+      href = href.slice(0, -1);
+    }
+    if (!href) return rawUrl;
+    return `<a href="${href}" style="color:#0b57d0;word-break:break-all">${href}</a>${trailing}`;
+  });
+}
+
+/**
+ * 평문 본문 → 메일용 HTML 문서.
+ * 줄바꿈·URL 자동 링크만 처리 (관리자는 평문 편집 유지).
+ */
+export function plainTextToEmailHtml(text: string): string {
+  const body = plainTextToEmailHtmlFragment(text);
+  return [
+    `<!DOCTYPE html>`,
+    `<html><head><meta charset="utf-8"></head>`,
+    `<body style="margin:0;padding:16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.6;color:#222">`,
+    body,
+    `</body></html>`,
+  ].join("");
+}
