@@ -36,6 +36,8 @@ type Props = {
   samplesLockedAt?: string | null;
 };
 
+const PREVIEW_ROW_LIMIT = 10;
+
 function formatDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
@@ -416,8 +418,8 @@ export function SurveySampleUploadPanel({
           <div className="mt-6 space-y-4">
             <p className="text-sm text-brand-700">
               스캔 <strong>{preview.totalRows.toLocaleString()}</strong>행 · 업로드 대상{" "}
-              <strong>{preview.importableRows.toLocaleString()}</strong>건 · 미리보기 최대{" "}
-              {preview.rows.length}건
+              <strong>{preview.importableRows.toLocaleString()}</strong>건 · 미리보기는 앞{" "}
+              {Math.min(preview.rows.length, PREVIEW_ROW_LIMIT)}건만 표시
             </p>
 
             <div className="grid gap-4 md:grid-cols-3">
@@ -486,7 +488,7 @@ export function SurveySampleUploadPanel({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-brand-900/6">
-                  {preview.rows.map((row) => (
+                  {preview.rows.slice(0, PREVIEW_ROW_LIMIT).map((row) => (
                     <tr key={row.rowIndex}>
                       <td className="px-3 py-2 tabular-nums text-brand-700">{row.rowIndex}</td>
                       {previewColumns.map((col) => (
@@ -650,8 +652,9 @@ export function SurveySampleUploadPanel({
               </h3>
               <p className="mt-0.5 text-xs text-brand-700/80">
                 {batchPreview.originalFilename} · 전체{" "}
-                {batchPreview.totalRows.toLocaleString()}건 중 앞쪽{" "}
-                {batchPreview.rows.length.toLocaleString()}건
+                {batchPreview.totalRows.toLocaleString()}건 중 앞{" "}
+                {Math.min(batchPreview.rows.length, PREVIEW_ROW_LIMIT)}건만 표시. 전체는 엑셀로
+                받으세요.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -684,7 +687,7 @@ export function SurveySampleUploadPanel({
                 </tr>
               </thead>
               <tbody className="divide-y divide-brand-900/6">
-                {batchPreview.rows.map((row) => (
+                {batchPreview.rows.slice(0, PREVIEW_ROW_LIMIT).map((row) => (
                   <tr key={row.rowIndex}>
                     <td className="px-3 py-2 tabular-nums text-brand-700">{row.rowIndex}</td>
                     {batchPreviewColumns.map((col) => (

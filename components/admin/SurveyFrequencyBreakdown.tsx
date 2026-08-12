@@ -1,9 +1,10 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
-import { BarChart2, BarChart3, PieChart } from "lucide-react";
+import { BarChart2, BarChart3, Clock, PieChart } from "lucide-react";
 import type { FrequencyBucket, QuestionFrequencyStats, SurveyResponseStats } from "@/lib/survey-response-stats-shared";
 import { NO_ANSWER_LABEL } from "@/lib/survey-response-stats-shared";
+import { formatDurationSeconds, type DurationSummary } from "@/lib/survey-duration";
 import { QUESTION_TYPE_LABELS } from "@/lib/survey-types";
 import {
   FREQ_GUEST_H_CLASS,
@@ -521,6 +522,87 @@ function QuestionFrequencyCard({
   );
 }
 
+function DurationSummaryCard({ duration, totalSubmissions }: { duration: DurationSummary; totalSubmissions: number }) {
+  const maxCount = Math.max(...duration.buckets.map((b) => b.count), 1);
+  return (
+    <article className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h4 className="inline-flex items-center gap-1.5 text-sm font-semibold text-zinc-900">
+            <Clock className="h-4 w-4 text-indigo-600" aria-hidden />
+            응답 소요 시간
+          </h4>
+          <p className="mt-1 text-xs text-zinc-600">
+            설문이 화면에 열려 있는 동안만 집계합니다. 중도 중단·다른 탭·창을 닫은 시간은 빼집니다.
+          </p>
+        </div>
+        <p className="text-xs text-zinc-500">
+          측정 {duration.measuredCount.toLocaleString()}건
+          {duration.missingCount > 0
+            ? ` · 미측정 ${duration.missingCount.toLocaleString()}건`
+            : ""}
+        </p>
+      </div>
+
+      {duration.measuredCount === 0 ? (
+        <p className="mt-4 text-sm text-zinc-500">
+          {totalSubmissions === 0
+            ? "아직 제출이 없습니다."
+            : "이 설문 제출에는 소요 시간이 없습니다. 마이그레이션 적용 후 새로 제출된 건부터 집계됩니다."}
+        </p>
+      ) : (
+        <>
+          <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-xl bg-zinc-50 px-3 py-2">
+              <dt className="text-[11px] text-zinc-500">평균</dt>
+              <dd className="mt-0.5 text-sm font-semibold tabular-nums text-zinc-900">
+                {formatDurationSeconds(duration.meanSeconds)}
+              </dd>
+            </div>
+            <div className="rounded-xl bg-zinc-50 px-3 py-2">
+              <dt className="text-[11px] text-zinc-500">중앙값</dt>
+              <dd className="mt-0.5 text-sm font-semibold tabular-nums text-zinc-900">
+                {formatDurationSeconds(duration.medianSeconds)}
+              </dd>
+            </div>
+            <div className="rounded-xl bg-zinc-50 px-3 py-2">
+              <dt className="text-[11px] text-zinc-500">최소</dt>
+              <dd className="mt-0.5 text-sm font-semibold tabular-nums text-zinc-900">
+                {formatDurationSeconds(duration.minSeconds)}
+              </dd>
+            </div>
+            <div className="rounded-xl bg-zinc-50 px-3 py-2">
+              <dt className="text-[11px] text-zinc-500">최대</dt>
+              <dd className="mt-0.5 text-sm font-semibold tabular-nums text-zinc-900">
+                {formatDurationSeconds(duration.maxSeconds)}
+              </dd>
+            </div>
+          </dl>
+          <ul className="mt-4 space-y-2">
+            {duration.buckets.map((b) => (
+              <li key={b.key} className="flex items-center gap-3 text-sm">
+                <span className="w-24 shrink-0 text-xs text-zinc-600">{b.label}</span>
+                <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-zinc-100">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-indigo-700 to-sky-400"
+                    style={{ width: `${Math.max(0, (b.count / maxCount) * 100)}%` }}
+                  />
+                </div>
+                <span className="w-16 shrink-0 text-right text-xs tabular-nums text-zinc-700">
+                  {b.count.toLocaleString()}건
+                </span>
+                <span className="w-12 shrink-0 text-right text-xs tabular-nums text-zinc-500">
+                  {b.percent}%
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </article>
+  );
+}
+
 export function SurveyFrequencyBreakdown({ stats, tone = "active" }: Props) {
   const [chartType, setChartType] = useState<ChartType>("horizontal");
   const answerableCount = stats.questions.filter((q) => q.type !== "info_media").length;
@@ -564,6 +646,8 @@ export function SurveyFrequencyBreakdown({ stats, tone = "active" }: Props) {
           </p>
         )}
       </div>
+
+      <DurationSummaryCard duration={stats.duration} totalSubmissions={stats.totalSubmissions} />
 
       {stats.questions.length === 0 ? (
         <p className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50/80 px-4 py-8 text-center text-sm text-zinc-600">

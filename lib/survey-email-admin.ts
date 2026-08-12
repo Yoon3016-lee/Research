@@ -1,5 +1,6 @@
 import "server-only";
 
+import * as XLSX from "xlsx";
 import { mergeEmailBody } from "@/lib/survey-email-merge";
 import {
   EMAIL_SEND_BATCH_SIZE,
@@ -9,7 +10,11 @@ import {
   formatCooldownWait,
   sleep,
 } from "@/lib/survey-email-rate";
-import type { EmailSampleRow } from "@/lib/survey-email-shared";
+import {
+  EMAIL_SEND_STATUS_LABELS,
+  type EmailSampleRow,
+} from "@/lib/survey-email-shared";
+import { formatDurationSeconds } from "@/lib/survey-duration";
 import { sendPlainTextEmail } from "@/lib/survey-email-send";
 import type { ParticipationFormat } from "@/lib/survey-participation-format";
 import type { SurveySampleUploadWarnings } from "@/lib/survey-sample-types";
@@ -104,14 +109,41 @@ export async function listEmailSurveySamples(
   }
 
   const sampleIds = samples.map((s) => s.id as string);
-  const respondedIds = new Set<string>();
+  const respondedAtBySample = new Map<string, string>();
+  const durationBySample = new Map<string, number>();
   if (sampleIds.length > 0) {
-    const { data: responses } = await admin
+    let responses:
+      | {
+          sample_id: string | null;
+          submitted_at: string | null;
+          duration_seconds?: number | null;
+        }[]
+      | null = null;
+    const withDuration = await admin
       .from("survey_responses")
-      .select("sample_id")
+      .select("sample_id, submitted_at, duration_seconds")
       .in("sample_id", sampleIds);
+    if (withDuration.error?.message?.includes("duration_seconds")) {
+      const fallback = await admin
+        .from("survey_responses")
+        .select("sample_id, submitted_at")
+        .in("sample_id", sampleIds);
+      responses = fallback.data;
+    } else {
+      responses = withDuration.data;
+    }
     for (const r of responses ?? []) {
-      if (r.sample_id) respondedIds.add(r.sample_id as string);
+      if (!r.sample_id) continue;
+      const submitted = (r.submitted_at as string | null) ?? "";
+      const prev = respondedAtBySample.get(r.sample_id as string);
+      if (!prev || submitted > prev) {
+        respondedAtBySample.set(r.sample_id as string, submitted);
+        if (typeof r.duration_seconds === "number" && r.duration_seconds >= 0) {
+          durationBySample.set(r.sample_id as string, r.duration_seconds);
+        } else {
+          durationBySample.delete(r.sample_id as string);
+        }
+      }
     }
   }
 
@@ -133,7 +165,9 @@ export async function listEmailSurveySamples(
       sendStatus: (s.send_status as EmailSampleRow["sendStatus"]) ?? "pending",
       sendError: (s.send_error as string | null) ?? null,
       sentAt: (s.sent_at as string | null) ?? null,
-      responded: respondedIds.has(s.id as string),
+      responded: respondedAtBySample.has(s.id as string),
+      respondedAt: respondedAtBySample.get(s.id as string) ?? null,
+      durationSeconds: durationBySample.get(s.id as string) ?? null,
       rowData,
     };
   });
@@ -404,6 +438,81 @@ export async function sendSurveyBulkEmails(params: {
 }
 
 export type { SurveySampleUploadWarnings };
+
+function formatExcelDateTime(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString("ko-KR");
+}
+
+export async function buildEmailDistributionStatusExcel(
+  surveyRef: string,
+): Promise<
+  | { ok: true; filename: string; buffer: Buffer }
+  | { ok: false; error: string }
+> {
+  const list = await listEmailSurveySamples(surveyRef);
+  if (!list) {
+    return { ok: false, error: "설문을 찾을 수 없습니다." };
+  }
+  if (list.rows.length === 0) {
+    return { ok: false, error: "다운로드할 표본이 없습니다." };
+  }
+
+  const matrix: (string | number)[][] = [
+    [
+      "UID",
+      "이메일",
+      "이메일 발송여부",
+      "실패사유",
+      "발송일시",
+      "응답결과",
+      "응답일시",
+      "소요시간(초)",
+      "소요시간",
+    ],
+    ...list.rows.map((row) => [
+      row.uid,
+      row.email,
+      EMAIL_SEND_STATUS_LABELS[row.sendStatus],
+      row.sendStatus === "failed" ? (row.sendError ?? "") : "",
+      formatExcelDateTime(row.sentAt),
+      row.responded ? "응답완료" : "미응답",
+      formatExcelDateTime(row.respondedAt),
+      row.durationSeconds ?? "",
+      formatDurationSeconds(row.durationSeconds),
+    ]),
+  ];
+
+  const sheet = XLSX.utils.aoa_to_sheet(matrix);
+  sheet["!cols"] = [
+    { wch: 16 },
+    { wch: 32 },
+    { wch: 14 },
+    { wch: 40 },
+    { wch: 20 },
+    { wch: 12 },
+    { wch: 20 },
+    { wch: 14 },
+    { wch: 14 },
+  ];
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, sheet, "발송·응답");
+  const buffer = Buffer.from(
+    XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as ArrayBuffer,
+  );
+
+  const slug =
+    normalizeSurveyRef(surveyRef).replace(/[^\w가-힣.-]+/g, "_").slice(0, 80) ||
+    "survey";
+
+  return {
+    ok: true,
+    filename: `${slug}_email_send_response.xlsx`,
+    buffer,
+  };
+}
 
 export async function getSurveyParticipationFormat(
   surveyRef: string,

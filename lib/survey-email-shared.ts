@@ -15,7 +15,15 @@ export type EmailSampleRow = {
   sendError: string | null;
   sentAt: string | null;
   responded: boolean;
+  respondedAt: string | null;
+  durationSeconds: number | null;
   rowData: Record<string, string>;
+};
+
+export const EMAIL_SEND_STATUS_LABELS: Record<EmailSampleRow["sendStatus"], string> = {
+  pending: "미발송",
+  sent: "발송완료",
+  failed: "실패",
 };
 
 /** 간단한 이메일 형식 검증 */

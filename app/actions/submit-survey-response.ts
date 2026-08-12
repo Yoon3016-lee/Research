@@ -15,12 +15,17 @@ import {
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 import { archiveSurveyResponseOnSubmit } from "@/lib/survey-response-backup";
 import { getPublicSurveyBySlug } from "@/lib/survey-public";
+import { resolveSurveyDuration } from "@/lib/survey-duration";
 
 export type SubmitSurveyAfter = "stay" | "list" | "thanks";
 
 export type SubmitSurveyOptions = {
   sampleId?: string;
   inviteToken?: string;
+  /** 설문 화면을 연 시각 (ISO) */
+  startedAt?: string;
+  /** 설문이 화면에 열려 있는 동안 누적한 초 */
+  activeSeconds?: number;
 };
 
 export type SubmitSurveyState =
@@ -109,6 +114,13 @@ function formatResponseInsertError(message: string | undefined): string {
   if (message.includes("survey_responses_sample_id_unique")) {
     return "이미 이 설문에 참여하셨습니다.";
   }
+  if (message.includes("started_at") || message.includes("duration_seconds")) {
+    return (
+      "DB에 응답 소요 시간 컬럼이 없습니다. " +
+      "Supabase 대시보드 → SQL Editor에서 " +
+      "supabase/migrations/20260410300000_survey_responses_duration.sql 내용을 실행한 뒤 다시 제출해 주세요."
+    );
+  }
   if (
     message.includes("respondent_kind") ||
     message.includes("respondent_user_id") ||
@@ -195,26 +207,51 @@ export async function submitSurveyResponseAction(
 
   const respondent = await resolveRespondentForInsert();
   const branchingSnapshot = branchingSnapshotFromAnswers(answers);
+  const submittedAt = new Date();
+  const duration = resolveSurveyDuration(
+    { startedAt: options?.startedAt, activeSeconds: options?.activeSeconds },
+    submittedAt,
+  );
 
   const insertRow: {
     survey_id: string;
     respondent_user_id: string | null;
     respondent_kind: string;
     sample_id?: string;
+    started_at?: string | null;
+    duration_seconds?: number | null;
   } = {
     survey_id: survey.id,
     respondent_user_id: respondent.respondent_user_id,
     respondent_kind: respondent.respondent_kind,
+    started_at: duration.startedAt,
+    duration_seconds: duration.durationSeconds,
   };
   if (resolvedSampleId) {
     insertRow.sample_id = resolvedSampleId;
   }
 
-  const { data: response, error: resError } = await admin
+  let { data: response, error: resError } = await admin
     .from("survey_responses")
     .insert(insertRow)
     .select("id")
     .single();
+
+  if (
+    resError &&
+    (resError.message.includes("started_at") ||
+      resError.message.includes("duration_seconds"))
+  ) {
+    const { started_at: _startedAt, duration_seconds: _durationSeconds, ...withoutDuration } =
+      insertRow;
+    const retry = await admin
+      .from("survey_responses")
+      .insert(withoutDuration)
+      .select("id")
+      .single();
+    response = retry.data;
+    resError = retry.error;
+  }
 
   if (resError || !response) {
     return { error: formatResponseInsertError(resError?.message) };

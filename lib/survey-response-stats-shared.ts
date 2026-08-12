@@ -1,4 +1,5 @@
 import type { QuestionType } from "@/lib/survey-types";
+import type { DurationSummary } from "@/lib/survey-duration";
 
 export const NO_ANSWER_LABEL = "무응답";
 
@@ -29,6 +30,7 @@ export type SurveyResponseStats =
       slug: string;
       title: string;
       totalSubmissions: number;
+      duration: DurationSummary;
       questions: QuestionFrequencyStats[];
     }
   | { ok: false; reason: "not_configured" | "not_found" };

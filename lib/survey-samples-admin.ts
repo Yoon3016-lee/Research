@@ -352,7 +352,7 @@ export async function activateSurveySampleBatch(
   return { ok: true };
 }
 
-const PREVIEW_LIMIT = 30;
+const PREVIEW_LIMIT = 10;
 
 export async function getSurveySampleBatchPreview(
   surveyRef: string,

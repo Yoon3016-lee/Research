@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, Loader2, Mail, Send } from "lucide-react";
+import { Download, Eye, Loader2, Mail, Send } from "lucide-react";
 import {
   previewSurveyEmailAction,
   sendSurveyEmailAction,
@@ -11,8 +11,10 @@ import { AdminSurveyStatusBadge } from "@/components/admin/AdminSurveyIconAction
 import type { EmailSampleRow } from "@/lib/survey-email-shared";
 import {
   defaultEmailInviteTemplate,
+  EMAIL_SEND_STATUS_LABELS,
   plainTextToEmailHtmlFragment,
 } from "@/lib/survey-email-shared";
+import { formatDurationSeconds } from "@/lib/survey-duration";
 import type { SurveyStatus } from "@/lib/survey-list-types";
 
 type Props = {
@@ -23,11 +25,31 @@ type Props = {
   rows: EmailSampleRow[];
 };
 
-const SEND_STATUS_LABELS: Record<EmailSampleRow["sendStatus"], string> = {
-  pending: "미발송",
-  sent: "발송완료",
-  failed: "실패",
-};
+const PREVIEW_ROW_LIMIT = 10;
+
+function SampleListRow({ r }: { r: EmailSampleRow }) {
+  return (
+    <tr className="border-b border-brand-900/6">
+      <td className="px-2 py-2 font-mono text-xs">{r.uid}</td>
+      <td className="px-2 py-2">
+        {r.email || <span className="text-red-600">(없음)</span>}
+        {!r.email.includes("@") && r.email ? (
+          <span className="ml-1 text-xs text-red-600">형식 오류</span>
+        ) : null}
+      </td>
+      <td className="px-2 py-2">
+        <div>{EMAIL_SEND_STATUS_LABELS[r.sendStatus]}</div>
+        {r.sendStatus === "failed" && r.sendError ? (
+          <p className="mt-0.5 max-w-xs text-xs leading-snug text-red-700">{r.sendError}</p>
+        ) : null}
+      </td>
+      <td className="px-2 py-2">{r.responded ? "응답완료" : "미응답"}</td>
+      <td className="px-2 py-2 tabular-nums text-xs text-brand-800">
+        {r.responded ? formatDurationSeconds(r.durationSeconds) || "—" : "—"}
+      </td>
+    </tr>
+  );
+}
 
 export function SurveyEmailDistributionPanel({
   slug,
@@ -45,6 +67,8 @@ export function SurveyEmailDistributionPanel({
   const [error, setError] = useState<string | null>(null);
   const [previewPending, startPreview] = useTransition();
   const [sendPending, startSend] = useTransition();
+  const visibleRows = rows.slice(0, PREVIEW_ROW_LIMIT);
+  const hiddenRows = rows.slice(PREVIEW_ROW_LIMIT);
 
   const stats = useMemo(() => {
     const missingLink = rows.filter((r) => !r.inviteToken).length;
@@ -235,7 +259,23 @@ export function SurveyEmailDistributionPanel({
       </section>
 
       <section className="admin-card overflow-x-auto p-6">
-        <h3 className="text-sm font-semibold text-brand-900">표본 목록</h3>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-brand-900">표본 목록</h3>
+            <p className="mt-0.5 text-xs text-brand-700/80">
+              전체 {rows.length.toLocaleString()}건 · 기본 {visibleRows.length}건만 표시
+            </p>
+          </div>
+          {rows.length > 0 ? (
+            <a
+              href={`/admin/surveys/distribute/export?slug=${encodeURIComponent(slug)}`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-brand-900/12 bg-white px-2.5 py-1.5 text-xs font-medium text-brand-800 hover:bg-surface"
+            >
+              <Download className="h-3.5 w-3.5" aria-hidden />
+              발송·응답 엑셀 다운로드
+            </a>
+          ) : null}
+        </div>
         <table className="mt-4 w-full min-w-[640px] text-left text-sm">
           <thead>
             <tr className="border-b border-brand-900/10 text-xs text-brand-700">
@@ -243,31 +283,29 @@ export function SurveyEmailDistributionPanel({
               <th className="px-2 py-2">이메일</th>
               <th className="px-2 py-2">발송결과</th>
               <th className="px-2 py-2">응답여부</th>
+              <th className="px-2 py-2">소요시간</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="border-b border-brand-900/6">
-                <td className="px-2 py-2 font-mono text-xs">{r.uid}</td>
-                <td className="px-2 py-2">
-                  {r.email || <span className="text-red-600">(없음)</span>}
-                  {!r.email.includes("@") && r.email ? (
-                    <span className="ml-1 text-xs text-red-600">형식 오류</span>
-                  ) : null}
-                </td>
-                <td className="px-2 py-2">
-                  <div>{SEND_STATUS_LABELS[r.sendStatus]}</div>
-                  {r.sendStatus === "failed" && r.sendError ? (
-                    <p className="mt-0.5 max-w-xs text-xs leading-snug text-red-700">
-                      {r.sendError}
-                    </p>
-                  ) : null}
-                </td>
-                <td className="px-2 py-2">{r.responded ? "응답완료" : "미응답"}</td>
-              </tr>
+            {visibleRows.map((r) => (
+              <SampleListRow key={r.id} r={r} />
             ))}
           </tbody>
         </table>
+        {hiddenRows.length > 0 ? (
+          <details className="mt-3">
+            <summary className="cursor-pointer select-none text-xs font-medium text-brand-800">
+              나머지 {hiddenRows.length.toLocaleString()}건 펼치기
+            </summary>
+            <table className="mt-2 w-full min-w-[640px] text-left text-sm">
+              <tbody>
+                {hiddenRows.map((r) => (
+                  <SampleListRow key={r.id} r={r} />
+                ))}
+              </tbody>
+            </table>
+          </details>
+        ) : null}
       </section>
 
       {error ? (

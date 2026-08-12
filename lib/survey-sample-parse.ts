@@ -14,7 +14,7 @@ import type {
 import { isValidEmailAddress } from "@/lib/survey-email-shared";
 import type { ParticipationFormat } from "@/lib/survey-participation-format";
 
-const MAX_PREVIEW_ROWS = 8;
+const MAX_PREVIEW_ROWS = 10;
 const MAX_UPLOAD_ROWS = 50_000;
 
 type Matrix = (string | number | boolean | Date | null)[][];

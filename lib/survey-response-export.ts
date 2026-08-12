@@ -1,6 +1,7 @@
 import "server-only";
 
 import * as XLSX from "xlsx";
+import { formatDurationSeconds } from "@/lib/survey-duration";
 import { normalizeSurveyRef, isUuid } from "@/lib/survey-slug";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 import { fetchAllPages, fetchAllSurveyResponseAnswers } from "@/lib/supabase-paginate";
@@ -46,6 +47,8 @@ type OptionRow = {
 type ResponseRow = {
   id: string;
   submitted_at: string;
+  started_at?: string | null;
+  duration_seconds?: number | null;
 };
 
 type AnswerRow = {
@@ -68,6 +71,8 @@ export type QuestionExportMeta = {
 export type ResponseExportRow = {
   responseNumber: number;
   submittedAt: string;
+  startedAt: string | null;
+  durationSeconds: number | null;
   answers: Map<string, { code: string; label: string }>;
 };
 
@@ -401,14 +406,30 @@ async function loadExportDataset(ref: string): Promise<ExportDataset | null> {
     responsesRaw = await fetchAllPages<ResponseRow>(async (from, to) =>
       admin
         .from("survey_responses")
-        .select("id, submitted_at")
+        .select("id, submitted_at, started_at, duration_seconds")
         .eq("survey_id", survey.id)
         .order("submitted_at", { ascending: true })
         .range(from, to),
     );
   } catch (err) {
-    console.error("[survey-response-export] responses:", err);
-    return null;
+    const message = err instanceof Error ? err.message : String(err);
+    if (!message.includes("started_at") && !message.includes("duration_seconds")) {
+      console.error("[survey-response-export] responses:", err);
+      return null;
+    }
+    try {
+      responsesRaw = await fetchAllPages<ResponseRow>(async (from, to) =>
+        admin
+          .from("survey_responses")
+          .select("id, submitted_at")
+          .eq("survey_id", survey.id)
+          .order("submitted_at", { ascending: true })
+          .range(from, to),
+      );
+    } catch (retryErr) {
+      console.error("[survey-response-export] responses:", retryErr);
+      return null;
+    }
   }
 
   const responseIds = responsesRaw.map((r) => r.id);
@@ -443,6 +464,9 @@ async function loadExportDataset(ref: string): Promise<ExportDataset | null> {
     return {
       responseNumber: i + 1,
       submittedAt: r.submitted_at,
+      startedAt: r.started_at ?? null,
+      durationSeconds:
+        typeof r.duration_seconds === "number" ? r.duration_seconds : null,
       answers,
     };
   });
@@ -463,6 +487,7 @@ function buildGuideSheet(): (string | number)[][] {
     ["문항정의", "문항 제목·유형·선택지(보기) 목록. 응답 시트의 Q번호와 매칭합니다."],
     ["응답_코드", "제출별 문항 응답을 숫자·코드로 표현 (AI 분석용)."],
     ["응답_라벨", "제출별 문항 응답을 보기 텍스트·원문으로 표현."],
+    ["소요시간", "설문 화면을 연 시각부터 제출까지 경과 시간(초·표시)."],
     [],
     ["코드 규칙"],
     ["객관식·드롭다운", "보기 번호 (1, 2, 3 …)"],
@@ -519,8 +544,15 @@ function buildResponseSheet(
   mode: "code" | "label",
 ): (string | number)[][] {
   const qHeaders = questions.map((q) => `Q${q.questionNumber}`);
-  const promptRow: (string | number)[] = ["", "", ...questions.map((q) => q.prompt)];
-  const header: (string | number)[] = ["응답번호", "제출일시", ...qHeaders];
+  const promptRow: (string | number)[] = ["", "", "", "", "", ...questions.map((q) => q.prompt)];
+  const header: (string | number)[] = [
+    "응답번호",
+    "제출일시",
+    "시작시각",
+    "소요시간(초)",
+    "소요시간",
+    ...qHeaders,
+  ];
   const rows: (string | number)[][] = [header, promptRow];
 
   for (const r of responses) {
@@ -529,7 +561,14 @@ function buildResponseSheet(
       if (!answer) return "";
       return mode === "code" ? answer.code : answer.label;
     });
-    rows.push([r.responseNumber, r.submittedAt, ...cells]);
+    rows.push([
+      r.responseNumber,
+      r.submittedAt,
+      r.startedAt ?? "",
+      r.durationSeconds ?? "",
+      formatDurationSeconds(r.durationSeconds),
+      ...cells,
+    ]);
   }
 
   return rows;

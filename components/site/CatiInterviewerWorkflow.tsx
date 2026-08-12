@@ -127,11 +127,23 @@ export function CatiInterviewerWorkflow({
     setPhase("done");
   };
 
-  const handlePause = async ({ answers, activeQuestionId }: SurveyPausePayload) => {
+  const handlePause = async ({
+    answers,
+    activeQuestionId,
+    startedAt,
+    activeSeconds,
+  }: SurveyPausePayload) => {
     if (!applied) {
       return { ok: false, error: "표본 정보가 없습니다." };
     }
-    const result = await saveCatiDraftAction(slug, applied.id, answers, activeQuestionId);
+    const result = await saveCatiDraftAction(
+      slug,
+      applied.id,
+      answers,
+      activeQuestionId,
+      startedAt,
+      activeSeconds,
+    );
     if (result.ok) {
       const uid = applied.uid;
       resetWorkflow();
@@ -353,6 +365,8 @@ export function CatiInterviewerWorkflow({
               viewMode={viewMode}
               initialAnswers={applied.draft?.answers}
               initialActiveQuestionId={applied.draft?.activeQuestionId ?? null}
+              initialStartedAt={applied.draft?.startedAt ?? null}
+              initialActiveSeconds={applied.draft?.activeSeconds ?? 0}
               onPause={handlePause}
               onCatiSubmitted={() => handleSurveySubmitted(applied.uid)}
             />

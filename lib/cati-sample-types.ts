@@ -4,6 +4,8 @@ export type CatiDraft = {
   answers: SurveyAnswerInput[];
   activeQuestionId: string | null;
   updatedAt: string;
+  startedAt: string | null;
+  activeSeconds: number;
 };
 
 export type CatiAppliedSample = {

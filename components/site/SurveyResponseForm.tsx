@@ -7,6 +7,7 @@ import {
   submitSurveyResponseAction,
   type SubmitSurveyAfter,
 } from "@/app/actions/submit-survey-response";
+import { rememberCatiStartedAtAction } from "@/app/actions/cati-drafts";
 import { SurveyQuestionField } from "@/components/site/SurveyQuestionField";
 import { ProgressGradientBar } from "@/components/admin/ProgressGradientBar";
 import type {
@@ -29,10 +30,18 @@ import {
   validateSurveyQuestionAnswer,
 } from "@/lib/survey-validate-answers";
 import type { SurveyViewMode } from "@/lib/survey-view-mode";
+import {
+  clearSurveyStartedAt,
+  persistSurveyTimer,
+  readOrCreateSurveyTimer,
+  surveyStartedAtStorageKey,
+} from "@/lib/survey-duration";
 
 export type SurveyPausePayload = {
   answers: SurveyAnswerInput[];
   activeQuestionId: string | null;
+  startedAt: string;
+  activeSeconds: number;
 };
 
 type Props = {
@@ -46,6 +55,8 @@ type Props = {
   onCatiSubmitted?: () => void;
   initialAnswers?: SurveyAnswerInput[];
   initialActiveQuestionId?: string | null;
+  initialStartedAt?: string | null;
+  initialActiveSeconds?: number | null;
   onPause?: (payload: SurveyPausePayload) => Promise<{ ok: boolean; error?: string }>;
 };
 
@@ -127,6 +138,8 @@ export function SurveyResponseForm({
   onCatiSubmitted,
   initialAnswers,
   initialActiveQuestionId,
+  initialStartedAt,
+  initialActiveSeconds,
   onPause,
 }: Props) {
   const isScroll = viewMode === "scroll";
@@ -137,9 +150,87 @@ export function SurveyResponseForm({
   const [success, setSuccess] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [pausePending, startPause] = useTransition();
+  const startedAtStorageKey = surveyStartedAtStorageKey(
+    survey.slug,
+    sampleId || inviteToken || (emailMode ? "email" : catiMode ? "cati" : "public"),
+  );
+  const persistStartedAt = Boolean(sampleId || inviteToken || catiMode);
+  const [timer] = useState(() =>
+    readOrCreateSurveyTimer(startedAtStorageKey, {
+      persistent: persistStartedAt,
+      seedStartedAt: initialStartedAt,
+      seedActiveSeconds: initialActiveSeconds,
+    }),
+  );
+  const startedAt = timer.startedAt;
+  const accumulatedRef = useRef(timer.activeSeconds);
+  const segmentStartRef = useRef<number | null>(null);
+
+  const flushOpenTimer = () => {
+    if (segmentStartRef.current != null) {
+      accumulatedRef.current += (Date.now() - segmentStartRef.current) / 1000;
+      segmentStartRef.current = null;
+    }
+    const activeSeconds = Math.max(0, Math.round(accumulatedRef.current));
+    persistSurveyTimer(
+      startedAtStorageKey,
+      { startedAt, activeSeconds },
+      persistStartedAt,
+    );
+    return activeSeconds;
+  };
+
+  const resumeOpenTimer = () => {
+    if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+    if (segmentStartRef.current == null) {
+      segmentStartRef.current = Date.now();
+    }
+  };
+
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(
     initialActiveQuestionId ?? null,
   );
+
+  useEffect(() => {
+    resumeOpenTimer();
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flushOpenTimer();
+      else resumeOpenTimer();
+    };
+    const onPageHide = () => {
+      flushOpenTimer();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", onPageHide);
+    const interval = window.setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      const extra =
+        segmentStartRef.current != null ? (Date.now() - segmentStartRef.current) / 1000 : 0;
+      persistSurveyTimer(
+        startedAtStorageKey,
+        { startedAt, activeSeconds: Math.max(0, Math.round(accumulatedRef.current + extra)) },
+        persistStartedAt,
+      );
+    }, 5000);
+    return () => {
+      flushOpenTimer();
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", onPageHide);
+      window.clearInterval(interval);
+    };
+    // 설문 세션당 한 번만 타이머를 겁니다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!catiMode || !sampleId || !startedAt) return;
+    void rememberCatiStartedAtAction(
+      survey.slug,
+      sampleId,
+      startedAt,
+      Math.max(0, Math.round(accumulatedRef.current)),
+    );
+  }, [catiMode, sampleId, startedAt, survey.slug]);
 
   const [mcSingle, setMcSingle] = useState<Record<string, string>>(initialState.mcSingle);
   const [mcMulti, setMcMulti] = useState<Record<string, string[]>>(initialState.mcMulti);
@@ -430,9 +521,12 @@ export function SurveyResponseForm({
       const result = await onPause({
         answers: buildAnswers(),
         activeQuestionId,
+        startedAt,
+        activeSeconds: flushOpenTimer(),
       });
       if (!result.ok) {
         setError(result.error ?? "진행 내역 저장에 실패했습니다.");
+        resumeOpenTimer();
       }
     });
   };
@@ -460,11 +554,15 @@ export function SurveyResponseForm({
       const result = await submitSurveyResponseAction(survey.slug, answers, submitAfter, {
         sampleId,
         inviteToken,
+        startedAt,
+        activeSeconds: flushOpenTimer(),
       });
       if (result.error) {
         setError(result.error);
+        resumeOpenTimer();
         return;
       }
+      clearSurveyStartedAt(startedAtStorageKey, { persistent: persistStartedAt });
       if (catiMode) {
         onCatiSubmitted?.();
         return;
