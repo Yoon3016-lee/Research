@@ -116,24 +116,10 @@ export function PrimeaxHomeLanding({ content }: Props) {
               font-family: 'Manrope', 'Noto Sans KR', sans-serif;
               -webkit-font-smoothing: antialiased;
             }
-            .banner-axi-motion { display: none !important; }
             .site-header, .site-footer, footer.site-footer { display: none !important; }
             [id] { scroll-margin-top: calc(var(--site-header-height, 4.5rem) + 12px); }
             .hero.banner-hero {
               scroll-margin-top: 0;
-              overflow: visible !important;
-            }
-            .banner-motion-wrap {
-              aspect-ratio: auto !important;
-              height: auto !important;
-              overflow: visible !important;
-            }
-            .banner-motion {
-              width: 100% !important;
-              height: auto !important;
-              max-width: 100% !important;
-              object-fit: contain !important;
-              object-position: center top !important;
             }
             ${css}
           </style>

@@ -88,6 +88,7 @@ export function rehydrateSurveyAiDraftPayload(parsed: SurveyAiDraftPayload): {
       periodStart: rest.periodStart ?? "",
       periodEnd: rest.periodEnd ?? "",
       targetCount: rest.targetCount ?? 100,
+      participationFormat: rest.participationFormat === "email" ? "email" : "site",
       listedPublic: rest.listedPublic ?? true,
       responseScript: rest.responseScript ?? "",
       ksicCode: typeof rest.ksicCode === "string" ? rest.ksicCode : "",

@@ -249,8 +249,11 @@ export function likertEndpointLabels(options: string[]): {
   };
 }
 
+import type { ParticipationFormat } from "@/lib/survey-participation-format";
+
 export type CreateSurveyPayload = {
   title: string;
+  participationFormat: ParticipationFormat;
   summary: string;
   /** YYYY-MM-DD */
   periodStart: string;

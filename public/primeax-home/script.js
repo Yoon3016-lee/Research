@@ -30,20 +30,17 @@
 
   const cases = {
     public: {
-      number: '01',
-      title: '정책과 사업의 성과를<br />다음 실행계획으로 연결합니다.',
+      title: '정책과 사업의 성과를<br />다음 실행계획으로 유기적 연결',
       desc: '이해관계자 만족도·국민인식·청렴체감도·사업 성과 조사를 수행하며, 정량 결과와 현장 의견을 함께 분석해 개선 우선순위를 제공합니다.',
       items: ['조사 설계 및 표본 설계', '전문조사원 실사·품질 관리', '원인 분석·개선과제 도출']
     },
     cx: {
-      number: '02',
-      title: '고객 경험의 빈틈을<br />측정하고 개선의 순서를 정합니다.',
-      desc: '고객만족도, 전화친절도, VOC, 미스터리쇼퍼를 통해 실제 고객 여정을 진단하고 서비스 품질의 개선 과제를 구체화합니다.',
+      title: '고객 경험을 측정하고<br />서비스 품질 향상과 개선 방향 구체화',
+      desc: '고객만족도, 전화친절도, VOC, 미스터리 쇼퍼를 통해 실제 고객 여정을 진단하고 서비스 품질의 개선 과제를 구체화합니다.',
       items: ['CX 지표·평가표 설계', '현장 모니터링 및 증빙 검토', '개선 우선순위·KPI 제안']
     },
     education: {
-      number: '03',
-      title: '학습자와 산업체의 요구를<br />교육과정 개편으로 연결합니다.',
+      title: '교육수요자와 산업체의 요구사항을<br />반영한 의사결정',
       desc: '교육수요·핵심역량·사업성과 조사를 통해 대학, 산업체, 학습자의 목소리를 통합하고 교육사업의 다음 의사결정을 지원합니다.',
       items: ['이해관계자별 조사 설계', '정량·정성 통합 분석', '과정 개편·확대 근거 제시']
     }
@@ -127,7 +124,7 @@
       const data = cases[button.dataset.case];
       const panel = query('#case-panel');
       if (!data || !panel) return;
-      panel.innerHTML = `<p class="case-number">${data.number}</p><div><h3>${data.title}</h3><p>${data.desc}</p></div><ul>${data.items.map(item => `<li>${item}</li>`).join('')}</ul>`;
+      panel.innerHTML = `<div><h3>${data.title}</h3><p>${data.desc}</p></div><ul>${data.items.map(item => `<li>${item}</li>`).join('')}</ul>`;
       if (!reducedMotion && panel.animate) panel.animate([{ opacity: 0.2 }, { opacity: 1 }], { duration: 250 });
     }));
 

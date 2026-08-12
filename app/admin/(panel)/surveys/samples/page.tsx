@@ -59,13 +59,17 @@ export default async function SurveySamplesPage({ searchParams }: Props) {
     notFound();
   }
 
-  const { title } = loaded.bundle;
+  const { title, participationFormat, samplesLockedAt } = loaded.bundle;
 
   return (
     <>
       <AdminHeader
         title="표본 관리"
-        description="조사 대상 UID·전화번호가 담긴 엑셀을 업로드합니다. 버전별로 보존되며 최신 업로드가 자동 적용됩니다."
+        description={
+          participationFormat === "email"
+            ? "이메일 형식 설문 표본(UID·이메일)을 업로드·관리합니다."
+            : "조사 대상 UID·전화번호가 담긴 엑셀을 업로드합니다. 버전별로 보존되며 최신 업로드가 자동 적용됩니다."
+        }
       />
       <div className="space-y-6 p-4 sm:p-6">
         {uploaded ? (
@@ -92,7 +96,13 @@ export default async function SurveySamplesPage({ searchParams }: Props) {
           </Link>
         </p>
 
-        <SurveySampleUploadPanel slug={slug} title={title} batches={batches} />
+        <SurveySampleUploadPanel
+          slug={slug}
+          title={title}
+          batches={batches}
+          participationFormat={participationFormat}
+          samplesLockedAt={samplesLockedAt}
+        />
       </div>
     </>
   );

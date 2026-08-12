@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { parseParticipationFormat } from "@/lib/survey-participation-format";
 import { parseSurveySampleSpreadsheet } from "@/lib/survey-sample-parse";
 import type {
   SurveySampleBatchPreviewResult,
@@ -34,13 +35,15 @@ export async function previewSurveySampleUploadAction(
 ): Promise<SurveySamplePreviewResult> {
   await requireAdminPanelAccess();
 
+  const format = parseParticipationFormat(formData.get("participation_format"));
+
   const fileResult = await readFileFromFormData(formData);
   if ("error" in fileResult) {
     return { ok: false, error: fileResult.error };
   }
 
   try {
-    const preview = parseSurveySampleSpreadsheet(fileResult.buffer);
+    const preview = parseSurveySampleSpreadsheet(fileResult.buffer, format);
     return { ok: true, preview };
   } catch (err) {
     return {
@@ -60,30 +63,48 @@ export async function uploadSurveySampleBatchAction(
     return { ok: false, error: "설문 slug가 없습니다." };
   }
 
+  const format = parseParticipationFormat(formData.get("participation_format"));
   const uidColumn = String(formData.get("uid_column") ?? "").trim().toUpperCase();
-  const phoneColumn = String(formData.get("phone_column") ?? "").trim().toUpperCase();
-  const outcomeColumn = String(formData.get("outcome_column") ?? "").trim().toUpperCase();
-
-  if (!uidColumn || !phoneColumn || !outcomeColumn) {
-    return { ok: false, error: "UID·전화번호·결과 열을 모두 선택하세요." };
-  }
 
   const fileResult = await readFileFromFormData(formData);
   if ("error" in fileResult) {
     return { ok: false, error: fileResult.error };
   }
 
+  let mapping;
+  if (format === "email") {
+    const emailColumn = String(formData.get("email_column") ?? "").trim().toUpperCase();
+    const nameColumn = String(formData.get("name_column") ?? "").trim().toUpperCase();
+    if (!uidColumn || !emailColumn) {
+      return { ok: false, error: "UID·이메일 열을 모두 선택하세요." };
+    }
+    mapping = {
+      uidColumn,
+      emailColumn,
+      nameColumn: nameColumn || undefined,
+    };
+  } else {
+    const phoneColumn = String(formData.get("phone_column") ?? "").trim().toUpperCase();
+    const outcomeColumn = String(formData.get("outcome_column") ?? "").trim().toUpperCase();
+    if (!uidColumn || !phoneColumn || !outcomeColumn) {
+      return { ok: false, error: "UID·전화번호·결과 열을 모두 선택하세요." };
+    }
+    mapping = { uidColumn, phoneColumn, outcomeColumn };
+  }
+
   const result = await uploadSurveySampleBatch({
     surveyRef: slug,
     uploadedBy: userId,
     originalFilename: fileResult.filename,
-    mapping: { uidColumn, phoneColumn, outcomeColumn },
+    mapping,
     fileBuffer: fileResult.buffer,
+    participationFormat: format,
   });
 
   if (result.ok) {
     revalidatePath("/admin/surveys");
     revalidatePath("/admin/surveys/samples");
+    revalidatePath("/admin/surveys/distribute");
   }
 
   return result;
@@ -98,6 +119,7 @@ export async function activateSurveySampleBatchAction(
   const result = await activateSurveySampleBatch(slug, batchId);
   if (result.ok) {
     revalidatePath("/admin/surveys/samples");
+    revalidatePath("/admin/surveys/distribute");
   }
   return result;
 }

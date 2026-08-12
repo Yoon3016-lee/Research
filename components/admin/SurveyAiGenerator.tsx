@@ -279,6 +279,7 @@ export function SurveyAiGenerator({
       periodEnd: addDaysToDateOnly(today, 30),
       targetCount: 100,
       listedPublic: true,
+      participationFormat: "site" as const,
       responseScript: proposal.responseScript,
       ksicCode: brief.ksicCode.trim(),
       ksicName: brief.ksicName.trim(),

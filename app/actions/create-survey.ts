@@ -51,6 +51,10 @@ export async function createSurveyAction(
   const admin = createSupabaseServiceRoleClient();
   const slug = makeSlug(title);
 
+  const participationFormat = payload.participationFormat === "email" ? "email" : "site";
+  const listedPublic =
+    participationFormat === "email" ? false : payload.listedPublic;
+
   const { data: survey, error: surveyError } = await admin
     .from("surveys")
     .insert({
@@ -62,7 +66,8 @@ export async function createSurveyAction(
       period_label: periodBuilt.data.periodLabel,
       target_count: Math.max(0, payload.targetCount),
       status: periodBuilt.data.status,
-      listed_public: payload.listedPublic,
+      listed_public: listedPublic,
+      participation_format: participationFormat,
       response_script: payload.responseScript.trim(),
       ksic_code: (payload.ksicCode ?? "").trim(),
       ksic_name: (payload.ksicName ?? "").trim(),

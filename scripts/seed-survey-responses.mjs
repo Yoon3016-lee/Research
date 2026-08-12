@@ -25,6 +25,13 @@ function pick(arr, index) {
   return arr[Math.min(index, arr.length - 1)];
 }
 
+/** PROFILES 항목이 배열(mc_multi용)일 때 단일 선택 문항은 첫 값만 사용 */
+function profileIndex(raw, fallback = 0) {
+  if (Array.isArray(raw)) return typeof raw[0] === "number" ? raw[0] : fallback;
+  if (typeof raw === "number") return raw;
+  return fallback;
+}
+
 function clampInt(n, min, max) {
   return Math.min(max, Math.max(min, Math.round(n)));
 }
@@ -38,7 +45,7 @@ function toAnswerJson(q, profile, qIndex) {
     return null;
   }
   if (type === "mc_single" || type === "dropdown") {
-    const opt = pick(options, profile[qIndex] ?? 0);
+    const opt = pick(options, profileIndex(profile[qIndex], qIndex));
     return opt ? { optionId: opt.id } : null;
   }
   if (type === "mc_multi") {

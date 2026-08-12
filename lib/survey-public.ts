@@ -13,6 +13,7 @@ import {
   resolveVisibilityRulesForPublic,
   type ResolvedVisibilityRule,
 } from "@/lib/survey-visibility";
+import { resolveSurveyInviteByToken } from "@/lib/survey-invite-token";
 import { syncSurveyPeriodStatuses } from "@/lib/sync-survey-statuses";
 import { normalizeSurveyRef } from "@/lib/survey-slug";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
@@ -76,7 +77,13 @@ export type SurveyParticipationLoad =
       title: string;
       status: string;
       listedPublic: boolean;
-    };
+    }
+  | { ok: false; reason: "invite_only"; title: string };
+
+export type SurveyEmailInviteLoad =
+  | { ok: true; survey: PublicSurveyDetail; sampleId: string }
+  | { ok: false; reason: "not_found" | "invalid_token" | "already_responded" }
+  | { ok: false; reason: "not_open"; title: string; status: string };
 
 type SurveyRow = {
   id: string;
@@ -88,6 +95,7 @@ type SurveyRow = {
   period_end: string | null;
   status: string;
   listed_public: boolean;
+  participation_format?: string | null;
   ksic_code?: string | null;
   ksic_name?: string | null;
   successor_survey_id?: string | null;
@@ -100,8 +108,12 @@ function effectiveSurveyStatus(row: SurveyRow): string {
   return row.status;
 }
 
-function isParticipationOpen(row: SurveyRow): boolean {
+function isSiteParticipationOpen(row: SurveyRow): boolean {
   return effectiveSurveyStatus(row) === "진행중" && row.listed_public;
+}
+
+function isEmailPeriodOpen(row: SurveyRow): boolean {
+  return effectiveSurveyStatus(row) === "진행중";
 }
 
 type SurveyLookupClient = ReturnType<typeof createSupabaseServiceRoleClient>;
@@ -112,11 +124,11 @@ async function fetchSurveyRowBySlug(
   withListedPublicFilter: boolean,
 ): Promise<SurveyRow | null> {
   const selectWithVersion =
-    "id, slug, title, summary, period_label, period_start, period_end, status, listed_public, ksic_code, ksic_name, successor_survey_id";
+    "id, slug, title, summary, period_label, period_start, period_end, status, listed_public, participation_format, ksic_code, ksic_name, successor_survey_id";
   const selectBasic =
-    "id, slug, title, summary, period_label, period_start, period_end, status, listed_public, successor_survey_id";
+    "id, slug, title, summary, period_label, period_start, period_end, status, listed_public, participation_format, successor_survey_id";
   const selectWithKsicNoVersion =
-    "id, slug, title, summary, period_label, period_start, period_end, status, listed_public, ksic_code, ksic_name";
+    "id, slug, title, summary, period_label, period_start, period_end, status, listed_public, participation_format, ksic_code, ksic_name";
 
   let query = client.from("surveys").select(selectWithVersion).eq("slug", slug);
   if (withListedPublicFilter) {
@@ -196,7 +208,7 @@ async function resolveParticipationSurveyRow(
   const initial = await fetchSurveyRowBySlug(client, slug, withListedPublicFilter);
   if (!initial) return null;
 
-  if (isParticipationOpen(initial)) {
+  if (isSiteParticipationOpen(initial)) {
     return { row: initial };
   }
 
@@ -209,7 +221,7 @@ async function resolveParticipationSurveyRow(
   while (currentId && hops < 10) {
     const successor = await fetchSurveyRowById(client, currentId);
     if (!successor) break;
-    if (isParticipationOpen(successor)) {
+    if (isSiteParticipationOpen(successor)) {
       return { row: successor, redirectedFromSlug: slug };
     }
     currentId = successor.successor_survey_id ?? null;
@@ -451,8 +463,11 @@ export async function loadSurveyForParticipation(
     if (!resolved) return { ok: false, reason: "not_found" };
 
     const s = resolved.row;
+    if (s.participation_format === "email") {
+      return { ok: false, reason: "invite_only", title: s.title };
+    }
     const status = effectiveSurveyStatus(s);
-    if (!isParticipationOpen(s)) {
+    if (!isSiteParticipationOpen(s)) {
       return {
         ok: false,
         reason: "not_open",
@@ -481,8 +496,11 @@ export async function loadSurveyForParticipation(
   if (!resolved) return { ok: false, reason: "not_found" };
 
   const s = resolved.row;
+  if (s.participation_format === "email") {
+    return { ok: false, reason: "invite_only", title: s.title };
+  }
   const status = effectiveSurveyStatus(s);
-  if (!isParticipationOpen(s)) {
+  if (!isSiteParticipationOpen(s)) {
     return {
       ok: false,
       reason: "not_open",
@@ -496,6 +514,44 @@ export async function loadSurveyForParticipation(
   return resolved.redirectedFromSlug
     ? { ok: true, survey, redirectedFromSlug: resolved.redirectedFromSlug }
     : { ok: true, survey };
+}
+
+/** 이메일 초대 토큰으로 설문 참여 로드 */
+export async function loadSurveyForEmailInvite(
+  slug: string,
+  token: string,
+): Promise<SurveyEmailInviteLoad> {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return { ok: false, reason: "not_found" };
+  }
+
+  const normalized = normalizeSurveyRef(slug);
+  if (!normalized) return { ok: false, reason: "not_found" };
+
+  const invite = await resolveSurveyInviteByToken(token);
+  if (!invite || invite.surveySlug !== normalized) {
+    return { ok: false, reason: "invalid_token" };
+  }
+
+  if (invite.alreadyResponded) {
+    return { ok: false, reason: "already_responded" };
+  }
+
+  const admin = createSupabaseServiceRoleClient();
+  await syncSurveyPeriodStatuses(admin);
+
+  const row = await fetchSurveyRowBySlug(admin, normalized, false);
+  if (!row || row.participation_format !== "email") {
+    return { ok: false, reason: "invalid_token" };
+  }
+
+  const status = effectiveSurveyStatus(row);
+  if (!isEmailPeriodOpen(row)) {
+    return { ok: false, reason: "not_open", title: row.title, status };
+  }
+
+  const survey = await buildSurveyDetail(row, true);
+  return { ok: true, survey, sampleId: invite.sampleId };
 }
 
 export async function getPublicSurveyBySlug(

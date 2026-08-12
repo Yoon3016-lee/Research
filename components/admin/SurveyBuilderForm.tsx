@@ -12,6 +12,10 @@ import {
   toDateOnlyString,
   validateSurveyPeriod,
 } from "@/lib/survey-period";
+import {
+  PARTICIPATION_FORMAT_LABELS,
+  type ParticipationFormat,
+} from "@/lib/survey-participation-format";
 import type { SurveyStatus } from "@/lib/survey-list-types";
 import {
   createDraftQuestion,
@@ -70,7 +74,12 @@ export function SurveyBuilderForm({
     initial?.periodEnd?.trim() || (isEdit ? "" : defaultEnd),
   );
   const [targetCount, setTargetCount] = useState(initial?.targetCount ?? 100);
-  const [listedPublic, setListedPublic] = useState(initial?.listedPublic ?? true);
+  const [listedPublic, setListedPublic] = useState(
+    initial?.participationFormat === "email" ? false : (initial?.listedPublic ?? true),
+  );
+  const [participationFormat, setParticipationFormat] = useState<ParticipationFormat>(
+    initial?.participationFormat ?? "site",
+  );
   const [responseScript, setResponseScript] = useState(initial?.responseScript ?? "");
   const [ksicCode, setKsicCode] = useState(initial?.ksicCode ?? "");
   const [ksicName, setKsicName] = useState(initial?.ksicName ?? "");
@@ -139,11 +148,12 @@ export function SurveyBuilderForm({
 
   const buildPayload = (): CreateSurveyPayload => ({
     title,
+    participationFormat,
     summary,
     periodStart,
     periodEnd,
     targetCount: Number.isFinite(targetCount) ? Math.max(0, Math.floor(targetCount)) : 0,
-    listedPublic,
+    listedPublic: participationFormat === "email" ? false : listedPublic,
     responseScript,
     ksicCode,
     ksicName,
@@ -250,6 +260,53 @@ export function SurveyBuilderForm({
             {questions.length}개를 불러왔습니다. 제목·기간 등은 새로 입력·저장됩니다.
           </p>
         ) : null}
+
+        <div className="mt-5 rounded-xl border border-brand-900/10 bg-surface/60 p-4">
+          <span className="admin-label">설문지 형태 *</span>
+          <div className="mt-3 flex flex-wrap gap-3">
+            {(["site", "email"] as const).map((format) => {
+              const selected = participationFormat === format;
+              return (
+                <label
+                  key={format}
+                  className={`flex min-w-[9rem] cursor-pointer items-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition ${
+                    selected
+                      ? "border-accent-500/50 bg-accent-500/12 text-brand-900 shadow-sm"
+                      : "border-brand-900/10 bg-white text-brand-700 hover:border-accent-500/30"
+                  } ${isEdit && responseCount > 0 ? "cursor-not-allowed opacity-60" : ""}`}
+                >
+                  <input
+                    type="radio"
+                    name="participation_format"
+                    checked={selected}
+                    disabled={isEdit && responseCount > 0}
+                    onChange={() => {
+                      setParticipationFormat(format);
+                      if (format === "email") setListedPublic(false);
+                    }}
+                    className="h-4 w-4 border-brand-900/20 text-accent-600"
+                  />
+                  {PARTICIPATION_FORMAT_LABELS[format]}
+                </label>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-xs leading-relaxed text-brand-700/85">
+            <strong>사이트 형식</strong> — 공개 링크·목록 노출·CATI(전화) 표본.
+            <br />
+            <strong>이메일 형식</strong> — 표본별 초대 링크·메일 발송. 공개 목록에 표시되지
+            않습니다.
+            {isEdit && responseCount > 0 ? (
+              <>
+                <br />
+                <span className="text-amber-800">
+                  응답이 있는 설문은 형식을 변경할 수 없습니다.
+                </span>
+              </>
+            ) : null}
+          </p>
+        </div>
+
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <label className="block sm:col-span-2">
             <span className="admin-label">제목 *</span>
@@ -346,9 +403,10 @@ export function SurveyBuilderForm({
           <label className="flex items-center gap-2 sm:col-span-2">
             <input
               type="checkbox"
-              checked={listedPublic}
+              checked={participationFormat === "email" ? false : listedPublic}
+              disabled={participationFormat === "email"}
               onChange={(e) => setListedPublic(e.target.checked)}
-              className="h-4 w-4 rounded border-brand-900/20 text-accent-600"
+              className="h-4 w-4 rounded border-brand-900/20 text-accent-600 disabled:opacity-50"
             />
             <span className="text-sm text-brand-800">
               공개 사이트 목록에 표시 (진행중·예정). 참여는 진행중일 때만 가능

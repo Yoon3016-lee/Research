@@ -3,6 +3,7 @@ import "server-only";
 import * as XLSX from "xlsx";
 import { normalizeSurveyRef, isUuid } from "@/lib/survey-slug";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
+import { fetchAllPages, fetchAllSurveyResponseAnswers } from "@/lib/supabase-paginate";
 import {
   clampLikertScaleSize,
   isLikertScaleValue,
@@ -395,36 +396,35 @@ async function loadExportDataset(ref: string): Promise<ExportDataset | null> {
     };
   });
 
-  const { data: responseRows, error: rError } = await admin
-    .from("survey_responses")
-    .select("id, submitted_at")
-    .eq("survey_id", survey.id)
-    .order("submitted_at", { ascending: true });
-
-  if (rError) {
-    console.error("[survey-response-export] responses:", rError.message);
+  let responsesRaw: ResponseRow[] = [];
+  try {
+    responsesRaw = await fetchAllPages<ResponseRow>(async (from, to) =>
+      admin
+        .from("survey_responses")
+        .select("id, submitted_at")
+        .eq("survey_id", survey.id)
+        .order("submitted_at", { ascending: true })
+        .range(from, to),
+    );
+  } catch (err) {
+    console.error("[survey-response-export] responses:", err);
     return null;
   }
 
-  const responsesRaw = (responseRows ?? []) as ResponseRow[];
   const responseIds = responsesRaw.map((r) => r.id);
 
   const answersByResponse = new Map<string, Map<string, unknown>>();
   if (responseIds.length > 0) {
-    const { data: answerRows, error: aError } = await admin
-      .from("survey_response_answers")
-      .select("response_id, question_id, answer")
-      .in("response_id", responseIds);
-
-    if (aError) {
-      console.error("[survey-response-export] answers:", aError.message);
-    } else {
-      for (const row of (answerRows ?? []) as AnswerRow[]) {
+    try {
+      const answerRows = await fetchAllSurveyResponseAnswers(admin, responseIds);
+      for (const row of answerRows) {
         const byQuestion =
           answersByResponse.get(row.response_id) ?? new Map<string, unknown>();
         byQuestion.set(row.question_id, row.answer);
         answersByResponse.set(row.response_id, byQuestion);
       }
+    } catch (err) {
+      console.error("[survey-response-export] answers:", err);
     }
   }
 

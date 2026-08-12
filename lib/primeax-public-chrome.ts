@@ -14,7 +14,7 @@ export const PRIMEAX_FOOTER = {
   companyLabel: "PRIME AX",
   companyNameKo: "프라임에이엑스",
   address: "대전광역시 중구 계백로 1719, 센트리아오피스텔 503호",
-  email: "shwa710@naver.com",
+  email: "best@primeax.co.kr",
   webLabel: "primeax.co.kr ↗",
   webHref: "https://www.primeax.co.kr",
   copyright: "© 2026 PRIME AX. ALL RIGHTS RESERVED.",

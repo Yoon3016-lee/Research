@@ -98,11 +98,18 @@ export async function updateSurveyAction(
 
   if (hasResponses) {
     const loaded = await loadSurveyForEdit(normalizedSlug);
-    const existingQuestions =
-      loaded.ok && loaded.bundle ? loaded.bundle.questions : null;
-    const questionsChanged =
-      !existingQuestions ||
-      !surveyQuestionsContentEqual(existingQuestions, payload.questions);
+    if (!loaded.ok || !loaded.bundle) {
+      return {
+        error:
+          "응답이 있는 설문입니다. 문항 비교에 실패해 저장을 중단했습니다. " +
+          "페이지를 새로고침한 뒤 다시 시도하거나, 문항을 변경하지 않았는지 확인하세요.",
+      };
+    }
+    const existingQuestions = loaded.bundle.questions;
+    const questionsChanged = !surveyQuestionsContentEqual(
+      existingQuestions,
+      payload.questions,
+    );
 
     if (questionsChanged) {
       const forkResult = await forkSurveyOnEdit(admin, existing, payload, {
@@ -125,6 +132,10 @@ export async function updateSurveyAction(
     questionsUnchangedWithResponses = true;
   }
 
+  const participationFormat = payload.participationFormat === "email" ? "email" : "site";
+  const listedPublic =
+    participationFormat === "email" ? false : payload.listedPublic;
+
   const { error: updateError } = await admin
     .from("surveys")
     .update({
@@ -135,7 +146,8 @@ export async function updateSurveyAction(
       period_label: periodBuilt.data.periodLabel,
       target_count: Math.max(0, payload.targetCount),
       status: periodBuilt.data.status,
-      listed_public: payload.listedPublic,
+      listed_public: listedPublic,
+      participation_format: participationFormat,
       response_script: payload.responseScript.trim(),
       ksic_code: (payload.ksicCode ?? "").trim(),
       ksic_name: (payload.ksicName ?? "").trim(),

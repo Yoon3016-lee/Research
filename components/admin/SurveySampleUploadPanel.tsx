@@ -15,7 +15,9 @@ import type {
   SurveySampleColumnInfo,
   SurveySampleColumnMapping,
   SurveySampleSpreadsheetPreview,
+  SurveySampleUploadWarnings,
 } from "@/lib/survey-sample-types";
+import type { ParticipationFormat } from "@/lib/survey-participation-format";
 import {
   CheckCircle2,
   Download,
@@ -30,6 +32,8 @@ type Props = {
   slug: string;
   title: string;
   batches: SurveySampleBatchSummary[];
+  participationFormat?: ParticipationFormat;
+  samplesLockedAt?: string | null;
 };
 
 function formatDate(iso: string): string {
@@ -85,15 +89,21 @@ type PreviewColumn = {
 function buildPreviewColumns(
   mapping: SurveySampleColumnMapping,
   columns: SurveySampleColumnInfo[],
+  format: ParticipationFormat,
 ): PreviewColumn[] {
   const defs: { letter: string; role: string }[] = [];
-  const add = (letter: string, role: string) => {
+  const add = (letter: string | undefined, role: string) => {
     if (!letter || defs.some((d) => d.letter === letter)) return;
     defs.push({ letter, role });
   };
   add(mapping.uidColumn, "UID");
-  add(mapping.phoneColumn, "전화");
-  add(mapping.outcomeColumn, "결과");
+  if (format === "email") {
+    add(mapping.emailColumn, "이메일");
+    if (mapping.nameColumn) add(mapping.nameColumn, "이름");
+  } else {
+    add(mapping.phoneColumn, "전화");
+    add(mapping.outcomeColumn, "결과");
+  }
 
   return defs.map(({ letter, role }) => {
     const col = columns.find((c) => c.letter === letter);
@@ -102,7 +112,14 @@ function buildPreviewColumns(
   });
 }
 
-export function SurveySampleUploadPanel({ slug, title, batches }: Props) {
+export function SurveySampleUploadPanel({
+  slug,
+  title,
+  batches,
+  participationFormat = "site",
+  samplesLockedAt = null,
+}: Props) {
+  const isEmail = participationFormat === "email";
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<SurveySampleSpreadsheetPreview | null>(null);
@@ -110,7 +127,12 @@ export function SurveySampleUploadPanel({ slug, title, batches }: Props) {
     uidColumn: "",
     phoneColumn: "",
     outcomeColumn: "",
+    emailColumn: "",
+    nameColumn: "",
   });
+  const [uploadWarnings, setUploadWarnings] = useState<SurveySampleUploadWarnings | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [previewPending, startPreview] = useTransition();
@@ -123,8 +145,8 @@ export function SurveySampleUploadPanel({ slug, title, batches }: Props) {
 
   const activeBatch = batches.find((b) => b.isActive && b.status === "ready") ?? null;
   const previewColumns = useMemo(
-    () => (preview ? buildPreviewColumns(mapping, preview.columns) : []),
-    [preview, mapping],
+    () => (preview ? buildPreviewColumns(mapping, preview.columns, participationFormat) : []),
+    [preview, mapping, participationFormat],
   );
 
   const handleFileChange = (next: File | null) => {
@@ -132,7 +154,14 @@ export function SurveySampleUploadPanel({ slug, title, batches }: Props) {
     setPreview(null);
     setError(null);
     setSuccess(null);
-    setMapping({ uidColumn: "", phoneColumn: "", outcomeColumn: "" });
+    setUploadWarnings(null);
+    setMapping({
+      uidColumn: "",
+      phoneColumn: "",
+      outcomeColumn: "",
+      emailColumn: "",
+      nameColumn: "",
+    });
   };
 
   const handlePreview = () => {
@@ -144,6 +173,7 @@ export function SurveySampleUploadPanel({ slug, title, batches }: Props) {
     setSuccess(null);
     const fd = new FormData();
     fd.set("file", file);
+    fd.set("participation_format", participationFormat);
     startPreview(async () => {
       const result = await previewSurveySampleUploadAction(fd);
       if (!result.ok) {
@@ -153,37 +183,62 @@ export function SurveySampleUploadPanel({ slug, title, batches }: Props) {
       }
       setPreview(result.preview);
       const suggested = result.preview.suggestedColumns;
-      setMapping({
-        uidColumn: suggested?.uidColumn ?? result.preview.columns[0]?.letter ?? "A",
-        phoneColumn: suggested?.phoneColumn ?? result.preview.columns[6]?.letter ?? "G",
-        outcomeColumn: suggested?.outcomeColumn ?? result.preview.columns[9]?.letter ?? "J",
-      });
+      if (isEmail) {
+        setMapping({
+          uidColumn: suggested?.uidColumn ?? result.preview.columns[0]?.letter ?? "A",
+          emailColumn: suggested?.emailColumn ?? result.preview.columns[1]?.letter ?? "B",
+          nameColumn: suggested?.nameColumn ?? "",
+        });
+      } else {
+        setMapping({
+          uidColumn: suggested?.uidColumn ?? result.preview.columns[0]?.letter ?? "A",
+          phoneColumn: suggested?.phoneColumn ?? result.preview.columns[6]?.letter ?? "G",
+          outcomeColumn: suggested?.outcomeColumn ?? result.preview.columns[9]?.letter ?? "J",
+        });
+      }
     });
   };
 
   const handleUpload = () => {
+    if (samplesLockedAt) {
+      setError("이메일 발송 후에는 표본을 다시 업로드할 수 없습니다.");
+      return;
+    }
     if (!file) {
       setError("엑셀 파일을 선택하세요.");
       return;
     }
-    if (!mapping.uidColumn || !mapping.phoneColumn || !mapping.outcomeColumn) {
+    if (isEmail) {
+      if (!mapping.uidColumn || !mapping.emailColumn) {
+        setError("UID·이메일 열을 모두 선택하세요.");
+        return;
+      }
+    } else if (!mapping.uidColumn || !mapping.phoneColumn || !mapping.outcomeColumn) {
       setError("UID·전화번호·결과 열을 모두 선택하세요.");
       return;
     }
     setError(null);
     setSuccess(null);
+    setUploadWarnings(null);
     const fd = new FormData();
     fd.set("slug", slug);
     fd.set("file", file);
+    fd.set("participation_format", participationFormat);
     fd.set("uid_column", mapping.uidColumn);
-    fd.set("phone_column", mapping.phoneColumn);
-    fd.set("outcome_column", mapping.outcomeColumn);
+    if (isEmail) {
+      fd.set("email_column", mapping.emailColumn ?? "");
+      if (mapping.nameColumn) fd.set("name_column", mapping.nameColumn);
+    } else {
+      fd.set("phone_column", mapping.phoneColumn ?? "");
+      fd.set("outcome_column", mapping.outcomeColumn ?? "");
+    }
     startUpload(async () => {
       const result = await uploadSurveySampleBatchAction(fd);
       if (!result.ok) {
         setError(result.error);
         return;
       }
+      setUploadWarnings(result.warnings ?? null);
       setSuccess(
         `버전 ${result.versionNumber} 표본 ${result.rowCount.toLocaleString()}건이 업로드되었습니다.`,
       );
@@ -250,12 +305,18 @@ export function SurveySampleUploadPanel({ slug, title, batches }: Props) {
             <Users className="h-5 w-5" aria-hidden />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="site-eyebrow">CATI Samples</p>
+            <p className="site-eyebrow">{isEmail ? "Email Samples" : "CATI Samples"}</p>
             <h2 className="mt-1 text-lg font-semibold text-brand-900">{title}</h2>
             <p className="mt-1 text-sm text-brand-700/85">
-              조사 대상 표본 엑셀을 업로드합니다. 기존 버전은 보존되며, 새 업로드는 새 버전으로
-              추가됩니다.
+              {isEmail
+                ? "UID·이메일 열이 있는 표본 엑셀을 업로드합니다. 발송결과·응답여부는 시스템이 관리합니다."
+                : "조사 대상 표본 엑셀을 업로드합니다. 기존 버전은 보존되며, 새 업로드는 새 버전으로 추가됩니다."}
             </p>
+            {isEmail && samplesLockedAt ? (
+              <p className="mt-2 text-xs font-medium text-amber-800">
+                이메일 본 발송 후 표본 재업로드가 잠겼습니다.
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -268,8 +329,17 @@ export function SurveySampleUploadPanel({ slug, title, batches }: Props) {
                   {activeBatch.rowCount.toLocaleString()}건)
                 </p>
                 <p className="mt-1 text-xs text-emerald-900/85">
-                  UID 열: {activeBatch.uidColumn} · 전화: {activeBatch.phoneColumn} · 결과:{" "}
-                  {activeBatch.outcomeColumn}
+                  {isEmail ? (
+                    <>
+                      UID: {activeBatch.uidColumn} · 이메일: {activeBatch.emailColumn ?? "-"}
+                      {activeBatch.nameColumn ? ` · 이름: ${activeBatch.nameColumn}` : null}
+                    </>
+                  ) : (
+                    <>
+                      UID 열: {activeBatch.uidColumn} · 전화: {activeBatch.phoneColumn} · 결과:{" "}
+                      {activeBatch.outcomeColumn}
+                    </>
+                  )}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -298,7 +368,9 @@ export function SurveySampleUploadPanel({ slug, title, batches }: Props) {
           </div>
         ) : (
           <p className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-            적용된 표본이 없습니다. 엑셀을 업로드하면 조사원 CATI 화면에서 사용할 수 있습니다.
+            {isEmail
+              ? "적용된 표본이 없습니다. 엑셀을 업로드한 뒤 배포 관리에서 이메일을 발송하세요."
+              : "적용된 표본이 없습니다. 엑셀을 업로드하면 조사원 CATI 화면에서 사용할 수 있습니다."}
           </p>
         )}
       </section>
@@ -309,8 +381,9 @@ export function SurveySampleUploadPanel({ slug, title, batches }: Props) {
           엑셀 업로드
         </h3>
         <p className="mt-1 text-sm text-brand-700/85">
-          UID·전화번호·결과 열만 지정하면 됩니다. UID가 있는 행만 표본으로 저장되며, 빈 행과
-          &quot;UID&quot; 라벨 행은 자동으로 건너뜁니다.
+          {isEmail
+            ? "UID·이메일 열을 지정하세요. 이름 열은 메일 머지 `(OOO님)` / {{이름}}용 선택 항목입니다."
+            : "UID·전화번호·결과 열만 지정하면 됩니다. UID가 있는 행만 표본으로 저장됩니다."}
         </p>
 
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -352,28 +425,52 @@ export function SurveySampleUploadPanel({ slug, title, batches }: Props) {
                 label="UID 열 *"
                 value={mapping.uidColumn}
                 columns={preview.columns}
-                disabled={uploadPending}
+                disabled={uploadPending || Boolean(samplesLockedAt)}
                 onChange={(uidColumn) => setMapping((prev) => ({ ...prev, uidColumn }))}
               />
-              <ColumnSelect
-                label="전화번호 열 *"
-                value={mapping.phoneColumn}
-                columns={preview.columns}
-                disabled={uploadPending}
-                onChange={(phoneColumn) => setMapping((prev) => ({ ...prev, phoneColumn }))}
-              />
-              <ColumnSelect
-                label="결과 기록 열 *"
-                value={mapping.outcomeColumn}
-                columns={preview.columns}
-                disabled={uploadPending}
-                onChange={(outcomeColumn) => setMapping((prev) => ({ ...prev, outcomeColumn }))}
-              />
+              {isEmail ? (
+                <>
+                  <ColumnSelect
+                    label="이메일 열 *"
+                    value={mapping.emailColumn ?? ""}
+                    columns={preview.columns}
+                    disabled={uploadPending || Boolean(samplesLockedAt)}
+                    onChange={(emailColumn) => setMapping((prev) => ({ ...prev, emailColumn }))}
+                  />
+                  <ColumnSelect
+                    label="이름 열 (선택)"
+                    value={mapping.nameColumn ?? ""}
+                    columns={preview.columns}
+                    disabled={uploadPending || Boolean(samplesLockedAt)}
+                    onChange={(nameColumn) => setMapping((prev) => ({ ...prev, nameColumn }))}
+                  />
+                </>
+              ) : (
+                <>
+                  <ColumnSelect
+                    label="전화번호 열 *"
+                    value={mapping.phoneColumn ?? ""}
+                    columns={preview.columns}
+                    disabled={uploadPending}
+                    onChange={(phoneColumn) => setMapping((prev) => ({ ...prev, phoneColumn }))}
+                  />
+                  <ColumnSelect
+                    label="결과 기록 열 *"
+                    value={mapping.outcomeColumn ?? ""}
+                    columns={preview.columns}
+                    disabled={uploadPending}
+                    onChange={(outcomeColumn) =>
+                      setMapping((prev) => ({ ...prev, outcomeColumn }))
+                    }
+                  />
+                </>
+              )}
             </div>
 
             <p className="text-xs text-brand-700/80">
-              조사원이 UID를 입력하면 전화번호 열 값을 보여 주고, 통화 결과는 결과 기록 열에
-              저장됩니다.
+              {isEmail
+                ? "같은 이메일·다른 UID는 경고만 표시됩니다. UID 중복 시 업로드가 거부됩니다."
+                : "조사원이 UID를 입력하면 전화번호 열 값을 보여 주고, 통화 결과는 결과 기록 열에 저장됩니다."}
             </p>
 
             <div className="overflow-x-auto rounded-xl border border-brand-900/8">
@@ -405,9 +502,9 @@ export function SurveySampleUploadPanel({ slug, title, batches }: Props) {
 
             <button
               type="button"
-              disabled={uploadPending}
+              disabled={uploadPending || Boolean(samplesLockedAt)}
               onClick={handleUpload}
-              className="admin-btn-primary inline-flex items-center gap-2 px-5 py-2.5"
+              className="admin-btn-primary inline-flex items-center gap-2 px-5 py-2.5 disabled:opacity-55"
             >
               {uploadPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -427,6 +524,16 @@ export function SurveySampleUploadPanel({ slug, title, batches }: Props) {
         {success ? (
           <p className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900" role="status">
             {success}
+          </p>
+        ) : null}
+        {uploadWarnings?.duplicateEmails.length ? (
+          <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            주의: 동일 이메일이 다른 UID에 {uploadWarnings.duplicateEmails.length}건 있습니다.
+          </p>
+        ) : null}
+        {uploadWarnings?.invalidEmails.length ? (
+          <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            이메일 형식 오류 {uploadWarnings.invalidEmails.length}건 — 발송 전 목록에서 확인하세요.
           </p>
         ) : null}
       </section>

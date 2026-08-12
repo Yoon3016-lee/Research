@@ -9,7 +9,10 @@ import type {
   SurveySampleColumnMapping,
   SurveySamplePreviewRow,
   SurveySampleSpreadsheetPreview,
+  SurveySampleUploadWarnings,
 } from "@/lib/survey-sample-types";
+import { isValidEmailAddress } from "@/lib/survey-email-shared";
+import type { ParticipationFormat } from "@/lib/survey-participation-format";
 
 const MAX_PREVIEW_ROWS = 8;
 const MAX_UPLOAD_ROWS = 50_000;
@@ -99,7 +102,10 @@ function listScannedRows(matrix: Matrix): {
   return { rows, excelRowIndexes };
 }
 
-function assertMapping(mapping: SurveySampleColumnMapping, columns: SurveySampleColumnInfo[]): void {
+function assertSiteMapping(mapping: SurveySampleColumnMapping, columns: SurveySampleColumnInfo[]): void {
+  if (!mapping.phoneColumn || !mapping.outcomeColumn) {
+    throw new Error("UID·전화번호·결과 열을 모두 선택하세요.");
+  }
   for (const [role, letter] of [
     ["UID", mapping.uidColumn],
     ["전화번호", mapping.phoneColumn],
@@ -117,6 +123,47 @@ function assertMapping(mapping: SurveySampleColumnMapping, columns: SurveySample
   const letters = [mapping.uidColumn, mapping.phoneColumn, mapping.outcomeColumn];
   if (new Set(letters).size !== letters.length) {
     throw new Error("UID·전화번호·결과 열은 서로 다른 열이어야 합니다.");
+  }
+}
+
+function assertEmailMapping(mapping: SurveySampleColumnMapping, columns: SurveySampleColumnInfo[]): void {
+  if (!mapping.emailColumn) {
+    throw new Error("UID·이메일 열을 모두 선택하세요.");
+  }
+  for (const [role, letter] of [
+    ["UID", mapping.uidColumn],
+    ["이메일", mapping.emailColumn],
+  ] as const) {
+    if (!isValidColumnLetter(letter)) {
+      throw new Error(`${role} 열(${letter})이 올바른 Excel 열 문자가 아닙니다.`);
+    }
+    const index = columnLetterToIndex(letter);
+    if (index >= columns.length) {
+      throw new Error(`${role} 열 ${letter}은(는) 이 파일에 존재하지 않습니다.`);
+    }
+  }
+
+  const letters = [mapping.uidColumn, mapping.emailColumn];
+  if (mapping.nameColumn) {
+    if (!isValidColumnLetter(mapping.nameColumn)) {
+      throw new Error(`이름 열(${mapping.nameColumn})이 올바른 Excel 열 문자가 아닙니다.`);
+    }
+    letters.push(mapping.nameColumn);
+  }
+  if (new Set(letters).size !== letters.length) {
+    throw new Error("UID·이메일·이름 열은 서로 달라야 합니다.");
+  }
+}
+
+function assertMapping(
+  mapping: SurveySampleColumnMapping,
+  columns: SurveySampleColumnInfo[],
+  format: ParticipationFormat,
+): void {
+  if (format === "email") {
+    assertEmailMapping(mapping, columns);
+  } else {
+    assertSiteMapping(mapping, columns);
   }
 }
 
@@ -146,6 +193,7 @@ function findLabelRow(matrix: Matrix, uidColumnIndex: number): Matrix[number] | 
 export function guessSurveySampleColumns(
   matrix: Matrix,
   columns: SurveySampleColumnInfo[],
+  format: ParticipationFormat = "site",
 ): SurveySampleColumnMapping {
   const uidIndex = columnLetterToIndex("A");
   const labelRow = uidIndex >= 0 ? findLabelRow(matrix, uidIndex) : null;
@@ -161,6 +209,14 @@ export function guessSurveySampleColumns(
     }
     return columns[fallbackIndex]?.letter ?? columns[0]?.letter ?? "A";
   };
+
+  if (format === "email") {
+    return {
+      uidColumn: find([/^uid$/, /고유/, /식별/, /표본/, /id$/], 0),
+      emailColumn: find([/email/, /이메일/, /메일/, /e-mail/], 1),
+      nameColumn: find([/이름/, /성명/, /name/], 2),
+    };
+  }
 
   return {
     uidColumn: find([/^uid$/, /고유/, /식별/, /표본/, /id$/], 0),
@@ -184,7 +240,10 @@ function countImportableRows(
   return count;
 }
 
-export function parseSurveySampleSpreadsheet(buffer: Buffer): SurveySampleSpreadsheetPreview {
+export function parseSurveySampleSpreadsheet(
+  buffer: Buffer,
+  format: ParticipationFormat = "site",
+): SurveySampleSpreadsheetPreview {
   const matrix = readSpreadsheetMatrix(buffer);
   const columns = buildColumnInfos(matrix);
   const { rows: dataRows, excelRowIndexes } = listScannedRows(matrix);
@@ -193,7 +252,7 @@ export function parseSurveySampleSpreadsheet(buffer: Buffer): SurveySampleSpread
     throw new Error("엑셀에 읽을 수 있는 행이 없습니다.");
   }
 
-  const suggested = guessSurveySampleColumns(matrix, columns);
+  const suggested = guessSurveySampleColumns(matrix, columns, format);
   const importableRows = countImportableRows(dataRows, excelRowIndexes, suggested, columns);
 
   const previewDataRows: SurveySamplePreviewRow[] = [];
@@ -216,21 +275,48 @@ export function parseSurveySampleSpreadsheet(buffer: Buffer): SurveySampleSpread
   };
 }
 
+export function collectEmailUploadWarnings(
+  rows: { rowIndex: number; uid: string; email: string }[],
+): SurveySampleUploadWarnings {
+  const byEmail = new Map<string, string[]>();
+  const invalidEmails: SurveySampleUploadWarnings["invalidEmails"] = [];
+
+  for (const row of rows) {
+    const email = row.email.trim().toLowerCase();
+    if (!isValidEmailAddress(row.email)) {
+      invalidEmails.push({ uid: row.uid, email: row.email, rowIndex: row.rowIndex });
+    }
+    if (!email) continue;
+    const list = byEmail.get(email) ?? [];
+    list.push(row.uid);
+    byEmail.set(email, list);
+  }
+
+  const duplicateEmails = [...byEmail.entries()]
+    .filter(([, uids]) => uids.length > 1)
+    .map(([email, uids]) => ({ email, uids: [...new Set(uids)] }));
+
+  return { duplicateEmails, invalidEmails };
+}
+
 export function buildSurveySampleRows(
   buffer: Buffer,
   mapping: SurveySampleColumnMapping,
+  format: ParticipationFormat = "site",
 ): {
   columns: SurveySampleColumnInfo[];
   rows: {
     rowIndex: number;
     uid: string;
     phone: string;
+    email: string;
     rowData: Record<string, string>;
   }[];
+  warnings?: SurveySampleUploadWarnings;
 } {
   const matrix = readSpreadsheetMatrix(buffer);
   const columns = buildColumnInfos(matrix);
-  assertMapping(mapping, columns);
+  assertMapping(mapping, columns, format);
 
   const { rows: dataRows, excelRowIndexes } = listScannedRows(matrix);
 
@@ -239,10 +325,12 @@ export function buildSurveySampleRows(
   }
 
   const seenUids = new Map<string, number>();
+  const duplicateUidList: string[] = [];
   const rows: {
     rowIndex: number;
     uid: string;
     phone: string;
+    email: string;
     rowData: Record<string, string>;
   }[] = [];
 
@@ -250,7 +338,8 @@ export function buildSurveySampleRows(
     const row = dataRows[i];
     const rowData = buildRowCells(row, columns);
     const uid = rowData[mapping.uidColumn] ?? "";
-    const phone = rowData[mapping.phoneColumn] ?? "";
+    const phone = format === "site" ? (rowData[mapping.phoneColumn ?? ""] ?? "") : "";
+    const email = format === "email" ? (rowData[mapping.emailColumn ?? ""] ?? "") : "";
     const excelRowIndex = excelRowIndexes[i];
 
     if (!shouldImportRow(uid)) {
@@ -259,7 +348,8 @@ export function buildSurveySampleRows(
 
     const prevRow = seenUids.get(uid);
     if (prevRow != null) {
-      throw new Error(`UID "${uid}"가 ${prevRow}행과 ${excelRowIndex}행에 중복됩니다.`);
+      if (!duplicateUidList.includes(uid)) duplicateUidList.push(uid);
+      continue;
     }
     seenUids.set(uid, excelRowIndex);
 
@@ -267,8 +357,15 @@ export function buildSurveySampleRows(
       rowIndex: excelRowIndex,
       uid,
       phone,
+      email,
       rowData,
     });
+  }
+
+  if (duplicateUidList.length > 0) {
+    throw new Error(
+      `UID가 중복되어 업로드할 수 없습니다. 중복 UID: ${duplicateUidList.join(", ")}`,
+    );
   }
 
   if (rows.length === 0) {
@@ -281,7 +378,11 @@ export function buildSurveySampleRows(
     throw new Error(`한 번에 업로드할 수 있는 행 수는 ${MAX_UPLOAD_ROWS.toLocaleString()}건입니다.`);
   }
 
-  return { columns, rows };
+  const result: ReturnType<typeof buildSurveySampleRows> = { columns, rows };
+  if (format === "email") {
+    result.warnings = collectEmailUploadWarnings(rows);
+  }
+  return result;
 }
 
 export function serializeColumnHeaders(columns: SurveySampleColumnInfo[]): string[] {

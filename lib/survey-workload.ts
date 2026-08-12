@@ -3,6 +3,7 @@ import "server-only";
 import { isStaffRole, ROLE_LABELS, type StaffRole } from "@/lib/roles";
 import { normalizeSurveyRef, isUuid } from "@/lib/survey-slug";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
+import { fetchAllPages } from "@/lib/supabase-paginate";
 
 export type StaffWorkloadRow = {
   userId: string;
@@ -129,17 +130,20 @@ export async function getSurveyWorkload(ref: string): Promise<SurveyWorkloadStat
   if (!survey) return null;
 
   const admin = createSupabaseServiceRoleClient();
-  const { data: rows, error } = await admin
-    .from("survey_responses")
-    .select("respondent_user_id, respondent_kind")
-    .eq("survey_id", survey.id);
-
-  if (error) {
-    console.error("[getSurveyWorkload]", error.message);
+  let responseRows: ResponseRow[] = [];
+  try {
+    responseRows = await fetchAllPages<ResponseRow>(async (from, to) =>
+      admin
+        .from("survey_responses")
+        .select("respondent_user_id, respondent_kind")
+        .eq("survey_id", survey.id)
+        .order("submitted_at", { ascending: true })
+        .range(from, to),
+    );
+  } catch (err) {
+    console.error("[getSurveyWorkload]", err);
     return null;
   }
-
-  const responseRows = (rows ?? []) as ResponseRow[];
   const staffUserIds = [
     ...new Set(
       responseRows

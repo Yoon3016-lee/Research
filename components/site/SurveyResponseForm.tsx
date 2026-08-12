@@ -40,6 +40,8 @@ type Props = {
   isStaff: boolean;
   sampleId?: string;
   catiMode?: boolean;
+  emailMode?: boolean;
+  inviteToken?: string;
   viewMode?: SurveyViewMode;
   onCatiSubmitted?: () => void;
   initialAnswers?: SurveyAnswerInput[];
@@ -119,6 +121,8 @@ export function SurveyResponseForm({
   isStaff,
   sampleId,
   catiMode = false,
+  emailMode = false,
+  inviteToken,
   viewMode = "paged",
   onCatiSubmitted,
   initialAnswers,
@@ -442,21 +446,31 @@ export function SurveyResponseForm({
       scrollToActiveQuestion();
       return;
     }
+
+    if (emailMode) {
+      const ok = confirm(
+        "제출 후에는 응답을 수정할 수 없으며, 이 링크로 다시 접속할 수 없습니다.\n\n정말 제출하시겠습니까?",
+      );
+      if (!ok) return;
+    }
+
     setError(null);
     startTransition(async () => {
       const submitAfter = catiMode ? "stay" : after;
-      const result = await submitSurveyResponseAction(
-        survey.slug,
-        answers,
-        submitAfter,
+      const result = await submitSurveyResponseAction(survey.slug, answers, submitAfter, {
         sampleId,
-      );
+        inviteToken,
+      });
       if (result.error) {
         setError(result.error);
         return;
       }
       if (catiMode) {
         onCatiSubmitted?.();
+        return;
+      }
+      if (result.ok && (result.after === "thanks" || emailMode)) {
+        router.push(`/survey/${survey.slug}/thanks?email=1`);
         return;
       }
       if (after === "list") {
@@ -544,6 +558,15 @@ export function SurveyResponseForm({
       type="button"
       disabled={pending || pausePending}
       onClick={() => submit("stay")}
+      className="rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-60"
+    >
+      {pending ? "제출 중…" : "제출하기"}
+    </button>
+  ) : emailMode ? (
+    <button
+      type="button"
+      disabled={pending}
+      onClick={() => submit("thanks")}
       className="rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-60"
     >
       {pending ? "제출 중…" : "제출하기"}

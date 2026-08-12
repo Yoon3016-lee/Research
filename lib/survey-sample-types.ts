@@ -15,6 +15,8 @@ export type SurveySampleBatchSummary = {
   uidColumn: string;
   phoneColumn: string;
   outcomeColumn: string;
+  emailColumn?: string | null;
+  nameColumn?: string | null;
   columnHeaders: string[];
   rowCount: number;
   status: SurveySampleBatchStatus;
@@ -43,8 +45,16 @@ export type SurveySampleSpreadsheetPreview = {
 export type SurveySampleColumnMapping = {
   /** Excel 열 문자 — 예: A, E, H */
   uidColumn: string;
-  phoneColumn: string;
-  outcomeColumn: string;
+  phoneColumn?: string;
+  outcomeColumn?: string;
+  /** 이메일 형식 */
+  emailColumn?: string;
+  nameColumn?: string;
+};
+
+export type SurveySampleUploadWarnings = {
+  duplicateEmails: { email: string; uids: string[] }[];
+  invalidEmails: { uid: string; email: string; rowIndex: number }[];
 };
 
 export type SurveySampleUploadResult =
@@ -53,6 +63,7 @@ export type SurveySampleUploadResult =
       batchId: string;
       versionNumber: number;
       rowCount: number;
+      warnings?: SurveySampleUploadWarnings;
     }
   | { ok: false; error: string };
 
@@ -67,6 +78,8 @@ export type SurveySampleBatchDataPreview = {
   uidColumn: string;
   phoneColumn: string;
   outcomeColumn: string;
+  emailColumn?: string | null;
+  nameColumn?: string | null;
   columnHeaders: string[];
   totalRows: number;
   rows: SurveySamplePreviewRow[];

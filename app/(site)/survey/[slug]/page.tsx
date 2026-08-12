@@ -40,6 +40,20 @@ export default async function SurveyParticipatePage({ params }: Props) {
     notFound();
   }
 
+  if (!loaded.ok && loaded.reason === "invite_only") {
+    return (
+      <SiteContainer as="main" width="narrow" className="py-16 sm:py-20">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
+          <h1 className="font-semibold text-zinc-900">초대 링크로만 참여 가능합니다</h1>
+          <p className="mt-2 text-zinc-600">
+            「{loaded.title}」은(는) 이메일로 발송된 개인 초대 링크를 통해서만 참여할 수
+            있습니다.
+          </p>
+        </div>
+      </SiteContainer>
+    );
+  }
+
   if (!loaded.ok && loaded.reason === "not_open") {
     return (
       <SiteContainer as="main" width="narrow" className="py-16 sm:py-20">

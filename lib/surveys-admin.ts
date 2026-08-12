@@ -18,6 +18,7 @@ export type SurveyEditBundle = CreateSurveyPayload & {
   status: string;
   successorSlug: string | null;
   supersedesSlug: string | null;
+  samplesLockedAt: string | null;
 };
 
 export type SurveyEditLoad =
@@ -35,12 +36,14 @@ type SurveyRow = {
   target_count: number;
   status: string;
   listed_public: boolean;
+  participation_format?: string | null;
   response_count: number;
   response_script: string;
   ksic_code?: string | null;
   ksic_name?: string | null;
   successor_survey_id?: string | null;
   supersedes_survey_id?: string | null;
+  samples_locked_at?: string | null;
 };
 
 type QuestionRow = {
@@ -79,7 +82,7 @@ async function fetchSurveyRow(
   }
 
   const select =
-    "id, slug, title, summary, period_label, period_start, period_end, target_count, status, listed_public, response_count, response_script, ksic_code, ksic_name, successor_survey_id, supersedes_survey_id";
+    "id, slug, title, summary, period_label, period_start, period_end, target_count, status, listed_public, participation_format, samples_locked_at, response_count, response_script, ksic_code, ksic_name, successor_survey_id, supersedes_survey_id";
 
   const bySlug = await admin.from("surveys").select(select).eq("slug", normalized).maybeSingle();
   if (bySlug.error) {
@@ -423,6 +426,9 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
       periodEnd: normalizeStoredDate(surveyRow.period_end),
       targetCount: surveyRow.target_count,
       listedPublic: surveyRow.listed_public,
+      participationFormat:
+        surveyRow.participation_format === "email" ? "email" : "site",
+      samplesLockedAt: (surveyRow.samples_locked_at as string | null) ?? null,
       responseScript: surveyRow.response_script ?? "",
       ksicCode: surveyRow.ksic_code ?? "",
       ksicName: surveyRow.ksic_name ?? "",

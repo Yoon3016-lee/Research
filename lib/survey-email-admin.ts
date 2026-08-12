@@ -1,0 +1,347 @@
+import "server-only";
+
+import { mergeEmailBody } from "@/lib/survey-email-merge";
+import type { EmailSampleRow } from "@/lib/survey-email-shared";
+import { sendPlainTextEmail } from "@/lib/survey-email-send";
+import { ensureBatchInviteTokens } from "@/lib/survey-invite-token";
+import type { ParticipationFormat } from "@/lib/survey-participation-format";
+import type { SurveySampleUploadWarnings } from "@/lib/survey-sample-types";
+import { isUuid, normalizeSurveyRef } from "@/lib/survey-slug";
+import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
+
+export type { EmailSampleRow } from "@/lib/survey-email-shared";
+
+export type EmailSampleListResult = {
+  surveyId: string;
+  samplesLockedAt: string | null;
+  batchId: string | null;
+  nameColumn: string | null;
+  rows: EmailSampleRow[];
+};
+
+async function resolveSurveyId(ref: string): Promise<string | null> {
+  const admin = createSupabaseServiceRoleClient();
+  const normalized = normalizeSurveyRef(ref);
+  if (!normalized) return null;
+
+  let query = admin.from("surveys").select("id");
+  query = isUuid(normalized) ? query.eq("id", normalized) : query.eq("slug", normalized);
+
+  const { data, error } = await query.maybeSingle();
+  if (error || !data) return null;
+  return data.id as string;
+}
+
+export async function getSurveySamplesLockedAt(
+  surveyRef: string,
+): Promise<string | null> {
+  const surveyId = await resolveSurveyId(surveyRef);
+  if (!surveyId) return null;
+
+  const admin = createSupabaseServiceRoleClient();
+  const { data } = await admin
+    .from("surveys")
+    .select("samples_locked_at")
+    .eq("id", surveyId)
+    .maybeSingle();
+
+  return (data?.samples_locked_at as string | null) ?? null;
+}
+
+export async function listEmailSurveySamples(
+  surveyRef: string,
+): Promise<EmailSampleListResult | null> {
+  const surveyId = await resolveSurveyId(surveyRef);
+  if (!surveyId) return null;
+
+  const admin = createSupabaseServiceRoleClient();
+
+  const { data: survey } = await admin
+    .from("surveys")
+    .select("samples_locked_at")
+    .eq("id", surveyId)
+    .maybeSingle();
+
+  const { data: batch } = await admin
+    .from("survey_sample_batches")
+    .select("id, name_column")
+    .eq("survey_id", surveyId)
+    .eq("is_active", true)
+    .eq("status", "ready")
+    .maybeSingle();
+
+  if (!batch) {
+    return {
+      surveyId,
+      samplesLockedAt: (survey?.samples_locked_at as string | null) ?? null,
+      batchId: null,
+      nameColumn: null,
+      rows: [],
+    };
+  }
+
+  const { data: samples, error } = await admin
+    .from("survey_samples")
+    .select("id, uid, email, invite_token, send_status, send_error, sent_at, row_data")
+    .eq("batch_id", batch.id as string)
+    .order("row_index", { ascending: true });
+
+  if (error || !samples) {
+    return {
+      surveyId,
+      samplesLockedAt: (survey?.samples_locked_at as string | null) ?? null,
+      batchId: batch.id as string,
+      nameColumn: (batch.name_column as string | null) ?? null,
+      rows: [],
+    };
+  }
+
+  const sampleIds = samples.map((s) => s.id as string);
+  const respondedIds = new Set<string>();
+  if (sampleIds.length > 0) {
+    const { data: responses } = await admin
+      .from("survey_responses")
+      .select("sample_id")
+      .in("sample_id", sampleIds);
+    for (const r of responses ?? []) {
+      if (r.sample_id) respondedIds.add(r.sample_id as string);
+    }
+  }
+
+  const rows: EmailSampleRow[] = samples.map((s) => {
+    const rowData =
+      s.row_data && typeof s.row_data === "object"
+        ? Object.fromEntries(
+            Object.entries(s.row_data as Record<string, unknown>).map(([k, v]) => [
+              k,
+              v == null ? "" : String(v),
+            ]),
+          )
+        : {};
+    return {
+      id: s.id as string,
+      uid: String(s.uid ?? ""),
+      email: String(s.email ?? ""),
+      inviteToken: (s.invite_token as string | null) ?? null,
+      sendStatus: (s.send_status as EmailSampleRow["sendStatus"]) ?? "pending",
+      sendError: (s.send_error as string | null) ?? null,
+      sentAt: (s.sent_at as string | null) ?? null,
+      responded: respondedIds.has(s.id as string),
+      rowData,
+    };
+  });
+
+  return {
+    surveyId,
+    samplesLockedAt: (survey?.samples_locked_at as string | null) ?? null,
+    batchId: batch.id as string,
+    nameColumn: (batch.name_column as string | null) ?? null,
+    rows,
+  };
+}
+
+export async function previewEmailForSample(params: {
+  surveySlug: string;
+  template: string;
+  sampleId: string;
+}): Promise<{ ok: true; body: string } | { ok: false; error: string }> {
+  const admin = createSupabaseServiceRoleClient();
+  const { data: sample, error } = await admin
+    .from("survey_samples")
+    .select("id, uid, invite_token, row_data, batch_id, survey_id")
+    .eq("id", params.sampleId)
+    .maybeSingle();
+
+  if (error || !sample?.invite_token) {
+    return { ok: false, error: "표본 또는 초대 링크를 찾을 수 없습니다." };
+  }
+
+  const [{ data: survey }, { data: batch }] = await Promise.all([
+    admin.from("surveys").select("slug").eq("id", sample.survey_id as string).maybeSingle(),
+    admin
+      .from("survey_sample_batches")
+      .select("name_column")
+      .eq("id", sample.batch_id as string)
+      .maybeSingle(),
+  ]);
+
+  const slug = (survey?.slug as string | undefined) ?? params.surveySlug;
+  const rowData =
+    sample.row_data && typeof sample.row_data === "object"
+      ? Object.fromEntries(
+          Object.entries(sample.row_data as Record<string, unknown>).map(([k, v]) => [
+            k,
+            v == null ? "" : String(v),
+          ]),
+        )
+      : {};
+
+  const body = await mergeEmailBody(params.template, {
+    slug,
+    token: sample.invite_token as string,
+    uid: String(sample.uid ?? ""),
+    nameColumn: (batch?.name_column as string | null) ?? null,
+    rowData,
+  });
+
+  return { ok: true, body };
+}
+
+export type BulkEmailSendResult = {
+  sent: number;
+  failed: number;
+  skippedNoLink: number;
+  errors: string[];
+};
+
+export async function sendSurveyBulkEmails(params: {
+  surveyRef: string;
+  subject: string;
+  template: string;
+  createdBy: string;
+  kind: "test" | "bulk";
+  testSampleId?: string;
+  confirmMissingLinks?: boolean;
+}): Promise<
+  | { ok: true; result: BulkEmailSendResult; warnings?: string[] }
+  | { ok: false; error: string; missingLinkCount?: number }
+> {
+  const surveyId = await resolveSurveyId(params.surveyRef);
+  if (!surveyId) return { ok: false, error: "설문을 찾을 수 없습니다." };
+
+  const admin = createSupabaseServiceRoleClient();
+  const { data: survey } = await admin
+    .from("surveys")
+    .select("slug, participation_format, samples_locked_at")
+    .eq("id", surveyId)
+    .maybeSingle();
+
+  if (!survey || survey.participation_format !== "email") {
+    return { ok: false, error: "이메일 형식 설문이 아닙니다." };
+  }
+
+  const list = await listEmailSurveySamples(params.surveyRef);
+  if (!list?.batchId) {
+    return { ok: false, error: "활성 표본 배치가 없습니다." };
+  }
+
+  let targets = list.rows;
+  if (params.kind === "test") {
+    if (!params.testSampleId) {
+      return { ok: false, error: "테스트 발송할 표본을 선택하세요." };
+    }
+    targets = targets.filter((r) => r.id === params.testSampleId);
+    if (targets.length === 0) {
+      return { ok: false, error: "선택한 표본을 찾을 수 없습니다." };
+    }
+  }
+
+  const missingLinkCount = targets.filter((r) => !r.inviteToken).length;
+  if (missingLinkCount > 0 && !params.confirmMissingLinks) {
+    return {
+      ok: false,
+      error: `${missingLinkCount}건의 링크가 없습니다.`,
+      missingLinkCount,
+    };
+  }
+
+  const result: BulkEmailSendResult = {
+    sent: 0,
+    failed: 0,
+    skippedNoLink: 0,
+    errors: [],
+  };
+
+  for (const row of targets) {
+    if (!row.inviteToken) {
+      result.skippedNoLink++;
+      continue;
+    }
+    if (!row.email.trim()) {
+      result.failed++;
+      result.errors.push(`${row.uid}: 이메일 없음`);
+      continue;
+    }
+
+    const body = await mergeEmailBody(params.template, {
+      slug: survey.slug as string,
+      token: row.inviteToken,
+      uid: row.uid,
+      nameColumn: list.nameColumn,
+      rowData: row.rowData,
+    });
+
+    const sendResult = await sendPlainTextEmail({
+      to: row.email,
+      subject: params.subject,
+      text: body,
+    });
+
+    await admin.from("survey_email_sends").insert({
+      survey_id: surveyId,
+      batch_id: list.batchId,
+      sample_id: row.id,
+      kind: params.kind,
+      recipient_email: row.email,
+      subject: params.subject,
+      body,
+      status: sendResult.ok ? "sent" : "failed",
+      error_message: sendResult.ok ? null : sendResult.error,
+      sent_at: sendResult.ok ? new Date().toISOString() : null,
+      created_by: params.createdBy,
+    });
+
+    if (sendResult.ok) {
+      result.sent++;
+      if (params.kind === "bulk") {
+        await admin
+          .from("survey_samples")
+          .update({
+            send_status: "sent",
+            send_error: null,
+            sent_at: new Date().toISOString(),
+          })
+          .eq("id", row.id);
+      }
+    } else {
+      result.failed++;
+      result.errors.push(`${row.uid}: ${sendResult.error}`);
+      if (params.kind === "bulk") {
+        await admin
+          .from("survey_samples")
+          .update({
+            send_status: "failed",
+            send_error: sendResult.error,
+          })
+          .eq("id", row.id);
+      }
+    }
+  }
+
+  if (params.kind === "bulk" && result.sent > 0 && !survey.samples_locked_at) {
+    await admin
+      .from("surveys")
+      .update({ samples_locked_at: new Date().toISOString() })
+      .eq("id", surveyId);
+  }
+
+  return { ok: true, result };
+}
+
+export type { SurveySampleUploadWarnings };
+
+export async function getSurveyParticipationFormat(
+  surveyRef: string,
+): Promise<ParticipationFormat> {
+  const surveyId = await resolveSurveyId(surveyRef);
+  if (!surveyId) return "site";
+
+  const admin = createSupabaseServiceRoleClient();
+  const { data } = await admin
+    .from("surveys")
+    .select("participation_format")
+    .eq("id", surveyId)
+    .maybeSingle();
+
+  return data?.participation_format === "email" ? "email" : "site";
+}

@@ -3,6 +3,7 @@ import "server-only";
 import { randomUUID } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CreateSurveyPayload, DraftQuestion } from "@/lib/survey-types";
+import { clampLikertScaleSize, normalizeLikertScaleLabels } from "@/lib/likert-scale";
 import { buildSurveyPeriodPersist } from "@/lib/survey-period";
 import { persistSurveyQuestions } from "@/lib/survey-persist";
 import { cloneQuestionsAsTemplate } from "@/lib/survey-template";
@@ -41,7 +42,7 @@ export function makeSurveySlugFromTitle(title: string): string {
 
 /**
  * 응답 보존을 위해 문항 구조·내용이 바뀌었는지 비교합니다.
- * 제목·기간 등 설문 메타는 제외합니다.
+ * 제목·기간 등 설문 메타와 문항 UUID(clientId)는 제외합니다.
  */
 export function surveyQuestionsContentEqual(
   a: DraftQuestion[],
@@ -57,11 +58,28 @@ export function surveyQuestionsContentEqual(
 }
 
 function normalizeQuestionFingerprint(q: DraftQuestion): string {
+  const type = q.type;
   const options = (q.options ?? []).map((o) => o.trim());
+  const nonEmptyOptions = options.filter(Boolean);
   const ends = q.optionEndsSurvey ?? [];
+
+  let maxSelections: number | null = q.maxSelections ?? null;
+  let likertScaleLabels: string[] = [];
+  if (type === "likert_7" || type === "likert_multi") {
+    const scaleSize = clampLikertScaleSize(maxSelections);
+    maxSelections = scaleSize;
+    likertScaleLabels = normalizeLikertScaleLabels(q.likertScaleLabels ?? [], scaleSize).map(
+      (l) => l.trim(),
+    );
+  }
+
+  let textLineCount: number | null = null;
+  if (type === "text_multi") {
+    textLineCount = Math.max(1, nonEmptyOptions.length || q.textLineCount || 2);
+  }
+
   return JSON.stringify({
-    clientId: q.clientId,
-    type: q.type,
+    type,
     prompt: q.prompt.trim(),
     allowSkip: Boolean(q.allowSkip),
     staffOnly: Boolean(q.staffOnly),
@@ -69,19 +87,19 @@ function normalizeQuestionFingerprint(q: DraftQuestion): string {
       sourceOrderIndex: r.sourceOrderIndex,
       optionIndex: r.optionIndex,
     })),
-    options,
-    optionEndsSurvey: options.map((_, i) => Boolean(ends[i])),
+    options: nonEmptyOptions,
+    optionEndsSurvey: nonEmptyOptions.map((_, i) => {
+      const srcIndex = options.indexOf(nonEmptyOptions[i]);
+      return Boolean(ends[srcIndex >= 0 ? srcIndex : i]);
+    }),
     otherOptionEnabled: Boolean(q.otherOptionEnabled),
     otherOptionLabel: (q.otherOptionLabel ?? "기타").trim() || "기타",
-    maxSelections: q.maxSelections ?? null,
-    textLineCount: q.textLineCount ?? null,
+    maxSelections,
+    textLineCount,
     infoBody: (q.infoBody ?? "").trim(),
-    mediaUrl: q.mediaUrl?.trim() || null,
     mediaPath: q.mediaPath?.trim() || null,
     mediaType: q.mediaType ?? null,
-    likertScaleLabels: (q.likertScaleLabels ?? []).map((l) =>
-      typeof l === "string" ? l.trim() : "",
-    ),
+    likertScaleLabels,
   });
 }
 
@@ -143,6 +161,7 @@ export async function forkSurveyOnEdit(
   const rootSurveyId = existing.root_survey_id ?? existing.id;
   const clonedQuestions = cloneQuestionsAsTemplate(payload.questions);
 
+  const participationFormat = payload.participationFormat === "email" ? "email" : "site";
   const insertRow = {
     slug: newSlug,
     title: payload.title.trim(),
@@ -152,7 +171,8 @@ export async function forkSurveyOnEdit(
     period_label: periodBuilt.data.periodLabel,
     target_count: Math.max(0, payload.targetCount),
     status: periodBuilt.data.status,
-    listed_public: payload.listedPublic,
+    listed_public: participationFormat === "email" ? false : payload.listedPublic,
+    participation_format: participationFormat,
     response_script: payload.responseScript.trim(),
     ksic_code: (payload.ksicCode ?? "").trim(),
     ksic_name: (payload.ksicName ?? "").trim(),

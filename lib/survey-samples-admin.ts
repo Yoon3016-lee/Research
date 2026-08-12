@@ -1,6 +1,8 @@
 import "server-only";
 
 import { normalizeCatiOutcomeValue } from "@/lib/cati-outcomes";
+import { ensureBatchInviteTokens } from "@/lib/survey-invite-token";
+import type { ParticipationFormat } from "@/lib/survey-participation-format";
 import { columnLetterToIndex } from "@/lib/survey-sample-columns";
 import type {
   SurveySampleBatchDataPreview,
@@ -21,6 +23,8 @@ type BatchRow = {
   uid_column: string;
   phone_column: string;
   outcome_column: string;
+  email_column?: string | null;
+  name_column?: string | null;
   column_headers: unknown;
   row_count: number;
   status: string;
@@ -42,6 +46,8 @@ function mapBatch(row: BatchRow, uploadedByEmail: string | null): SurveySampleBa
     uidColumn: row.uid_column,
     phoneColumn: row.phone_column,
     outcomeColumn: row.outcome_column,
+    emailColumn: row.email_column ?? null,
+    nameColumn: row.name_column ?? null,
     columnHeaders: headers,
     rowCount: row.row_count,
     status: row.status as SurveySampleBatchSummary["status"],
@@ -77,7 +83,7 @@ export async function listSurveySampleBatches(
   const { data, error } = await admin
     .from("survey_sample_batches")
     .select(
-      "id, version_number, original_filename, uid_column, phone_column, outcome_column, column_headers, row_count, status, is_active, error_message, created_at, uploaded_by",
+      "id, version_number, original_filename, uid_column, phone_column, outcome_column, email_column, name_column, column_headers, row_count, status, is_active, error_message, created_at, uploaded_by",
     )
     .eq("survey_id", surveyId)
     .order("version_number", { ascending: false });
@@ -122,18 +128,45 @@ export async function uploadSurveySampleBatch(params: {
   originalFilename: string;
   mapping: SurveySampleColumnMapping;
   fileBuffer: Buffer;
+  participationFormat?: ParticipationFormat;
 }): Promise<
-  | { ok: true; batchId: string; versionNumber: number; rowCount: number }
+  | {
+      ok: true;
+      batchId: string;
+      versionNumber: number;
+      rowCount: number;
+      warnings?: import("@/lib/survey-sample-types").SurveySampleUploadWarnings;
+    }
   | { ok: false; error: string }
 > {
+  const format = params.participationFormat ?? "site";
   const surveyId = await resolveSurveyId(params.surveyRef);
   if (!surveyId) {
     return { ok: false, error: "설문을 찾을 수 없습니다." };
   }
 
+  const admin = createSupabaseServiceRoleClient();
+
+  const { data: surveyMeta } = await admin
+    .from("surveys")
+    .select("samples_locked_at, participation_format")
+    .eq("id", surveyId)
+    .maybeSingle();
+
+  if (surveyMeta?.samples_locked_at) {
+    return {
+      ok: false,
+      error: "이메일 발송 후에는 표본을 다시 업로드할 수 없습니다.",
+    };
+  }
+
+  if (format === "email" && surveyMeta?.participation_format !== "email") {
+    return { ok: false, error: "이메일 형식 설문에서만 이메일 표본을 업로드할 수 있습니다." };
+  }
+
   let parsed: ReturnType<typeof buildSurveySampleRows>;
   try {
-    parsed = buildSurveySampleRows(params.fileBuffer, params.mapping);
+    parsed = buildSurveySampleRows(params.fileBuffer, params.mapping, format);
   } catch (err) {
     return {
       ok: false,
@@ -141,33 +174,38 @@ export async function uploadSurveySampleBatch(params: {
     };
   }
 
-  const admin = createSupabaseServiceRoleClient();
+  const versionNumber = await (async () => {
+    const { data: latest } = await admin
+      .from("survey_sample_batches")
+      .select("version_number")
+      .eq("survey_id", surveyId)
+      .order("version_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return ((latest?.version_number as number | undefined) ?? 0) + 1;
+  })();
 
-  const { data: latest } = await admin
-    .from("survey_sample_batches")
-    .select("version_number")
-    .eq("survey_id", surveyId)
-    .order("version_number", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const versionNumber = ((latest?.version_number as number | undefined) ?? 0) + 1;
+  const batchInsert: Record<string, unknown> = {
+    survey_id: surveyId,
+    version_number: versionNumber,
+    original_filename: params.originalFilename,
+    uid_column: params.mapping.uidColumn,
+    phone_column: format === "site" ? (params.mapping.phoneColumn ?? "-") : "-",
+    outcome_column: format === "site" ? (params.mapping.outcomeColumn ?? "-") : "-",
+    column_headers: serializeColumnHeaders(parsed.columns),
+    row_count: 0,
+    uploaded_by: params.uploadedBy,
+    status: "uploading",
+    is_active: false,
+  };
+  if (format === "email") {
+    batchInsert.email_column = params.mapping.emailColumn ?? null;
+    batchInsert.name_column = params.mapping.nameColumn ?? null;
+  }
 
   const { data: batch, error: batchError } = await admin
     .from("survey_sample_batches")
-    .insert({
-      survey_id: surveyId,
-      version_number: versionNumber,
-      original_filename: params.originalFilename,
-      uid_column: params.mapping.uidColumn,
-      phone_column: params.mapping.phoneColumn,
-      outcome_column: params.mapping.outcomeColumn,
-      column_headers: serializeColumnHeaders(parsed.columns),
-      row_count: 0,
-      uploaded_by: params.uploadedBy,
-      status: "uploading",
-      is_active: false,
-    })
+    .insert(batchInsert)
     .select("id")
     .single();
 
@@ -194,15 +232,26 @@ export async function uploadSurveySampleBatch(params: {
     for (let offset = 0; offset < parsed.rows.length; offset += INSERT_CHUNK) {
       const chunk = parsed.rows.slice(offset, offset + INSERT_CHUNK);
       const { error: insertError } = await admin.from("survey_samples").insert(
-        chunk.map((row) => ({
-          batch_id: batchId,
-          survey_id: surveyId,
-          row_index: row.rowIndex,
-          uid: row.uid,
-          phone: row.phone,
-          row_data: row.rowData,
-          outcome_value: normalizeCatiOutcomeValue(row.rowData[params.mapping.outcomeColumn]),
-        })),
+        chunk.map((row) => {
+          const base = {
+            batch_id: batchId,
+            survey_id: surveyId,
+            row_index: row.rowIndex,
+            uid: row.uid,
+            phone: row.phone,
+            email: row.email ?? "",
+            row_data: row.rowData,
+          };
+          if (format === "site") {
+            return {
+              ...base,
+              outcome_value: normalizeCatiOutcomeValue(
+                row.rowData[params.mapping.outcomeColumn ?? ""],
+              ),
+            };
+          }
+          return base;
+        }),
       );
 
       if (insertError) {
@@ -234,11 +283,16 @@ export async function uploadSurveySampleBatch(params: {
       throw new Error(finalizeError.message);
     }
 
+    if (format === "email") {
+      await ensureBatchInviteTokens(batchId);
+    }
+
     return {
       ok: true,
       batchId,
       versionNumber,
       rowCount: parsed.rows.length,
+      warnings: parsed.warnings,
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : "표본 저장에 실패했습니다.";
@@ -292,6 +346,8 @@ export async function activateSurveySampleBatch(
   if (activateError) {
     return { ok: false, error: activateError.message };
   }
+
+  await ensureBatchInviteTokens(batchId);
 
   return { ok: true };
 }

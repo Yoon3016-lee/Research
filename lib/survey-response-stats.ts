@@ -2,6 +2,7 @@ import "server-only";
 
 import { normalizeSurveyRef, isUuid } from "@/lib/survey-slug";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
+import { fetchAllPages, fetchAllSurveyResponseAnswers } from "@/lib/supabase-paginate";
 import {
   NO_ANSWER_LABEL,
   type FrequencyBucket,
@@ -282,17 +283,21 @@ export async function getSurveyResponseStats(ref: string): Promise<SurveyRespons
     }
   }
 
-  const { data: responseRows, error: rError } = await admin
-    .from("survey_responses")
-    .select("id, respondent_kind")
-    .eq("survey_id", survey.id);
-
-  if (rError) {
-    console.error("[getSurveyResponseStats] responses:", rError.message);
+  let responses: ResponseRow[] = [];
+  try {
+    responses = await fetchAllPages<ResponseRow>(async (from, to) =>
+      admin
+        .from("survey_responses")
+        .select("id, respondent_kind")
+        .eq("survey_id", survey.id)
+        .order("submitted_at", { ascending: true })
+        .range(from, to),
+    );
+  } catch (err) {
+    console.error("[getSurveyResponseStats] responses:", err);
     return { ok: false, reason: "not_found" };
   }
 
-  const responses = (responseRows ?? []) as ResponseRow[];
   const responseIds = responses.map((r) => r.id);
   const totalSubmissions = responseIds.length;
 
@@ -305,17 +310,16 @@ export async function getSurveyResponseStats(ref: string): Promise<SurveyRespons
   const answeredByQuestion = new Map<string, Set<string>>();
 
   if (responseIds.length > 0) {
-    const { data: answerRows, error: aError } = await admin
-      .from("survey_response_answers")
-      .select("response_id, question_id, answer")
-      .in("response_id", responseIds);
+    try {
+      const answerRows = await fetchAllSurveyResponseAnswers(admin, responseIds);
+      const seenAnswerKeys = new Set<string>();
+      for (const row of answerRows) {
+        const dedupeKey = `${row.response_id}\0${row.question_id}`;
+        if (seenAnswerKeys.has(dedupeKey)) continue;
+        seenAnswerKeys.add(dedupeKey);
 
-    if (aError) {
-      console.error("[getSurveyResponseStats] answers:", aError.message);
-    } else {
-      for (const row of answerRows ?? []) {
-        const responseId = row.response_id as string;
-        const questionId = row.question_id as string;
+        const responseId = row.response_id;
+        const questionId = row.question_id;
         const kind = kindByResponseId.get(responseId) ?? "guest";
         const item: AnswerWithKind = {
           question_id: questionId,
@@ -330,6 +334,8 @@ export async function getSurveyResponseStats(ref: string): Promise<SurveyRespons
         answered.add(responseId);
         answeredByQuestion.set(questionId, answered);
       }
+    } catch (err) {
+      console.error("[getSurveyResponseStats] answers:", err);
     }
   }
 

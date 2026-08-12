@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeSurveyRef, isUuid } from "@/lib/survey-slug";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
+import { fetchAllPages, fetchAllSurveyResponseAnswers } from "@/lib/supabase-paginate";
 import type { PublicSurveyDetail, PublicSurveyQuestion } from "@/lib/survey-public";
 import {
   QUESTION_TYPE_LABELS,
@@ -173,28 +174,37 @@ async function buildSurveyBackupPayload(
     };
   });
 
-  const { data: responseRows, error: rError } = await admin
-    .from("survey_responses")
-    .select("id, submitted_at, respondent_kind, respondent_user_id, sample_id")
-    .eq("survey_id", survey.id)
-    .order("submitted_at", { ascending: true });
+  let responsesRaw: ResponseRow[] = [];
+  try {
+    responsesRaw = await fetchAllPages<ResponseRow>(async (from, to) =>
+      admin
+        .from("survey_responses")
+        .select("id, submitted_at, respondent_kind, respondent_user_id, sample_id")
+        .eq("survey_id", survey.id)
+        .order("submitted_at", { ascending: true })
+        .range(from, to),
+    );
+  } catch {
+    return null;
+  }
 
-  if (rError) return null;
-
-  const responsesRaw = (responseRows ?? []) as ResponseRow[];
   const responseIds = responsesRaw.map((r) => r.id);
 
   const answersByResponse = new Map<string, AnswerRow[]>();
   if (responseIds.length > 0) {
-    const { data: answerRows } = await admin
-      .from("survey_response_answers")
-      .select("response_id, question_id, answer")
-      .in("response_id", responseIds);
-
-    for (const row of (answerRows ?? []) as AnswerRow[]) {
-      const list = answersByResponse.get(row.response_id) ?? [];
-      list.push(row);
-      answersByResponse.set(row.response_id, list);
+    try {
+      const answerRows = await fetchAllSurveyResponseAnswers(admin, responseIds);
+      for (const row of answerRows) {
+        const list = answersByResponse.get(row.response_id) ?? [];
+        list.push({
+          response_id: row.response_id,
+          question_id: row.question_id,
+          answer: row.answer,
+        });
+        answersByResponse.set(row.response_id, list);
+      }
+    } catch {
+      /* 답변 일부 누락 시에도 응답 메타는 백업 */
     }
   }
 

@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { SurveyAnswerInput, PublicSurveyDetail } from "@/lib/survey-public";
-import { getPublicSurveyBySlug } from "@/lib/survey-public";
+import type { PublicSurveyDetail, SurveyAnswerInput } from "@/lib/survey-public";
+import { loadSurveyForEmailInvite } from "@/lib/survey-public";
 import { clampLikertScaleSize, isLikertScaleValue } from "@/lib/likert-scale";
 import { isStarRatingValue } from "@/lib/survey-types";
 import { deleteCatiDraft } from "@/lib/cati-drafts";
@@ -14,8 +14,14 @@ import {
 } from "@/lib/survey-visibility";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 import { archiveSurveyResponseOnSubmit } from "@/lib/survey-response-backup";
+import { getPublicSurveyBySlug } from "@/lib/survey-public";
 
-export type SubmitSurveyAfter = "stay" | "list";
+export type SubmitSurveyAfter = "stay" | "list" | "thanks";
+
+export type SubmitSurveyOptions = {
+  sampleId?: string;
+  inviteToken?: string;
+};
 
 export type SubmitSurveyState =
   | { error: string; ok?: undefined }
@@ -100,6 +106,9 @@ function toAnswerJson(
 
 function formatResponseInsertError(message: string | undefined): string {
   if (!message) return "응답 저장에 실패했습니다.";
+  if (message.includes("survey_responses_sample_id_unique")) {
+    return "이미 이 설문에 참여하셨습니다.";
+  }
   if (
     message.includes("respondent_kind") ||
     message.includes("respondent_user_id") ||
@@ -126,13 +135,33 @@ export async function submitSurveyResponseAction(
   slug: string,
   answers: SurveyAnswerInput[],
   after: SubmitSurveyAfter,
-  sampleId?: string,
+  options?: SubmitSurveyOptions,
 ): Promise<SubmitSurveyState> {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return { error: "서버 설정이 완료되지 않았습니다." };
   }
 
-  const survey = await getPublicSurveyBySlug(slug);
+  const inviteToken = options?.inviteToken?.trim();
+  let survey: PublicSurveyDetail | null = null;
+  let resolvedSampleId: string | undefined = options?.sampleId;
+
+  if (inviteToken) {
+    const loaded = await loadSurveyForEmailInvite(slug, inviteToken);
+    if (!loaded.ok) {
+      if (loaded.reason === "already_responded") {
+        return { error: "이미 이 설문에 참여하셨습니다." };
+      }
+      if (loaded.reason === "not_open") {
+        return { error: "지금은 참여할 수 없습니다. 설문 기간을 확인해 주세요." };
+      }
+      return { error: "유효하지 않은 초대 링크입니다." };
+    }
+    survey = loaded.survey;
+    resolvedSampleId = loaded.sampleId;
+  } else {
+    survey = await getPublicSurveyBySlug(slug);
+  }
+
   if (!survey) {
     return { error: "진행중인 설문을 찾을 수 없습니다." };
   }
@@ -142,8 +171,9 @@ export async function submitSurveyResponseAction(
 
   const participant = await getSurveyParticipant();
   const isStaff = participant.mode === "staff";
+  const isEmailInvite = Boolean(inviteToken);
 
-  if (sampleId && !isStaff) {
+  if (resolvedSampleId && !isStaff && !isEmailInvite) {
     return { error: "CATI 표본 연결 제출은 직원 로그인이 필요합니다." };
   }
 
@@ -151,6 +181,18 @@ export async function submitSurveyResponseAction(
   if (validationError) return { error: validationError };
 
   const admin = createSupabaseServiceRoleClient();
+
+  if (resolvedSampleId) {
+    const { data: existing } = await admin
+      .from("survey_responses")
+      .select("id")
+      .eq("sample_id", resolvedSampleId)
+      .maybeSingle();
+    if (existing) {
+      return { error: "이미 이 설문에 참여하셨습니다." };
+    }
+  }
+
   const respondent = await resolveRespondentForInsert();
   const branchingSnapshot = branchingSnapshotFromAnswers(answers);
 
@@ -164,8 +206,8 @@ export async function submitSurveyResponseAction(
     respondent_user_id: respondent.respondent_user_id,
     respondent_kind: respondent.respondent_kind,
   };
-  if (sampleId) {
-    insertRow.sample_id = sampleId;
+  if (resolvedSampleId) {
+    insertRow.sample_id = resolvedSampleId;
   }
 
   const { data: response, error: resError } = await admin
@@ -204,7 +246,7 @@ export async function submitSurveyResponseAction(
   await archiveSurveyResponseOnSubmit(admin, responseId, survey, rows, {
     respondent_kind: respondent.respondent_kind,
     respondent_user_id: respondent.respondent_user_id,
-    sample_id: sampleId ?? null,
+    sample_id: resolvedSampleId ?? null,
   });
 
   const { data: current } = await admin
@@ -216,10 +258,8 @@ export async function submitSurveyResponseAction(
   const nextCount = ((current?.response_count as number) ?? 0) + 1;
   await admin.from("surveys").update({ response_count: nextCount }).eq("id", survey.id);
 
-  if (sampleId) {
-    // 컨택 결과(예: 성공)는 조사원이 선택 시 이미 기록됨. 제출 시에는 응답-표본 연결만 유지.
-    // 제출 완료 → 저장해 둔 중도 중단 초안 제거.
-    await deleteCatiDraft(sampleId);
+  if (resolvedSampleId && !isEmailInvite) {
+    await deleteCatiDraft(resolvedSampleId);
     revalidatePath("/admin/surveys/samples");
   }
 
@@ -230,5 +270,6 @@ export async function submitSurveyResponseAction(
   revalidatePath("/admin/surveys");
   revalidatePath("/admin/progress");
 
-  return { ok: true, after };
+  const resolvedAfter: SubmitSurveyAfter = isEmailInvite ? "thanks" : after;
+  return { ok: true, after: resolvedAfter };
 }

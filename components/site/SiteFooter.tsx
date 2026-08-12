@@ -57,10 +57,10 @@ export function SiteFooter({ siteName, logoUrl = null }: Props) {
             <b className="text-[0.65rem] font-bold tracking-[0.1em] text-[#2e66a6]">E-MAIL</b>
             <a
               href={`mailto:${PRIMEAX_FOOTER.email}`}
-              className="inline-flex w-max items-center justify-center gap-1.5 rounded-md border border-[#94bde7] bg-white/75 px-2.5 py-1.5 text-xs font-bold text-[#174f92] transition hover:border-[#1767dc] hover:bg-white"
-              aria-label="PRIME AX에 이메일로 문의하기"
+              className="font-medium text-[#385678] transition hover:text-[#1767dc]"
+              aria-label="PRIME AX 이메일 주소"
             >
-              <span aria-hidden>✉</span> 이메일 문의
+              {PRIMEAX_FOOTER.email}
             </a>
           </p>
           <p className="grid grid-cols-[5.5rem_1fr] items-center gap-3 text-sm">

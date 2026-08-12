@@ -2,10 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { SurveyDistributionPanel } from "@/components/admin/SurveyDistributionPanel";
+import { SurveyEmailDistributionPanel } from "@/components/admin/SurveyEmailDistributionPanel";
 import {
   buildDefaultDistributeMessage,
   getSurveyParticipateUrl,
 } from "@/lib/survey-distribute";
+import { listEmailSurveySamples } from "@/lib/survey-email-admin";
 import { loadSurveyForEdit } from "@/lib/surveys-admin";
 import { getAdminSurveys } from "@/lib/surveys-db";
 import type { SurveyStatus } from "@/lib/survey-list-types";
@@ -65,16 +67,22 @@ export default async function SurveyDistributePage({ searchParams }: Props) {
     notFound();
   }
 
-  const { title } = loaded.bundle;
+  const { title, participationFormat } = loaded.bundle;
   const surveyMeta = adminSurveys.find((s) => s.id === slug);
   const status: SurveyStatus = surveyMeta?.status ?? "종료";
   const defaultMessage = buildDefaultDistributeMessage(title, participateUrl);
+  const emailSamples =
+    participationFormat === "email" ? await listEmailSurveySamples(slug) : null;
 
   return (
     <>
       <AdminHeader
         title="배포 관리"
-        description="설문 참여 링크가 포함된 초대 문구를 작성하고, 이메일·문자메시지로 발송합니다."
+        description={
+          participationFormat === "email"
+            ? "표본별 초대 링크가 포함된 이메일을 발송합니다."
+            : "설문 참여 링크가 포함된 초대 문구를 작성하고, 이메일·문자메시지로 발송합니다."
+        }
       />
       <div className="space-y-6 p-4 sm:p-6">
         <p className="flex flex-wrap items-center gap-4 text-sm text-brand-700">
@@ -92,22 +100,32 @@ export default async function SurveyDistributePage({ searchParams }: Props) {
           </Link>
           <Link
             href={{
-              pathname: "/admin/surveys/logic",
+              pathname: "/admin/surveys/samples",
               query: { slug },
             }}
-            className="text-fuchsia-800 hover:underline"
+            className="admin-link hover:underline"
           >
-            로직 확인
+            표본 관리
           </Link>
         </p>
 
-        <SurveyDistributionPanel
-          slug={slug}
-          title={title}
-          status={status}
-          participateUrl={participateUrl}
-          defaultMessage={defaultMessage}
-        />
+        {participationFormat === "email" && emailSamples ? (
+          <SurveyEmailDistributionPanel
+            slug={slug}
+            title={title}
+            status={status}
+            samplesLockedAt={emailSamples.samplesLockedAt}
+            rows={emailSamples.rows}
+          />
+        ) : (
+          <SurveyDistributionPanel
+            slug={slug}
+            title={title}
+            status={status}
+            participateUrl={participateUrl}
+            defaultMessage={defaultMessage}
+          />
+        )}
       </div>
     </>
   );
