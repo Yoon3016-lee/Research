@@ -70,11 +70,24 @@ export function likertValueFromClientX(
   return isLikertScaleValue(n, scaleSize) ? n : null;
 }
 
+/** 1→① … 20→⑳, 그 외는 (n) */
+const CIRCLED_MARKS =
+  "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳";
+
+export function likertCircledMark(point: number): string {
+  if (Number.isInteger(point) && point >= 1 && point <= 20) {
+    return CIRCLED_MARKS.charAt(point - 1);
+  }
+  return `(${point})`;
+}
+
+/** 응답·헤더 표시: ① 라벨 (라벨 없으면 ①만) */
 export function displayLikertPointLabel(
   pointIndex: number,
   scaleLabels: string[],
 ): string {
+  const mark = likertCircledMark(pointIndex + 1);
   const custom = scaleLabels[pointIndex]?.trim();
-  if (custom) return custom;
-  return String(pointIndex + 1);
+  if (custom) return `${mark} ${custom}`;
+  return mark;
 }

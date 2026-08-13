@@ -4,6 +4,7 @@ import {
   MAX_LIKERT_SCALE_SIZE,
   MIN_LIKERT_SCALE_SIZE,
   clampLikertScaleSize,
+  likertCircledMark,
   normalizeLikertScaleLabels,
 } from "@/lib/likert-scale";
 import type { DraftQuestion } from "@/lib/survey-types";
@@ -52,17 +53,29 @@ export function LikertScaleSettings({ scaleSize, labels, onChange }: Props) {
       <div>
         <p className="text-sm font-medium text-zinc-800">점수별 라벨 (선택)</p>
         <p className="mt-0.5 text-xs text-zinc-500">
-          비워 두면 응답 화면에 점수(1, 2, …)만 표시됩니다.
+          응답 화면에 ①·②·…와 함께 표시됩니다.{" "}
+          <span className="font-medium text-zinc-700">
+            1번(왼쪽)은 긍정, 끝번(오른쪽)은 부정
+          </span>
+          으로 작성하세요.
         </p>
         <div className="mt-3 space-y-2">
           {normalized.map((label, i) => (
             <label key={i} className="flex items-center gap-2 text-sm">
-              <span className="w-8 shrink-0 font-medium text-zinc-600">{i + 1}점</span>
+              <span className="w-10 shrink-0 font-medium text-zinc-600">
+                {likertCircledMark(i + 1)}
+              </span>
               <input
                 value={label}
                 onChange={(e) => setLabel(i, e.target.value)}
                 className="min-w-0 flex-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/15"
-                placeholder={`${i + 1}점 라벨`}
+                placeholder={
+                  i === 0
+                    ? "예: 매우 그렇다"
+                    : i === size - 1
+                      ? "예: 전혀 그렇지 않다"
+                      : `${likertCircledMark(i + 1)} 라벨`
+                }
               />
             </label>
           ))}

@@ -135,8 +135,9 @@ info_media 작성 예:
 리커트 척도 작성 시:
 - maxSelections 미지정 시 5점 척도 사용
 - likertScaleLabels는 **1점~N점 각 선택지마다** 응답 화면에 표시할 텍스트. 배열 길이 = maxSelections
-- 예(likert_7): "maxSelections": 5, "likertScaleLabels": ["전혀 그렇지 않다", "그렇지 않다", "보통", "그렇다", "매우 그렇다"]
-- 예(likert_multi): "options": ["품질", "가격", "서비스"], "maxSelections": 5, "likertScaleLabels": ["매우 낮음", "낮음", "보통", "높음", "매우 높음"]
+- **순서: 1점(왼쪽)=긍정 · N점(오른쪽)=부정** (예: 매우 그렇다 → … → 전혀 그렇지 않다)
+- 예(likert_7): "maxSelections": 5, "likertScaleLabels": ["매우 그렇다", "그렇다", "보통", "그렇지 않다", "전혀 그렇지 않다"]
+- 예(likert_multi): "options": ["품질", "가격", "서비스"], "maxSelections": 5, "likertScaleLabels": ["매우 높음", "높음", "보통", "낮음", "매우 낮음"]
 - likert_7에 options로 양끝 라벨만 넣는 **구 방식은 사용 금지**
 
 ## 생성 규칙

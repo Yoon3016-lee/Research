@@ -9,7 +9,6 @@ import {
   type QuestionFrequencyStats,
   type SurveyResponseStats,
 } from "@/lib/survey-response-stats-shared";
-import { emptyDurationSummary, summarizeDurations } from "@/lib/survey-duration";
 import {
   clampLikertScaleSize,
   isLikertScaleValue,
@@ -58,7 +57,6 @@ type OptionRow = {
 type ResponseRow = {
   id: string;
   respondent_kind: string;
-  duration_seconds?: number | null;
 };
 
 function pct(count: number, total: number): number {
@@ -290,31 +288,14 @@ export async function getSurveyResponseStats(ref: string): Promise<SurveyRespons
     responses = await fetchAllPages<ResponseRow>(async (from, to) =>
       admin
         .from("survey_responses")
-        .select("id, respondent_kind, duration_seconds")
+        .select("id, respondent_kind")
         .eq("survey_id", survey.id)
         .order("submitted_at", { ascending: true })
         .range(from, to),
     );
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    if (message.includes("duration_seconds")) {
-      try {
-        responses = await fetchAllPages<ResponseRow>(async (from, to) =>
-          admin
-            .from("survey_responses")
-            .select("id, respondent_kind")
-            .eq("survey_id", survey.id)
-            .order("submitted_at", { ascending: true })
-            .range(from, to),
-        );
-      } catch (retryErr) {
-        console.error("[getSurveyResponseStats] responses:", retryErr);
-        return { ok: false, reason: "not_found" };
-      }
-    } else {
-      console.error("[getSurveyResponseStats] responses:", err);
-      return { ok: false, reason: "not_found" };
-    }
+    console.error("[getSurveyResponseStats] responses:", err);
+    return { ok: false, reason: "not_found" };
   }
 
   const responseIds = responses.map((r) => r.id);
@@ -586,19 +567,11 @@ export async function getSurveyResponseStats(ref: string): Promise<SurveyRespons
     return { ...base, buckets: buildBuckets(totalSubmissions, noAnswer, []) };
   });
 
-  const durationSeconds = responses
-    .map((r) => r.duration_seconds)
-    .filter((s): s is number => typeof s === "number" && Number.isFinite(s) && s >= 0);
-
   return {
     ok: true,
     slug: survey.slug,
     title: survey.title,
     totalSubmissions,
-    duration:
-      durationSeconds.length > 0
-        ? summarizeDurations(durationSeconds, totalSubmissions)
-        : emptyDurationSummary(totalSubmissions),
     questions: questionStats,
   };
 }

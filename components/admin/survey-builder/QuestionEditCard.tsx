@@ -530,7 +530,8 @@ export function QuestionEditCard({
           <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3">
             <p className="text-sm font-medium text-zinc-800">척도 평가 항목</p>
             <p className="mt-0.5 text-xs text-zinc-500">
-              한 문항 안에서 각 항목을 척도로 평가합니다. (예: 교육 만족도, 교육 친절도)
+              한 문항 안에서 각 항목을 척도로 평가합니다. (예: 교육 만족도, 교육
+              친절도) 척도 라벨은 ①과 함께 표시되며, 1번 긍정 · 끝번 부정입니다.
             </p>
             <div className="mt-3 space-y-2">
               {q.options.map((opt, oi) => (
@@ -576,8 +577,8 @@ export function QuestionEditCard({
           <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3">
             <p className="text-sm font-medium text-zinc-800">리커트 척도</p>
             <p className="mt-0.5 text-xs text-zinc-500">
-              응답자는 설정한 척도 범위 중 하나를 선택합니다. 점수별 라벨은 선택
-              사항입니다.
+              응답자는 설정한 척도 범위 중 하나를 선택합니다. 라벨은 ①과 함께
+              표시되며, 1번(왼쪽) 긍정 · 끝번(오른쪽) 부정으로 작성하세요.
             </p>
             <LikertScaleSettings
               scaleSize={q.maxSelections}

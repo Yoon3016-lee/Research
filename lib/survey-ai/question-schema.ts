@@ -34,8 +34,9 @@ export function buildQuestionTypeSpecForAi(): string {
     "리커트 척도(likert_7·likert_multi) 작성 규칙:",
     `- maxSelections: 척도 크기 (${MIN_LIKERT_SCALE_SIZE}~${MAX_LIKERT_SCALE_SIZE}, 기본 ${DEFAULT_LIKERT_SCALE_SIZE}). options 필드는 사용하지 않음(likert_7) 또는 평가 항목만(likert_multi).`,
     "- likertScaleLabels: string[] — **1점부터 N점까지 각 점수에 표시할 라벨**. 배열 길이는 maxSelections와 반드시 동일. index 0 = 1점, index N-1 = N점.",
-    "- likert_7 예: maxSelections 5, likertScaleLabels [\"전혀 그렇지 않다\",\"그렇지 않다\",\"보통\",\"그렇다\",\"매우 그렇다\"]",
-    "- likert_multi 예: options [\"품질\",\"가격\",\"서비스\"], maxSelections 5, likertScaleLabels [\"매우 낮음\",\"낮음\",\"보통\",\"높음\",\"매우 높음\"] — 모든 하위 항목에 동일 척도·라벨 적용",
+    "- **방향: 1점=긍정문, N점=부정문** (왼쪽 긍정 → 오른쪽 부정).",
+    "- likert_7 예: maxSelections 5, likertScaleLabels [\"매우 그렇다\",\"그렇다\",\"보통\",\"그렇지 않다\",\"전혀 그렇지 않다\"]",
+    "- likert_multi 예: options [\"품질\",\"가격\",\"서비스\"], maxSelections 5, likertScaleLabels [\"매우 높음\",\"높음\",\"보통\",\"낮음\",\"매우 낮음\"] — 모든 하위 항목에 동일 척도·라벨 적용",
     "- likert_7·likert_multi 생성 시 likertScaleLabels를 생략하거나 길이가 맞지 않게 두지 마세요. 양끝만 채우지 말고 중간 점수에도 의미 있는 라벨을 넣으세요.",
   ].join("\n");
 }
