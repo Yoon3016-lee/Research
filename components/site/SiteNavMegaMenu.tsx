@@ -236,7 +236,7 @@ export function SiteNavMegaMenu({ groups }: Props) {
     <>
       <div
         ref={navRef}
-        className="flex flex-wrap items-end justify-center gap-x-1 gap-y-1 sm:gap-x-2"
+        className="flex flex-nowrap items-end justify-start gap-x-0.5 sm:gap-x-1.5 lg:gap-x-2"
         onMouseLeave={scheduleClose}
       >
         {groups.map((group) => {
