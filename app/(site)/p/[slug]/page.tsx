@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
+import { AboutCompanyPage } from "@/components/site/AboutCompanyPage";
 import { SiteContainer } from "@/components/site/SiteContainer";
 import { SitePageBody } from "@/components/site/SitePageBody";
+import { isAboutCompanyPage } from "@/lib/about-company-content";
 import {
   findSiteNavGuideMatch,
   findSiteNavTrailForPage,
@@ -33,18 +35,23 @@ export default async function SiteCmsPage({ params }: Props) {
   const trail = findSiteNavTrailForPage(homepage.groups, page);
   const guideMatch = findSiteNavGuideMatch(homepage.groups, `/p/${page.slug}`);
   const title = trail?.itemLabel ?? page.title;
+  const aboutCompany = isAboutCompanyPage(page);
 
   return (
     <SiteContainer
       as="main"
-      width="page"
+      width={aboutCompany ? "full" : "page"}
       className={
-        guideMatch
-          ? "pb-10 pt-0 sm:pb-12 lg:pb-14"
-          : "py-10 sm:py-12 lg:py-14"
+        aboutCompany
+          ? guideMatch
+            ? "pb-0 pt-0"
+            : "py-0"
+          : guideMatch
+            ? "pb-10 pt-0 sm:pb-12 lg:pb-14"
+            : "py-10 sm:py-12 lg:py-14"
       }
     >
-      {!guideMatch ? (
+      {!guideMatch && !aboutCompany ? (
         <header className="border-b border-brand-900/10 pb-5 sm:pb-6">
           <h1 className="text-[2.25rem] font-semibold leading-tight tracking-tight text-brand-900 sm:text-[2.8125rem]">
             {title}
@@ -53,9 +60,13 @@ export default async function SiteCmsPage({ params }: Props) {
       ) : (
         <h1 className="sr-only">{title}</h1>
       )}
-      <article className={guideMatch ? undefined : "mt-8"}>
-        <SitePageBody body={page.body} />
-      </article>
+      {aboutCompany ? (
+        <AboutCompanyPage />
+      ) : (
+        <article className={guideMatch ? undefined : "mt-8"}>
+          <SitePageBody body={page.body} />
+        </article>
+      )}
     </SiteContainer>
   );
 }

@@ -97,8 +97,8 @@ body{background:#f7fbff;color:#132f56}
 .platform-lead{max-width:650px;font-size:15px;line-height:1.95}
 .platform-flow{grid-template-columns:minmax(0,1fr) 42px minmax(0,1fr) 42px minmax(0,1fr);gap:0;padding:15px;border-radius:16px;border-color:#b5d1ee;background:rgba(255,255,255,.9)}
 .platform-flow .insight-node{position:relative;min-height:108px;padding:17px 15px;border:1px solid #bdd5ef;border-radius:10px;background:linear-gradient(145deg,#fff,#eef6ff);box-shadow:0 9px 20px rgba(17,79,150,.08);overflow:hidden}
-.platform-flow .insight-node:after{content:'';position:absolute;left:0;top:0;width:4px;height:100%;background:linear-gradient(#1767dc,#3bc9ed)}
-.platform-flow .insight-node:last-child:after{background:linear-gradient(#ff7d52,#ff5a32)}
+.platform-flow .insight-node:after{content:'';position:absolute;left:0;right:0;top:0;width:100%;height:4px;background:linear-gradient(90deg,#1767dc,#3bc9ed)}
+.platform-flow .insight-node:last-child:after{background:linear-gradient(90deg,#ff7d52,#ff5a32)}
 .platform-flow .insight-node span{color:var(--banner-orange);font-size:9px}
 .platform-flow .insight-node b{margin-top:10px;font-size:12px;letter-spacing:-.01em}
 .platform-flow .insight-node small{margin-top:7px;white-space:nowrap;color:#354f70;font-size:8px;font-weight:800;line-height:1.45;letter-spacing:-.015em}
@@ -113,6 +113,13 @@ body{background:#f7fbff;color:#132f56}
 .process-heading small{display:block;color:#6c84a2;font:700 8px var(--mono);letter-spacing:.09em}
 .process-heading strong{display:block;margin-top:5px;color:#0c2b57;font-size:26px;letter-spacing:-.055em}
 .process-heading p{margin:0 0 3px;color:#2470d4;font:700 7.5px var(--mono);letter-spacing:.06em}
+.nowrap{white-space:nowrap}
+.motion-copy-rail{display:flex;align-items:center;gap:7px;color:#2470d4;font:700 8px var(--mono);letter-spacing:.045em;white-space:nowrap}
+.motion-copy-rail i{position:relative;width:30px;height:2px;border-radius:999px;background:linear-gradient(90deg,#4ec9e9,#1767dc)}
+.motion-copy-rail i:after{content:'';position:absolute;right:-1px;top:-3px;width:6px;height:6px;border-top:2px solid #1767dc;border-right:2px solid #1767dc;transform:rotate(45deg)}
+.motion-copy-rail:not(.continuous-flow) i:before{content:'';position:absolute;z-index:2;left:-2px;top:50%;width:7px;height:7px;border-radius:50%;background:var(--banner-orange);box-shadow:0 0 0 3px rgba(255,107,61,.14);transform:translateY(-50%);animation:copyRailDot 1.45s linear infinite}
+.motion-copy-rail i:nth-of-type(2):before{animation-delay:-.48s}.motion-copy-rail i:nth-of-type(3):before{animation-delay:-.96s}
+@keyframes copyRailDot{from{left:-2px}to{left:calc(100% - 5px)}}
 .research-process{position:relative;z-index:3;display:grid;grid-template-columns:minmax(0,1fr) 42px minmax(0,1fr) 42px minmax(0,1fr) 42px minmax(0,1fr);align-items:center}
 .process-card{position:relative;display:flex;min-width:0;min-height:188px;padding:15px 10px 13px;border:1px solid #b8d2ef;border-radius:12px;background:rgba(255,255,255,.94);box-shadow:0 12px 26px rgba(18,76,143,.09);overflow:hidden;flex-direction:column;align-items:center;text-align:center}
 .process-card:before{content:'';position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,#1767dc,#3cc9ed)}
@@ -147,6 +154,23 @@ body{background:#f7fbff;color:#132f56}
 .axi-copy{
   align-items:start;
 }
+
+/* 2026-08-13 requested copy, card rule, workflow and AXI micro-motion refinements. */
+.workbench-motion{color:#9fc8f5;font-size:9px}
+.workbench-motion i{width:24px;background:linear-gradient(90deg,#53d3ed,#7ba9ff)}
+.workbench-motion i:after{border-color:#7ba9ff}
+.responsibility-copy{line-height:1.72!important}
+.axi-character-motion{isolation:isolate}
+.axi-character-motion .axi-motion-base{position:relative;z-index:2;display:block;width:100%;height:auto}
+.axi-character-motion .axi-hand-motion{position:absolute!important;z-index:3!important;inset:0!important;width:100%!important;height:auto!important;clip-path:polygon(16% 63%,21% 59%,25% 60%,29% 64%,33% 64%,37% 67%,39% 71%,39% 75%,36% 78%,33% 79%,32% 84%,29% 85%,24% 81%,20% 79%,16% 75%,15% 70%);transform-origin:29% 78%!important;animation:axiFingerGesture 3.9s cubic-bezier(.45,.05,.35,.95) infinite!important;filter:none!important}
+.axi-character-motion .axi-eye{position:absolute;z-index:4;top:44.7%;width:14.5%;height:16%;border-radius:52% 52% 48% 48%;background:linear-gradient(180deg,#fff 0 46%,#0b2867 48% 60%,#fff 62%);box-shadow:0 2px 0 #08255f;transform:scaleY(0);transform-origin:center top;animation:axiBlink 3.2s ease-in-out infinite;pointer-events:none}
+.axi-character-motion .axi-eye-left{left:28.5%}
+.axi-character-motion .axi-eye-right{left:57.4%;animation-delay:.035s}
+@keyframes axiBlink{0%,34%,39%,72%,77%,100%{transform:scaleY(0);opacity:0}35%,38%,73%,76%{transform:scaleY(1);opacity:1}}
+@keyframes axiFingerGesture{0%,18%,58%,100%{transform:scale(1) rotate(0deg)}29%{transform:scaleX(.965) scaleY(.94) rotate(1.2deg)}39%{transform:scaleX(1.018) scaleY(1.025) rotate(-.7deg)}49%{transform:scaleX(.985) scaleY(.975) rotate(.35deg)}}
+@media(max-width:820px){.motion-copy-rail{margin-top:14px;flex-wrap:wrap;white-space:normal}.workbench-motion{justify-content:flex-end;margin-top:0}.responsibility-copy br{display:none}}
+@media(prefers-reduced-motion:reduce){.motion-copy-rail i:before,.continuous-flow-dot,.axi-character-motion .axi-hand-motion,.axi-character-motion .axi-eye{animation:none!important}.continuous-flow-dot{left:50%;opacity:1}.axi-character-motion .axi-eye{transform:scaleY(0)!important;opacity:0!important}}
+
 .axi-copy h2{
   grid-column:2;
   grid-row:1;
@@ -205,6 +229,15 @@ body{background:#f7fbff;color:#132f56}
   .evidence-intro{display:block}
   .evidence-summary{margin-top:28px}
 }
+
+/* Keep the approved visual rule on the top edge of all revised homepage cards. */
+.service-card:before{left:0;right:0;top:0;bottom:auto;width:100%;height:4px}
+
+/* One uninterrupted dot from DESIGN through ACTION. */
+.continuous-flow{position:relative}
+.continuous-flow-dot{position:absolute;z-index:4;left:0;top:50%;width:8px;height:8px;border-radius:50%;background:var(--banner-orange);box-shadow:0 0 0 3px rgba(255,107,61,.16),0 0 10px rgba(255,107,61,.42);transform:translate(-50%,-50%);animation:continuousFlowDot 3.1s linear infinite}
+@keyframes continuousFlowDot{0%{left:0;opacity:0}5%{opacity:1}95%{opacity:1}100%{left:100%;opacity:0}}
+@media(max-width:820px){.continuous-flow{flex-wrap:nowrap;white-space:nowrap}.continuous-flow-dot{animation-duration:2.8s}}
 
 /* Match the 04 AXI console to the full-width 03 KSIC workbench. */
 .axi-section{
@@ -309,6 +342,7 @@ body{background:#fff}
 }
 .metrics article{position:relative;border-right:1px solid var(--banner-line)}
 .metrics article:before{content:'';position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,var(--banner-blue),var(--banner-cyan),var(--banner-orange))}
+.metrics article>strong{color:var(--banner-orange)!important}
 .milestone-list .current{background:var(--banner-navy)}
 .milestone-list .current span{color:var(--banner-orange)}
 
@@ -458,6 +492,10 @@ body{background:#fff}
     line-height:1.2;
   }
 }
+
+/* Final homepage surface: match the first content section to the hero's lower edge. */
+#main{background:#e6edf8}
+#main>section:not(.banner-hero),#main .platform-intro,#main .service-suite,#main .engine-section,#main .axi-section,#main .evidence,#main .milestone,#main .contact{background:#e6edf8!important}
 
 /* 2026-08-08 hero typography, rhythm and right-edge alignment */
 .hero.banner-hero .banner-motion-wrap{aspect-ratio:3.25/1}
@@ -1220,10 +1258,16 @@ body{background:#fff}
   }
 }
 
-.contact-actions .phone-action{width:min(100%,350px);min-height:82px}
-
-/* platform CTA — inherit link color 덮어쓰기 */
-.primeax-embed a.btn-platform,
-a.btn-platform{color:#fff!important}
-.primeax-embed a.btn-platform b,
-a.btn-platform b{color:#ff653d!important}
+/* 2026-08-13 center the requested evidence and decision labels in their cards. */
+.platform-flow .insight-node.insight-node-centered{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
+.platform-flow .insight-node.insight-node-centered b,
+.platform-flow .insight-node.insight-node-centered small{
+  width:100%;
+  text-align:center;
+}

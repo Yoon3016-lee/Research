@@ -127,7 +127,7 @@ export const DEFAULT_PUBLIC_HOME_CONTENT: PublicHomeContent = {
       {
         title: "책임 관리",
         description:
-          "공공정책부터 CX·기업 실태조사·교육 수요·미스터리 쇼퍼까지 분야별 전문가와 함께 조사 전 과정 책임 운영",
+          "공공정책부터 CX·기업 실태조사·교육 수요·미스터리 쇼퍼까지<br />분야별 전문가와 함께 조사 전 과정 책임 운영",
         tags: ["Public Policy · CX Research", "Business Survey · Education Demand", "Mystery Shopper · Outcome"],
         indexLabel: "Responsibility Management",
       },
@@ -139,18 +139,18 @@ export const DEFAULT_PUBLIC_HOME_CONTENT: PublicHomeContent = {
   engine: {
     kicker: "",
     titleHtml: "RKME MODEL<br /><em>Rag KSIC Mapping Engine System</em>",
-    lead: "사업체명·업종 설명·공공데이터·응답 텍스트를 종합해 KSIC 후보와 판단 근거를 제시하고, 조사 설계 모듈로 연결합니다.",
+    lead: "사업체명·업종 설명·공공데이터·응답 텍스트를 종합해 KSIC 후보와 판단 <span class=\"nowrap\">근거를</span> 제시하고, 조사 설계 모듈로 연결합니다.",
   },
   axi: {
     kicker: "",
     titleHtml: "AXI ADVISOR AGENT",
-    body: "AXI는 PRIME AX의 업무 맥락을 이해하도록 설계 중인 Advisor Agent입니다. 조사 목적의 구체화, 설문·분기 초안, 결과 해석, 다음 행동까지 리서치팀의 반복 업무를 보조합니다.",
+    body: "AXI는 PRIME AX의 업무 맥락을 이해하도록 설계 중인 Advisor Agent입니다. 조사 목적의 구체화, 설문·분기 초안, 결과 해석, 다음 행동까지 리서치팀의 <span class=\"nowrap\">반복 업무를</span> 보조합니다.",
     buttonLabel: "AXI 상담 시작",
   },
   evidence: {
     kicker: "",
     titleHtml: "DELIVERY EVIDENCE",
-    lead: "조사 기획·실사·분석·제언을 단일 품질기준으로 관리해 온 경험을 바탕으로 AI 플랫폼을 고도화합니다.",
+    lead: "조사 기획·실사·분석·제언을 단일 품질기준으로 관리해 온 경험을 바탕으로 <span class=\"nowrap\">AI 플랫폼을</span> 고도화합니다.",
     metrics: [
       { value: "30<sup>+</sup>", label: "YEARS", caption: "현장·운영 경험" },
       { value: "20<sup>+</sup>", label: "YEARS", caption: "전문 조사 네트워크" },
@@ -159,7 +159,7 @@ export const DEFAULT_PUBLIC_HOME_CONTENT: PublicHomeContent = {
     recordsKicker: "PROJECT RECORDS",
     recordsTitle: "주요 수행실적",
     recordsLead:
-      "공공·지역·관광·교육 분야의 조사 운영 경험을 과업별 품질기준과 실행 제언으로 축적해 왔습니다.",
+      "공공·지역·관광·교육 분야의 조사 운영 경험을 과업별 품질기준과 <span class=\"nowrap\">실행 제언으로</span> 축적해 왔습니다.",
     records: [
       {
         category: "PUBLIC CX",
@@ -313,24 +313,12 @@ export function parsePublicHomeContent(raw: unknown): PublicHomeContent {
     };
   });
 
-  const rawBanner = asString(hero.bannerImageUrl, d.hero.bannerImageUrl);
-  // 기본 번들에 AXI 마스코트·라벨이 있던 옛 배너는 AXI 없는 버전으로 교체
-  const legacyBanners = new Set([
-    "/primeax-home/assets/primeax-banner-no-logo.png",
-    "/primeax-home/assets/primeax-banner.png",
-    "/primeax-home/assets/primeax-banner-v2.png",
-    "/primeax-home/assets/primeax-banner-no-axi.png",
-    "assets/primeax-banner-no-logo.png",
-    "assets/primeax-hero-clean.png",
-  ]);
-  const bannerImageUrl = legacyBanners.has(rawBanner) ? d.hero.bannerImageUrl : rawBanner;
-
   const replaceLegacy = (value: string, legacy: string, next: string) =>
     value === legacy ? next : value;
 
   return {
     hero: {
-      bannerImageUrl,
+      bannerImageUrl: d.hero.bannerImageUrl,
       engineHref: asString(hero.engineHref, d.hero.engineHref),
     },
     intro: {
@@ -408,7 +396,7 @@ export function parsePublicHomeContent(raw: unknown): PublicHomeContent {
         : records.length > 0
           ? records
           : d.evidence.records,
-      opsImageUrl: asString(evidence.opsImageUrl, d.evidence.opsImageUrl),
+      opsImageUrl: d.evidence.opsImageUrl,
       opsTitleHtml: replaceLegacy(
         asString(evidence.opsTitleHtml, d.evidence.opsTitleHtml),
         "전문조사원 네트워크와<br />표준 품질 관리 체계",
@@ -466,7 +454,8 @@ function escAttr(value: string): string {
 /** 관리자가 입력한 제한적 HTML(br, em, strong, sup)만 허용 */
 export function sanitizeHomeHtml(raw: string): string {
   return raw
-    .replaceAll(/<(?!\/?(?:br|em|strong|sup)\b)[^>]*>/gi, "")
+    .replaceAll(/<(?!\/?(?:br|em|strong|sup|span)\b)[^>]*>/gi, "")
+    .replaceAll(/<span(?!\s+class="nowrap")[^>]*>/gi, "")
     .replaceAll(/on\w+=["'][^"']*["']/gi, "");
 }
 
@@ -502,7 +491,7 @@ export function buildPublicHomeHtml(content: PublicHomeContent): string {
         <span class="banner-network-pulse pulse-three" aria-hidden="true"></span>
         <span class="banner-chart-motion" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
         <span class="banner-live-score" aria-label="실시간 분석 점수"><strong data-banner-score>83</strong><em>%</em><small>LIVE</small></span>
-        <span class="banner-axi-motion" aria-hidden="true"><i></i><img src="/primeax-home/assets/axi-motion.png" alt="" /></span>
+        <span class="banner-axi-motion axi-character-motion" aria-hidden="true"><i></i><img class="axi-motion-base" src="/primeax-home/assets/axi-motion.png" alt="" /><img class="axi-hand-motion" src="/primeax-home/assets/axi-motion.png" alt="" /><span class="axi-eye axi-eye-left"></span><span class="axi-eye axi-eye-right"></span></span>
         <div class="banner-axi-label" aria-hidden="true">AXI · AI RESEARCH ADVISOR AGENT</div>
       </div>
     </section>`);
@@ -513,17 +502,17 @@ export function buildPublicHomeHtml(content: PublicHomeContent): string {
       <div class="platform-copy">
         <h2>${sanitizeHomeHtml(c.intro.titleHtml)}</h2>
         <p class="platform-lead">${sanitizeHomeHtml(c.intro.leadHtml)}</p>
-        <div class="platform-flow" aria-label="PRIME AX 인사이트 흐름">
+        <div class="platform-flow" aria-label="Human Insight에서 전략 제언으로 연결되는 PRIME AX 인사이트 흐름">
           <div class="insight-node"><b>Human Insight</b><small>현장 맥락 · 품질 기준</small></div><i class="flow-connector" aria-hidden="true"></i>
-          <div class="insight-node"><b>Evidence Analysis</b><small>근거 검증</small></div><i class="flow-connector" aria-hidden="true"></i>
-          <div class="insight-node"><b>Decision Strategy</b><small>Priority · KPI · Action</small></div>
+          <div class="insight-node insight-node-centered"><b>Evidence Analysis</b><small>근거 검증</small></div><i class="flow-connector" aria-hidden="true"></i>
+          <div class="insight-node insight-node-centered"><b>Decision Strategy</b><small>Priority · KPI · Action</small></div>
         </div>
         <div class="platform-actions"><a class="btn-platform" href="#services">리서치 서비스 <b>→</b></a></div>
       </div>
-      <div class="research-visual process-visual" aria-label="리서치 전 과정">
-        <div class="visual-head"><div><span></span><b>RESEARCH DELIVERY WORKFLOW</b></div><small>ONE TEAM · ONE STANDARD</small></div>
-        <div class="process-heading"><div><small>FROM RESEARCH QUESTION</small><strong>Decision-Ready Insight</strong></div><p>DESIGN → FIELD → INSIGHT → ACTION</p></div>
-        <div class="research-process" aria-label="리서치 수행 4단계">
+      <div class="research-visual process-visual" aria-label="설계, 수집, 분석, 전략 제언의 리서치 전 과정">
+        <div class="visual-head"><div><span></span><b>RESEARCH DELIVERY WORKFLOW</b></div></div>
+        <div class="process-heading"><div><strong>Decision-Ready Insight</strong></div><div class="motion-copy-rail continuous-flow" aria-label="DESIGN에서 ACTION까지 진행"><span>DESIGN</span><i></i><span>FIELD</span><i></i><span>INSIGHT</span><i></i><span>ACTION</span><b class="continuous-flow-dot" aria-hidden="true"></b></div></div>
+        <div class="research-process" aria-label="Four-stage research workflow">
           <article class="process-card process-design"><div class="process-icon" aria-hidden="true"><i></i><i></i><i></i></div><b>RESEARCH DESIGN</b></article>
           <i class="process-arrow" aria-hidden="true"><b></b></i>
           <article class="process-card process-field"><div class="process-icon field-icon" aria-hidden="true"><i></i><i></i><i></i></div><b>DATA COLLECTION</b></article>
@@ -552,7 +541,7 @@ export function buildPublicHomeHtml(content: PublicHomeContent): string {
             : i === 2
               ? "<i></i><i></i><i></i><i></i>"
               : "<i></i><i></i><i></i>";
-        return `<article class="service-card ${cls}"><div class="service-index"><small>${sanitizeHomeHtml(indexLabel)}</small></div><div class="${iconClass}" aria-hidden="true">${iconInner}</div><h3>${sanitizeHomeHtml(card.title)}</h3><p>${sanitizeHomeHtml(card.description)}</p><ul>${tags}</ul></article>`;
+        return `<article class="service-card ${cls}"><div class="service-index"><small>${sanitizeHomeHtml(indexLabel)}</small></div><div class="${iconClass}" aria-hidden="true">${iconInner}</div><h3>${sanitizeHomeHtml(card.title)}</h3>${i === 2 ? `<p class="responsibility-copy">${sanitizeHomeHtml(card.description)}</p>` : `<p>${sanitizeHomeHtml(card.description)}</p>`}<ul>${tags}</ul></article>`;
       })
       .join("");
     parts.push(`
@@ -569,11 +558,10 @@ export function buildPublicHomeHtml(content: PublicHomeContent): string {
       <figure class="rkme-delivery scroll-reveal" aria-labelledby="rkme-delivery-title">
         <figcaption class="rkme-delivery-head">
           <div><span class="rkme-status-dot" aria-hidden="true"></span><b>RESEARCH DELIVERY WORKFLOW</b></div>
-          <small>ONE TEAM · ONE STANDARD</small>
         </figcaption>
         <div class="rkme-delivery-title">
-          <div><small>FROM RESEARCH QUESTION</small><h3 id="rkme-delivery-title">Decision-Ready Intelligence Pipeline</h3></div>
-          <p>DESIGN → FIELD → INSIGHT → ACTION</p>
+          <div><h3 id="rkme-delivery-title">Decision-Ready Intelligence Pipeline</h3></div>
+          <div class="motion-copy-rail continuous-flow" aria-label="DESIGN에서 ACTION까지 진행"><span>DESIGN</span><i></i><span>FIELD</span><i></i><span>INSIGHT</span><i></i><span>ACTION</span><b class="continuous-flow-dot" aria-hidden="true"></b></div>
         </div>
         <div class="rkme-flow" role="list" aria-label="RKME 리서치 딜리버리 5단계">
           <article class="rkme-flow-card" role="listitem">
@@ -606,16 +594,16 @@ export function buildPublicHomeHtml(content: PublicHomeContent): string {
             <ul><li>Research Task Execution</li><li>End-User Intelligence Access</li><li>Actionable Business Insight</li></ul>
           </article>
         </div>
-        <div class="rkme-output"><strong>OUTPUT</strong><span>Research Report</span><i></i><span>Improvement Priorities</span><i></i><span>Execution Roadmap</span><small>PRIME AX · AI RESEARCH</small></div>
+        <div class="rkme-output"><strong>OUTPUT</strong><span>Research Report</span><i></i><span>Improvement Priorities</span><i></i><span>Execution Roadmap</span></div>
       </figure>
       <div class="engine-workbench">
-        <div class="workbench-top"><div><span class="live-dot"></span>INTERACTIVE PROTOTYPE</div><small>입력 → 검색·검증 → RAG 생성 → 전문가 검토</small></div>
+        <div class="workbench-top"><div><span class="live-dot"></span>INTERACTIVE PROTOTYPE</div><div class="motion-copy-rail workbench-motion" aria-label="입력에서 전문가 검토까지 진행"><span>입력</span><i></i><span>검색·검증</span><i></i><span>RAG 생성</span><i></i><span>전문가 검토</span></div></div>
         <div class="engine-grid">
           <form id="ksic-form" class="brief-form">
             <label for="industry-input">사업·조사 내용 입력</label>
             <textarea id="industry-input" placeholder="예: 이차전지 제조기업의 인력 수요와 직무 역량을 조사하고 싶습니다.">이차전지 제조기업의 인력 수요와 직무 역량을 조사하고 싶습니다.</textarea>
             <div class="quick-brief"><button type="button" data-brief="스마트제조 기업의 생산성 향상과 현장 인력 수요를 조사합니다.">스마트제조</button><button type="button" data-brief="지역 대학 재학생의 교육 만족도와 취업 역량을 진단합니다.">교육 수요</button><button type="button" data-brief="공공기관 민원 응대 서비스의 친절도와 개선 과제를 진단합니다.">공공 CX</button></div>
-            <button class="run-button" type="submit"><span>RAG KSIC MAPPING ENGINE</span><b>→</b></button>
+            <button class="run-button" type="submit"><span>RKME MODEL</span><b>→</b></button>
             <p class="form-note">* 화면은 매핑·설문생성 흐름을 보여주는 프로토타입입니다.</p>
           </form>
           <div class="result-panel" aria-live="polite">
