@@ -29,6 +29,24 @@
     box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
+    /* 절대 배치 로고(left + max-width×scaleX + 여백)와 겹치지 않도록 확보 */
+    --site-header-logo-clear: 14.75rem;
+  }
+
+  @media (min-width: 640px) {
+    .site-header {
+      --site-header-logo-clear: 17.25rem;
+    }
+  }
+
+  /* 좁은 화면에서 중앙 밴드 왼쪽이 로고 아래로 들어오면 로고 오른쪽으로 밀어 겹침 방지 */
+  .site-header .site-content-band {
+    --_band-ideal: min(var(--site-content-max), calc(2 * var(--site-content-half)));
+    --_side-ideal: max(0px, calc((100% - var(--_band-ideal)) / 2));
+    --_left: max(var(--site-header-logo-clear), var(--_side-ideal));
+    width: min(var(--_band-ideal), calc(100% - var(--_left)));
+    margin-left: var(--_left);
+    margin-right: auto;
   }
 
   /* 가운데 탭 영역에만 덧칠하던 오버레이 제거 — 헤더 전체 톤을 통일한다.
