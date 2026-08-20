@@ -34,7 +34,7 @@ export function SeedSurveyResponsesButton({ slug, title }: Props) {
 
     startTransition(async () => {
       const res = await seedSurveyResponsesAction(slug, count);
-      if (res.error) {
+      if (!res.ok) {
         alert(res.error);
         return;
       }
