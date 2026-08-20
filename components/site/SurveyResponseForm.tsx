@@ -758,7 +758,7 @@ export function SurveyResponseForm({
           <span>
             {currentQuestion?.type === "info_media"
               ? `안내 · ${stepIndex + 1} / ${visibleQuestions.length}`
-              : `문항 ${displayNumberByQuestionId.get(currentQuestion?.id ?? "") ?? "—"} · ${stepIndex + 1} / ${visibleQuestions.length}`}
+              : `${stepIndex + 1} / ${visibleQuestions.length}`}
           </span>
           <span>{progressPercent}%</span>
         </div>

@@ -6,6 +6,7 @@ import { SurveyFrequencyBreakdown } from "@/components/admin/SurveyFrequencyBrea
 import { getSurveyResponseStats } from "@/lib/survey-response-stats";
 import { getSurveyWorkload } from "@/lib/survey-workload";
 import { getAdminSurveys } from "@/lib/surveys-db";
+import { SeedSurveyResponsesButton } from "@/components/admin/SeedSurveyResponsesButton";
 import { BarChart3 } from "lucide-react";
 
 export const metadata = { title: "진행·업무 현황" };
@@ -15,9 +16,10 @@ export const dynamic = "force-dynamic";
 export default async function AdminProgressPage({
   searchParams,
 }: {
-  searchParams: Promise<{ survey?: string }>;
+  searchParams: Promise<{ survey?: string; seeded?: string }>;
 }) {
-  const { survey: surveyParam } = await searchParams;
+  const { survey: surveyParam, seeded: seededParam } = await searchParams;
+  const seededCount = seededParam ? Number(seededParam) : 0;
   const selectedSlug = surveyParam?.trim() ?? "";
   const adminSurveys = await getAdminSurveys();
   const [stats, surveyWorkload] = await Promise.all([
@@ -32,6 +34,12 @@ export default async function AdminProgressPage({
         description="설문별 진행도·작업량·문항별 응답 빈도를 확인합니다."
       />
       <div className="space-y-10 p-4 sm:p-6">
+        {seededCount > 0 && selectedSlug ? (
+          <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+            테스트 응답 {seededCount.toLocaleString()}건을 추가했습니다. (설문 ID:{" "}
+            <code className="rounded bg-emerald-100/80 px-1">{selectedSlug}</code>)
+          </p>
+        ) : null}
         <section>
           <h2 className="text-sm font-semibold text-zinc-900">설문 진행도</h2>
           <p className="mt-1 text-sm text-zinc-600">
@@ -114,6 +122,7 @@ export default async function AdminProgressPage({
 
                     {isSelected ? (
                       <div className="mt-6 space-y-8 border-t border-zinc-100 pt-6">
+                        <SeedSurveyResponsesButton slug={s.id} title={s.title} />
                         {surveyWorkload ? (
                           <SurveyWorkloadSection workload={surveyWorkload} />
                         ) : null}

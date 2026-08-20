@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   MAX_LIKERT_SCALE_SIZE,
   MIN_LIKERT_SCALE_SIZE,
@@ -7,6 +8,11 @@ import {
   likertCircledMark,
   normalizeLikertScaleLabels,
 } from "@/lib/likert-scale";
+import {
+  LIKERT_LABEL_TEMPLATES,
+  expandLikertLabelTemplate,
+  findLikertLabelTemplate,
+} from "@/lib/likert-label-templates";
 import type { DraftQuestion } from "@/lib/survey-types";
 
 type Props = {
@@ -16,6 +22,7 @@ type Props = {
 };
 
 export function LikertScaleSettings({ scaleSize, labels, onChange }: Props) {
+  const [templateSelect, setTemplateSelect] = useState("");
   const size = clampLikertScaleSize(scaleSize);
   const normalized = normalizeLikertScaleLabels(labels, size);
 
@@ -31,6 +38,15 @@ export function LikertScaleSettings({ scaleSize, labels, onChange }: Props) {
     const next = [...normalized];
     next[index] = text;
     onChange({ likertScaleLabels: next });
+  };
+
+  const applyTemplate = (templateId: string) => {
+    const template = findLikertLabelTemplate(templateId);
+    if (!template) return;
+    onChange({
+      likertScaleLabels: expandLikertLabelTemplate(template, size),
+    });
+    setTemplateSelect("");
   };
 
   return (
@@ -59,6 +75,31 @@ export function LikertScaleSettings({ scaleSize, labels, onChange }: Props) {
           </span>
           으로 작성하세요.
         </p>
+
+        <label className="mt-3 block">
+          <span className="text-xs font-medium text-zinc-700">라벨 템플릿</span>
+          <p className="mt-0.5 text-xs text-zinc-500">
+            선택하면 현재 척도 크기({size}점)에 맞게 「매우 ~ · 보통 · ~ 전혀」
+            형식으로 자동 채웁니다.
+          </p>
+          <select
+            value={templateSelect}
+            onChange={(e) => {
+              const id = e.target.value;
+              setTemplateSelect(id);
+              if (id) applyTemplate(id);
+            }}
+            className="mt-2 w-full max-w-md rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900"
+          >
+            <option value="">템플릿 선택…</option>
+            {LIKERT_LABEL_TEMPLATES.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <div className="mt-3 space-y-2">
           {normalized.map((label, i) => (
             <label key={i} className="flex items-center gap-2 text-sm">

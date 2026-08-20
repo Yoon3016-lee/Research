@@ -1,6 +1,10 @@
 /**
- * 설문 테스트 응답 시드
+ * 설문 테스트 응답 시드 (CLI)
  * 사용: node scripts/seed-survey-responses.mjs <slug> [건수]
+ *
+ * 분기(표시 조건·조사 종료) 반영은 관리자 UI /
+ * lib/seed-survey-responses.ts 를 사용하세요.
+ * 이 스크립트는 대량(최대 5000건)용이며, 모든 문항에 답을 넣습니다.
  */
 import { loadProjectEnv } from "./lib/load-env.mjs";
 import { createSupabaseAdminFromEnv } from "./lib/supabase-admin.mjs";

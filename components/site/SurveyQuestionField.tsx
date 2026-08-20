@@ -43,7 +43,6 @@ type Props = {
 
 export function SurveyQuestionField({
   question: q,
-  displayNumber,
   state,
   pending,
   onMcSingle,
@@ -74,7 +73,7 @@ export function SurveyQuestionField({
         >
           {q.type === "info_media"
             ? "안내"
-            : `문항 ${displayNumber ?? ""} · ${QUESTION_TYPE_LABELS[q.type]}`}
+            : `${QUESTION_TYPE_LABELS[q.type]}`}
         </p>
         <div className="flex flex-wrap gap-1.5">
           {q.staffOnly ? (
