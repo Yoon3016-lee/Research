@@ -63,7 +63,7 @@ export type SurveyAnswerInput =
   | { questionId: string; type: "text_multi"; values: Record<string, string>; lines?: string[] }
   | { questionId: string; type: "likert_7"; value: number }
   | { questionId: string; type: "dropdown"; optionId: string }
-  | { questionId: string; type: "rank"; rankedOptionIds: string[] }
+  | { questionId: string; type: "rank"; rankedOptionIds: string[]; otherText?: string }
   | { questionId: string; type: "likert_multi"; values: Record<string, number> }
   | { questionId: string; type: "star_rating"; value: number }
   | { questionId: string; type: "contact_fields"; values: Record<string, string> };

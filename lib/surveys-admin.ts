@@ -1,7 +1,12 @@
 import "server-only";
 
 import { parseStoredVisibilityRules } from "@/lib/survey-visibility";
-import type { CreateSurveyPayload, DraftQuestion, QuestionType } from "@/lib/survey-types";
+import {
+  questionTypeSupportsOtherOption,
+  type CreateSurveyPayload,
+  type DraftQuestion,
+  type QuestionType,
+} from "@/lib/survey-types";
 import {
   clampLikertScaleSize,
   legacyLikertEndpointLabels,
@@ -324,8 +329,7 @@ export async function loadSurveyForEdit(ref: string): Promise<SurveyEditLoad> {
     const ends = entry?.ends ?? [];
     const ids = entry?.ids ?? [];
     const otherLabel = entry?.otherLabel ?? null;
-    const otherEnabled =
-      (type === "mc_single" || type === "mc_multi") && Boolean(otherLabel);
+    const otherEnabled = questionTypeSupportsOtherOption(type) && Boolean(otherLabel);
     const optionCountForMax = opts.length + (otherEnabled ? 1 : 0);
 
     let likertScaleLabels: string[] = [];

@@ -6,7 +6,11 @@ import {
   MIN_LIKERT_SCALE_SIZE,
   normalizeLikertScaleLabels,
 } from "@/lib/likert-scale";
-import type { DraftQuestion, QuestionType } from "@/lib/survey-types";
+import {
+  questionTypeSupportsOtherOption,
+  type DraftQuestion,
+  type QuestionType,
+} from "@/lib/survey-types";
 import { validateVisibilityRules } from "@/lib/survey-visibility";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -35,8 +39,7 @@ export function validateQuestion(
   if (visibilityErr) return visibilityErr;
   if (q.type === "mc_single" || q.type === "mc_multi" || q.type === "dropdown") {
     const opts = q.options.map((o) => o.trim()).filter(Boolean);
-    const otherOn =
-      (q.type === "mc_single" || q.type === "mc_multi") && q.otherOptionEnabled;
+    const otherOn = questionTypeSupportsOtherOption(q.type) && q.otherOptionEnabled;
     const otherLabel = q.otherOptionLabel.trim() || "기타";
     const total = opts.length + (otherOn ? 1 : 0);
     if (total < 2) {
@@ -54,12 +57,18 @@ export function validateQuestion(
   }
   if (q.type === "rank") {
     const opts = q.options.map((o) => o.trim()).filter(Boolean);
-    if (opts.length < 2) {
+    const otherOn = q.otherOptionEnabled;
+    const otherLabel = q.otherOptionLabel.trim() || "기타";
+    const total = opts.length + (otherOn ? 1 : 0);
+    if (total < 2) {
       return `문항 ${index + 1}: 순위 선택은 선택지를 2개 이상 입력하세요.`;
     }
+    if (otherOn && !otherLabel) {
+      return `문항 ${index + 1}: 기타 보기 문구를 입력하세요.`;
+    }
     const rankCount = q.maxSelections;
-    if (rankCount < 1 || rankCount > opts.length) {
-      return `문항 ${index + 1}: 순위 개수는 1~선택지 개수(${opts.length}) 사이여야 합니다.`;
+    if (rankCount < 1 || rankCount > total) {
+      return `문항 ${index + 1}: 순위 개수는 1~선택지 개수(${total}) 사이여야 합니다.`;
     }
   }
   if (q.type === "likert_7" || q.type === "likert_multi") {
@@ -211,7 +220,7 @@ async function insertOptionsForNewQuestion(
       }))
       .filter((p) => p.label);
     const labels = paired.map((p) => p.label);
-    const allowOther = q.type === "mc_single" || q.type === "mc_multi";
+    const allowOther = questionTypeSupportsOtherOption(q.type);
     const withOther =
       allowOther && q.otherOptionEnabled
         ? [
@@ -408,7 +417,7 @@ async function syncOptionsPreservingIdsWithRows(
       }
     }
 
-    const allowOther = q.type === "mc_single" || q.type === "mc_multi";
+    const allowOther = questionTypeSupportsOtherOption(q.type);
     if (allowOther && q.otherOptionEnabled) {
       const otherLabel = q.otherOptionLabel.trim() || "기타";
       const order_index = paired.length;

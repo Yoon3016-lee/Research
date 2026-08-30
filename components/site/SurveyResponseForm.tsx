@@ -114,6 +114,7 @@ function hydrateState(answers: SurveyAnswerInput[] | undefined): HydratedState {
       state.dropdown[a.questionId] = a.optionId;
     } else if (a.type === "rank") {
       state.rank[a.questionId] = a.rankedOptionIds;
+      if (a.otherText) state.mcOtherText[a.questionId] = a.otherText;
     } else if (a.type === "likert_multi") {
       const rec: Record<string, number | null> = {};
       for (const [k, v] of Object.entries(a.values)) rec[k] = v;
@@ -427,10 +428,16 @@ export function SurveyResponseForm({
       } else if (q.type === "dropdown") {
         out.push({ questionId: q.id, type: "dropdown", optionId: dropdown[q.id] ?? "" });
       } else if (q.type === "rank") {
+        const rankedOptionIds = rank[q.id] ?? [];
+        const otherOpt = q.options.find((o) => o.isOther);
+        const otherSelected = Boolean(
+          otherOpt && rankedOptionIds.includes(otherOpt.id),
+        );
         out.push({
           questionId: q.id,
           type: "rank",
-          rankedOptionIds: rank[q.id] ?? [],
+          rankedOptionIds,
+          ...(otherSelected ? { otherText: mcOtherText[q.id] ?? "" } : {}),
         });
       } else if (q.type === "likert_multi") {
         out.push({

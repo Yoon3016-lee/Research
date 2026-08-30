@@ -52,6 +52,7 @@ type OptionRow = {
   question_id: string;
   order_index: number;
   label: string;
+  is_other?: boolean | null;
 };
 
 type ResponseRow = {
@@ -206,12 +207,20 @@ function parseTextMulti(answer: unknown): string | null {
   return filled.join(" · ");
 }
 
-function parseRank(answer: unknown, optionLabels: Map<string, string>): string | null {
+function parseRank(
+  answer: unknown,
+  optionLabels: Map<string, string>,
+  otherOptionIds?: Set<string>,
+): string | null {
   if (!answer || typeof answer !== "object") return null;
   const ids = (answer as { rankedOptionIds?: string[] }).rankedOptionIds;
   if (!Array.isArray(ids) || ids.length === 0) return null;
+  const otherText = (answer as { otherText?: string }).otherText?.trim() ?? "";
   const parts = ids.map((id, i) => {
-    const label = optionLabels.get(id) ?? id.slice(0, 8);
+    let label = optionLabels.get(id) ?? id.slice(0, 8);
+    if (otherText && otherOptionIds?.has(id)) {
+      label = `${label} (${otherText})`;
+    }
     return `${i + 1}위: ${label}`;
   });
   return parts.join(" · ");
@@ -269,10 +278,11 @@ export async function getSurveyResponseStats(ref: string): Promise<SurveyRespons
   const questionIds = questions.map((q) => q.id);
 
   const optionsByQuestion = new Map<string, Map<string, string>>();
+  const otherOptionIdsByQuestion = new Map<string, Set<string>>();
   if (questionIds.length > 0) {
     const { data: optRows } = await admin
       .from("survey_question_options")
-      .select("id, question_id, order_index, label")
+      .select("id, question_id, order_index, label, is_other")
       .in("question_id", questionIds)
       .order("order_index", { ascending: true });
 
@@ -280,6 +290,11 @@ export async function getSurveyResponseStats(ref: string): Promise<SurveyRespons
       const map = optionsByQuestion.get(o.question_id) ?? new Map<string, string>();
       map.set(o.id, o.label);
       optionsByQuestion.set(o.question_id, map);
+      if (o.is_other) {
+        const others = otherOptionIdsByQuestion.get(o.question_id) ?? new Set<string>();
+        others.add(o.id);
+        otherOptionIdsByQuestion.set(o.question_id, others);
+      }
     }
   }
 
@@ -347,6 +362,7 @@ export async function getSurveyResponseStats(ref: string): Promise<SurveyRespons
     const noAnswerCount = Math.max(0, totalSubmissions - answeredCount);
     const noAnswer = noAnswerByKind(responses, answeredResponseIds);
     const optionLabels = optionsByQuestion.get(q.id) ?? new Map<string, string>();
+    const otherOptionIds = otherOptionIdsByQuestion.get(q.id);
 
     const base = {
       questionId: q.id,
@@ -481,7 +497,7 @@ export async function getSurveyResponseStats(ref: string): Promise<SurveyRespons
     if (type === "rank") {
       const counts = new Map<string, BucketCounts>();
       for (const a of answers) {
-        const label = parseRank(a.answer, optionLabels);
+        const label = parseRank(a.answer, optionLabels, otherOptionIds);
         if (!label) continue;
         const c = counts.get(label) ?? emptyCounts();
         bump(c, a.kind);

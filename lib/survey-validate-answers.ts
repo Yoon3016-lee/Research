@@ -143,6 +143,10 @@ function validateOneAnswer(
         return `문항 ${n}: 잘못된 선택이 포함되어 있습니다.`;
       }
     }
+    const otherOpt = q.options.find((o) => o.isOther);
+    if (otherOpt && ids.includes(otherOpt.id) && !(a.otherText?.trim())) {
+      return `문항 ${n}: 기타 내용을 입력하세요.`;
+    }
   }
 
   if (q.type === "likert_multi") {

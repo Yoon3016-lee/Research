@@ -95,7 +95,12 @@ function toAnswerJson(
     const shift = typeof profile[qIndex] === "number" ? profile[qIndex] : 0;
     const rotated = [...ids.slice(shift % ids.length), ...ids.slice(0, shift % ids.length)];
     const ranked = rotated.slice(0, rankCount);
-    return ranked.length ? { rankedOptionIds: ranked } : null;
+    if (!ranked.length) return null;
+    const otherOpt = options.find((o) => o.isOther);
+    if (otherOpt && ranked.includes(otherOpt.id)) {
+      return { rankedOptionIds: ranked, otherText: "기타 응답 예시" };
+    }
+    return { rankedOptionIds: ranked };
   }
   if (type === "likert_multi") {
     const values: Record<string, number> = {};

@@ -83,7 +83,8 @@ function toAnswerJson(
   if (qType === "rank" && a.type === "rank") {
     const rankedOptionIds = a.rankedOptionIds.filter(Boolean);
     if (rankedOptionIds.length === 0) return null;
-    return { rankedOptionIds };
+    const otherText = a.otherText?.trim();
+    return otherText ? { rankedOptionIds, otherText } : { rankedOptionIds };
   }
   if (qType === "likert_multi" && a.type === "likert_multi") {
     const values: Record<string, number> = {};

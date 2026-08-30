@@ -505,6 +505,37 @@ export function QuestionEditCard({
             >
               + 선택지 추가
             </button>
+            <div className="mt-4 space-y-2 border-t border-amber-100 pt-3">
+              <label className="flex cursor-pointer items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  checked={q.otherOptionEnabled}
+                  onChange={(e) =>
+                    onChange({ otherOptionEnabled: e.target.checked })
+                  }
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="text-sm font-medium text-zinc-800">
+                    기타 보기 추가
+                  </span>
+                  <span className="mt-0.5 block text-xs text-zinc-500">
+                    순위에 포함할 때 응답자가 직접 텍스트를 입력할 수 있습니다.
+                  </span>
+                </span>
+              </label>
+              {q.otherOptionEnabled ? (
+                <label className="block pl-6">
+                  <span className="text-xs font-medium text-zinc-600">기타 보기 문구</span>
+                  <input
+                    value={q.otherOptionLabel}
+                    onChange={(e) => onChange({ otherOptionLabel: e.target.value })}
+                    className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/15"
+                    placeholder="기타"
+                  />
+                </label>
+              ) : null}
+            </div>
             <label className="mt-4 block border-t border-amber-100 pt-3">
               <span className="text-sm font-medium text-zinc-800">순위 개수</span>
               <p className="text-xs text-zinc-500">
@@ -513,7 +544,11 @@ export function QuestionEditCard({
               <input
                 type="number"
                 min={1}
-                max={Math.max(1, q.options.filter((x) => x.trim()).length)}
+                max={Math.max(
+                  1,
+                  q.options.filter((x) => x.trim()).length +
+                    (q.otherOptionEnabled ? 1 : 0),
+                )}
                 value={q.maxSelections}
                 onChange={(e) =>
                   onChange({
@@ -522,6 +557,12 @@ export function QuestionEditCard({
                 }
                 className="mt-2 w-28 rounded-lg border border-zinc-200 px-3 py-2 text-sm"
               />
+              <span className="ml-2 text-xs text-zinc-400">
+                (최대{" "}
+                {q.options.filter((x) => x.trim()).length +
+                  (q.otherOptionEnabled ? 1 : 0) || 0}
+                개)
+              </span>
             </label>
           </div>
         )}

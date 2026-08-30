@@ -83,7 +83,7 @@ export type DraftQuestion = {
    * (빈 라벨 보기는 저장 시 함께 제거)
    */
   optionEndsSurvey: boolean[];
-  /** 객관식(단일·다중): 기타 보기 사용 여부 */
+  /** 객관식(단일·다중)·순위 선택: 기타 보기 사용 여부 */
   otherOptionEnabled: boolean;
   /** 기타 보기 라벨 (기본: 기타) */
   otherOptionLabel: string;
@@ -104,6 +104,10 @@ export type DraftQuestion = {
   /** likert_7·likert_multi: 척도 점수별 라벨 (index 0 = 1점). maxSelections = 척도 크기 */
   likertScaleLabels: string[];
 };
+
+export function questionTypeSupportsOtherOption(type: QuestionType): boolean {
+  return type === "mc_single" || type === "mc_multi" || type === "rank";
+}
 
 export function createDraftQuestion(type: QuestionType): DraftQuestion {
   const clientId =

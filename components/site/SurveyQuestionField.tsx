@@ -228,8 +228,10 @@ export function SurveyQuestionField({
           options={q.options}
           rankCount={q.maxSelections ?? q.options.length}
           rankedOptionIds={state.rank[q.id] ?? []}
+          otherText={state.mcOtherText[q.id] ?? ""}
           disabled={pending}
           onChange={(rankedOptionIds) => onRank(q.id, rankedOptionIds)}
+          onOtherTextChange={(value) => onMcOtherText(q.id, value)}
         />
       )}
 

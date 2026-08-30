@@ -7,16 +7,20 @@ type Props = {
   options: PublicSurveyOption[];
   rankCount: number;
   rankedOptionIds: string[];
+  otherText: string;
   disabled: boolean;
   onChange: (rankedOptionIds: string[]) => void;
+  onOtherTextChange: (value: string) => void;
 };
 
 export function RankSelectInput({
   options,
   rankCount,
   rankedOptionIds,
+  otherText,
   disabled,
   onChange,
+  onOtherTextChange,
 }: Props) {
   const rankOf = (optionId: string) => rankedOptionIds.indexOf(optionId) + 1;
 
@@ -65,6 +69,17 @@ export function RankSelectInput({
                   <span className="shrink-0 text-xs text-zinc-400">선택</span>
                 )}
               </button>
+              {opt.isOther && selected ? (
+                <input
+                  type="text"
+                  value={otherText}
+                  disabled={disabled}
+                  onChange={(e) => onOtherTextChange(e.target.value)}
+                  className="mt-2 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none ring-indigo-500/30 focus:ring-2 disabled:opacity-60"
+                  placeholder="기타 내용을 입력하세요"
+                  aria-label={`${opt.label} 직접 입력`}
+                />
+              ) : null}
             </li>
           );
         })}

@@ -266,13 +266,17 @@ function formatAnswer(
   if (type === "rank") {
     const ids = parseRank(answer);
     if (ids.length === 0) return { code: "", label: "" };
+    const otherText = parseOtherText(answer);
     const codes: string[] = [];
     const labels: string[] = [];
     for (const id of ids) {
       const meta = optionMeta(options, id);
       if (!meta) continue;
       if (meta.index > 0) codes.push(String(meta.index));
-      labels.push(meta.label);
+      const opt = options.find((o) => o.id === id);
+      const label =
+        otherText && opt?.isOther ? `${meta.label} (${otherText})` : meta.label;
+      labels.push(label);
     }
     return { code: codes.join(","), label: labels.join(" > ") };
   }
@@ -957,6 +961,9 @@ function summaryCellValue(
     const ids = parseRank(raw);
     const rank = ids.indexOf(col.optionId);
     if (rank < 0) return "";
+    const other = parseOtherText(raw);
+    const opt = q.options.find((o) => o.id === col.optionId);
+    if (other && opt?.isOther) return `${rank + 1}순위 (${other})`;
     return `${rank + 1}순위`;
   }
 
@@ -1250,11 +1257,14 @@ function overviewCellValue(
   if (q.type === "rank") {
     if (raw == null) return "";
     const ids = parseRank(raw);
+    const other = parseOtherText(raw);
     const parts: string[] = [];
     ids.forEach((id, i) => {
       const meta = optionMeta(q.options, id);
       if (!meta || meta.index <= 0) return;
-      parts.push(`${i + 1}순위=${likertCircledMark(meta.index)}`);
+      const opt = q.options.find((o) => o.id === id);
+      const suffix = other && opt?.isOther ? ` (${other})` : "";
+      parts.push(`${i + 1}순위=${likertCircledMark(meta.index)}${suffix}`);
     });
     return parts.join(", ");
   }
