@@ -108,7 +108,7 @@ export const DEFAULT_PUBLIC_HOME_CONTENT: PublicHomeContent = {
   services: {
     kicker: "",
     titleHtml: "Execution Roadmap",
-    lead: "과업 목적에 맞는 Research Design과 전문 실사 운영, 정량·정성 통합분석을 통해 개선 우선순위와 실행 로드맵을 제시합니다.",
+    lead: "과업 목적에 맞는 Research Design과 전문 심사 운영, 정량·정성 통합분석을 통해 개선 우선순위와 실행 로드맵을 제시합니다.",
     cards: [
       {
         title: "조사 설계·운영",
@@ -127,7 +127,7 @@ export const DEFAULT_PUBLIC_HOME_CONTENT: PublicHomeContent = {
       {
         title: "책임 관리",
         description:
-          "공공정책부터 CX·기업 실태조사·교육 수요·미스터리 쇼퍼까지<br />분야별 전문가와 함께 조사 전 과정 책임 운영",
+          "공공정책부터 CX·기업 실태조사·교육 수요·미스터리 쇼퍼까지 분야별 전담자와 함께 조사 전 과정 책임 운영",
         tags: ["Public Policy · CX Research", "Business Survey · Education Demand", "Mystery Shopper · Outcome"],
         indexLabel: "Responsibility Management",
       },
@@ -456,12 +456,40 @@ function escAttr(value: string): string {
     .replaceAll(">", "&gt;");
 }
 
+const ROADMAP_CARD_META = [
+  {
+    modifier: "roadmap-card--blue",
+    image: "/primeax-home/assets/execution-roadmap/design-fieldwork.png",
+    alt: "조사 설계 및 운영 흐름을 표현한 일러스트",
+  },
+  {
+    modifier: "roadmap-card--cyan",
+    image: "/primeax-home/assets/execution-roadmap/mixed-method-analysis.png",
+    alt: "정량·정성 데이터를 결합 분석하는 일러스트",
+  },
+  {
+    modifier: "roadmap-card--orange",
+    image: "/primeax-home/assets/execution-roadmap/responsibility-management.png",
+    alt: "트렌드와 네트워크 분석을 표현한 일러스트",
+  },
+] as const;
+
 /** 관리자가 입력한 제한적 HTML(br, em, strong, sup)만 허용 */
 export function sanitizeHomeHtml(raw: string): string {
   return raw
     .replaceAll(/<(?!\/?(?:br|em|strong|sup|span)\b)[^>]*>/gi, "")
     .replaceAll(/<span(?!\s+class="nowrap")[^>]*>/gi, "")
     .replaceAll(/on\w+=["'][^"']*["']/gi, "");
+}
+
+function formatRoadmapTagLine(tag: string): string {
+  const parts = tag.split(/\s*·\s*/).filter(Boolean);
+  if (parts.length <= 1) return sanitizeHomeHtml(tag);
+  return parts
+    .map((part, index) =>
+      index === 0 ? sanitizeHomeHtml(part) : `<span>·</span> ${sanitizeHomeHtml(part)}`,
+    )
+    .join(" ");
 }
 
 export function buildPublicHomeHtml(content: PublicHomeContent): string {
@@ -532,27 +560,22 @@ export function buildPublicHomeHtml(content: PublicHomeContent): string {
   }
 
   if (s.services) {
-    const cardClasses = ["service-blue", "service-cyan", "service-orange"];
     const cardHtml = c.services.cards
       .map((card, i) => {
-        const cls = cardClasses[i % cardClasses.length];
-        const tags = card.tags.map((t) => `<li>${sanitizeHomeHtml(t)}</li>`).join("");
+        const meta = ROADMAP_CARD_META[i % ROADMAP_CARD_META.length];
+        const tags = card.tags
+          .map((t) => `<li>${formatRoadmapTagLine(t)}</li>`)
+          .join("");
         const indexLabel = card.indexLabel?.trim() || "SERVICE";
-        const iconClass =
-          i === 1 ? "service-icon chart-icon" : i === 2 ? "service-icon network-icon" : "service-icon";
-        const iconInner =
-          i === 1
-            ? "<i></i><i></i><i></i><i></i>"
-            : i === 2
-              ? "<i></i><i></i><i></i><i></i>"
-              : "<i></i><i></i><i></i>";
-        return `<article class="service-card ${cls}"><div class="service-index"><small>${sanitizeHomeHtml(indexLabel)}</small></div><div class="${iconClass}" aria-hidden="true">${iconInner}</div><h3>${sanitizeHomeHtml(card.title)}</h3>${i === 2 ? `<p class="responsibility-copy">${sanitizeHomeHtml(card.description)}</p>` : `<p>${sanitizeHomeHtml(card.description)}</p>`}<ul>${tags}</ul></article>`;
+        return `<article class="roadmap-card ${meta.modifier} scroll-reveal"><div class="eyebrow">${sanitizeHomeHtml(indexLabel)}</div><img src="${escAttr(meta.image)}" alt="${escAttr(meta.alt)}" loading="lazy" /><h3>${sanitizeHomeHtml(card.title)}</h3><p class="summary">${sanitizeHomeHtml(card.description)}</p><div class="divider" aria-hidden="true"></div><ul>${tags}</ul></article>`;
       })
       .join("");
     parts.push(`
     <section class="service-suite scroll-reveal" id="services" aria-labelledby="services-title">
-      <div class="suite-head"><h2 id="services-title">${sanitizeHomeHtml(c.services.titleHtml)}</h2><p>${sanitizeHomeHtml(c.services.lead)}</p></div>
-      <div class="service-grid">${cardHtml}</div>
+      <div class="roadmap-shell">
+        <header class="suite-head roadmap-header"><h2 id="services-title">${sanitizeHomeHtml(c.services.titleHtml)}</h2><p>${sanitizeHomeHtml(c.services.lead)}</p></header>
+        <section class="roadmap-grid" aria-label="Execution Roadmap 주요 영역">${cardHtml}</section>
+      </div>
     </section>`);
   }
 

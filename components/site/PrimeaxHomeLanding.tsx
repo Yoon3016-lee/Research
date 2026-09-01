@@ -80,7 +80,7 @@ export function PrimeaxHomeLanding({ content }: Props) {
 
     (async () => {
       try {
-        const [stylesEntry, core, overrides] = await Promise.all([
+        const [stylesEntry, core, overrides, executionRoadmap] = await Promise.all([
           fetch("/primeax-home/styles.css").then((r) => {
             if (!r.ok) throw new Error("styles.css 로드 실패");
             return r.text();
@@ -93,6 +93,10 @@ export function PrimeaxHomeLanding({ content }: Props) {
             if (!r.ok) throw new Error("overrides.css 로드 실패");
             return r.text();
           }),
+          fetch("/primeax-home/execution-roadmap.css").then((r) => {
+            if (!r.ok) throw new Error("execution-roadmap.css 로드 실패");
+            return r.text();
+          }),
         ]);
 
         if (cancelled) return;
@@ -101,7 +105,9 @@ export function PrimeaxHomeLanding({ content }: Props) {
         if (cancelled) return;
 
         const shadow = host.shadowRoot ?? host.attachShadow({ mode: "open" });
-        const css = rewriteCssForHost(`${stylesEntry}\n${core}\n${overrides}`);
+        const css = rewriteCssForHost(
+          `${stylesEntry}\n${core}\n${overrides}\n${executionRoadmap}`,
+        );
         const fragment = buildPublicHomeHtml(content);
 
         shadow.innerHTML = `

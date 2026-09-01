@@ -42,8 +42,8 @@ export default async function SurveyAiDemoPage() {
         title="[ RKME MODEL ]"
         description={
           mode === "admin"
-            ? "KSIC·조사 목적을 입력하면 OpenAI가 설문안과 CATI 스크립트를 제안합니다."
-            : "KSIC·조사 목적을 입력하면 OpenAI가 설문안과 CATI 스크립트를 제안합니다. 발표·체험용으로 로그인 없이 이용할 수 있습니다."
+            ? "산업분류.조사 목적을 입력하면 RKME가 설문안과 CATI스크립트를 제안합니다"
+            : "산업분류.조사 목적을 입력하면 RKME가 설문안과 CATI스크립트를 제안합니다. 체험용으로 로그인 없이 이용할 수 있습니다."
         }
       />
       <div className="p-4 sm:p-6">

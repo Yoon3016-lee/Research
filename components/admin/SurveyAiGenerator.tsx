@@ -10,6 +10,7 @@ import {
   searchKsicAction,
   validateKsicExternalAction,
 } from "@/app/actions/generate-survey-ai";
+import { AxiMark } from "@/components/admin/AxiMark";
 import { KsicHierarchyDialog } from "@/components/admin/KsicHierarchyDialog";
 import { KsicSelectSection } from "@/components/admin/KsicSelectSection";
 import { KsicUnstructuredRecommendDialog } from "@/components/admin/KsicUnstructuredRecommendDialog";
@@ -71,7 +72,6 @@ export function SurveyAiGenerator({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [proposalCount, setProposalCount] = useState(3);
-  const [aiProviderLabel, setAiProviderLabel] = useState<string | null>(null);
   const [ksicQuery, setKsicQuery] = useState("");
   const [ksicResults, setKsicResults] = useState<KsicEntry[]>([]);
   const [ksicPickerOpen, setKsicPickerOpen] = useState(false);
@@ -99,9 +99,8 @@ export function SurveyAiGenerator({
         return;
       }
       setProposalCount(c.proposalCount);
-      setAiProviderLabel(c.providerLabel);
     });
-  }, []);
+  }, [access]);
 
   const updateBrief = (patch: Partial<SurveyAiBrief>) => {
     setBrief((prev) => ({ ...prev, ...patch }));
@@ -316,18 +315,13 @@ export function SurveyAiGenerator({
           <Sparkles className="mt-1 h-6 w-6 shrink-0 text-sky-600" aria-hidden />
           <div className="text-brand-900">
             <p className="text-lg font-semibold tracking-tight sm:text-xl">
-              KSIC 기반 AI 설문 생성
+              RAG기반 KSIC매핑 설문 생성
             </p>
             <p className="mt-2 text-base leading-relaxed text-sky-950/85 sm:text-[1.0625rem]">
               산업 분류·조사 목적을 입력하면 AI가 설문안 {proposalCount}개와 CATI 조사원
               스크립트·추천 근거를 제안합니다.
               <br />
               정보가 부족하면 보완 질문을 드립니다.
-              {aiProviderLabel ? (
-                <span className="mt-2 block text-sm text-sky-900/70">
-                  사용 중인 AI: {aiProviderLabel}
-                </span>
-              ) : null}
             </p>
           </div>
         </div>
@@ -406,9 +400,9 @@ export function SurveyAiGenerator({
             {pending ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
             ) : (
-              <Bot className="h-4 w-4" aria-hidden />
+              <AxiMark axiIconUrl={axiIconUrl} sizeClassName="h-5 w-5" />
             )}
-            {pending ? "생성 중…" : `AI로 설문 ${proposalCount}안 생성`}
+            {pending ? "생성 중…" : "RKME로 설문3안 생성"}
           </button>
         </form>
       ) : null}

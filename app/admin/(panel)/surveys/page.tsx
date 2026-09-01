@@ -149,7 +149,7 @@ export default async function AdminSurveysPage({
               className="inline-flex items-center gap-2 rounded-xl border border-accent-500/35 bg-accent-500/10 px-4 py-2.5 text-sm font-semibold text-brand-900 shadow-sm transition hover:bg-accent-500/18"
             >
               <Sparkles className="h-4 w-4" aria-hidden />
-              AI 설문 생성
+              RKME 설문 생성
             </Link>
             <SurveyScriptsLauncher
               sharedScripts={sharedScripts}
