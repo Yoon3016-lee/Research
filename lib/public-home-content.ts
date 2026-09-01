@@ -133,8 +133,8 @@ export const DEFAULT_PUBLIC_HOME_CONTENT: PublicHomeContent = {
       },
     ],
     bottomLabel: "PRIME AX / HUMAN INSIGHT × AI INTELLIGENCE",
-    inquiryHref: "#contact",
-    inquiryLabel: "프로젝트 문의",
+    inquiryHref: "/admin/surveys/ai-generate",
+    inquiryLabel: "RKME MODEL 체험하기",
   },
   engine: {
     kicker: "",
@@ -239,6 +239,11 @@ export const DEFAULT_PUBLIC_HOME_CONTENT: PublicHomeContent = {
 
 function asString(value: unknown, fallback: string): string {
   return typeof value === "string" ? value : fallback;
+}
+
+function asNonEmptyString(value: unknown, fallback: string): string {
+  const text = typeof value === "string" ? value.trim() : "";
+  return text || fallback;
 }
 
 function asBool(value: unknown, fallback: boolean): boolean {
@@ -353,8 +358,8 @@ export function parsePublicHomeContent(raw: unknown): PublicHomeContent {
             ? cards
             : d.services.cards,
       bottomLabel: asString(services.bottomLabel, d.services.bottomLabel),
-      inquiryHref: asString(services.inquiryHref, d.services.inquiryHref),
-      inquiryLabel: asString(services.inquiryLabel, d.services.inquiryLabel),
+      inquiryHref: asNonEmptyString(services.inquiryHref, d.services.inquiryHref),
+      inquiryLabel: asNonEmptyString(services.inquiryLabel, d.services.inquiryLabel),
     },
     engine: {
       kicker: replaceLegacy(asString(engine.kicker, d.engine.kicker), "03 / PRODUCT · RAG KSIC ENGINE", d.engine.kicker),
@@ -546,7 +551,7 @@ export function buildPublicHomeHtml(content: PublicHomeContent): string {
       .join("");
     parts.push(`
     <section class="service-suite scroll-reveal" id="services" aria-labelledby="services-title">
-      <div class="suite-head"><div><h2 id="services-title">${sanitizeHomeHtml(c.services.titleHtml)}</h2></div><p>${sanitizeHomeHtml(c.services.lead)}</p></div>
+      <div class="suite-head"><h2 id="services-title">${sanitizeHomeHtml(c.services.titleHtml)}</h2><p>${sanitizeHomeHtml(c.services.lead)}</p></div>
       <div class="service-grid">${cardHtml}</div>
     </section>`);
   }
@@ -554,7 +559,7 @@ export function buildPublicHomeHtml(content: PublicHomeContent): string {
   if (s.engine) {
     parts.push(`
     <section class="engine-section" id="engine">
-      <div class="section-head"><div><h2>${sanitizeHomeHtml(c.engine.titleHtml)}</h2></div><p>${sanitizeHomeHtml(c.engine.lead)}</p></div>
+      <div class="section-head"><h2>${sanitizeHomeHtml(c.engine.titleHtml)}</h2><div class="section-head-aside"><a class="btn-suite-cta" href="${escAttr(c.services.inquiryHref)}">${sanitizeHomeHtml(c.services.inquiryLabel)}</a><p>${sanitizeHomeHtml(c.engine.lead)}</p></div></div>
       <figure class="rkme-delivery scroll-reveal" aria-labelledby="rkme-delivery-title">
         <figcaption class="rkme-delivery-head">
           <div><span class="rkme-status-dot" aria-hidden="true"></span><b>RESEARCH DELIVERY WORKFLOW</b></div>

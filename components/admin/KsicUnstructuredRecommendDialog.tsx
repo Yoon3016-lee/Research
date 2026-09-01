@@ -22,7 +22,7 @@ type Props = {
   /** 공개 체험 시 잔여 횟수 표시 */
   usage?: KsicRecommendUsageInfo | null;
   /** public이면 횟수·로그인 안내 강조 */
-  channel?: "admin" | "public";
+  channel?: "admin" | "public" | "demo";
   axiIconUrl?: string | null;
 };
 

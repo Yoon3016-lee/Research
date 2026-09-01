@@ -12,6 +12,7 @@ type Props = {
   onSelect: (entry: KsicEntry) => void;
   /** 열 때마다 트리를 처음(대분류)부터 다시 로드 */
   resetKey: number;
+  access?: import("@/lib/survey-ai/access").SurveyAiAccess;
 };
 
 export function KsicHierarchyDialog({
@@ -20,6 +21,7 @@ export function KsicHierarchyDialog({
   selectedCode,
   onSelect,
   resetKey,
+  access = "admin",
 }: Props) {
   useEffect(() => {
     if (!open) return;
@@ -91,6 +93,7 @@ export function KsicHierarchyDialog({
             embedded
             selectedCode={selectedCode}
             onSelect={handleSelect}
+            access={access}
           />
         </div>
       </div>

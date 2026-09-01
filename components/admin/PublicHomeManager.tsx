@@ -242,24 +242,6 @@ export function PublicHomeManager({ content: initialContent }: Props) {
             </Field>
           </div>
         ))}
-        <Field label="하단 문의 버튼 문구">
-          <input
-            className={inputClass}
-            value={content.services.inquiryLabel}
-            onChange={(e) =>
-              patch("services", { ...content.services, inquiryLabel: e.target.value })
-            }
-          />
-        </Field>
-        <Field label="하단 문의 링크">
-          <input
-            className={inputClass}
-            value={content.services.inquiryHref}
-            onChange={(e) =>
-              patch("services", { ...content.services, inquiryHref: e.target.value })
-            }
-          />
-        </Field>
       </section>
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm space-y-4">
@@ -283,6 +265,24 @@ export function PublicHomeManager({ content: initialContent }: Props) {
             className={areaClass}
             value={content.engine.lead}
             onChange={(e) => patch("engine", { ...content.engine, lead: e.target.value })}
+          />
+        </Field>
+        <Field label="RKME 체험 버튼 문구">
+          <input
+            className={inputClass}
+            value={content.services.inquiryLabel}
+            onChange={(e) =>
+              patch("services", { ...content.services, inquiryLabel: e.target.value })
+            }
+          />
+        </Field>
+        <Field label="RKME 체험 버튼 링크">
+          <input
+            className={inputClass}
+            value={content.services.inquiryHref}
+            onChange={(e) =>
+              patch("services", { ...content.services, inquiryHref: e.target.value })
+            }
           />
         </Field>
         <Field label="AXI 킥커">

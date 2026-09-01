@@ -5,6 +5,7 @@ import {
   getKsicDetailAction,
   listKsicChildrenAction,
 } from "@/app/actions/generate-survey-ai";
+import type { SurveyAiAccess } from "@/lib/survey-ai/access";
 import { KsicDetailPanel } from "@/components/admin/KsicDetailPanel";
 import { formatKsicHierarchyLabel } from "@/lib/ksic-display";
 import type { KsicDetailPreview, KsicEntry } from "@/lib/ksic-types";
@@ -17,6 +18,7 @@ type Props = {
   onSelect: (entry: KsicEntry) => void;
   /** 모달 내부용 — 좌 트리 / 우 상세 분할 */
   embedded?: boolean;
+  access?: SurveyAiAccess;
 };
 
 function buildPathCodes(code: string, parentByCode: Record<string, string>): string[] {
@@ -29,7 +31,12 @@ function buildPathCodes(code: string, parentByCode: Record<string, string>): str
   return path;
 }
 
-export function KsicHierarchyPicker({ selectedCode, onSelect, embedded = false }: Props) {
+export function KsicHierarchyPicker({
+  selectedCode,
+  onSelect,
+  embedded = false,
+  access = "admin",
+}: Props) {
   const [roots, setRoots] = useState<KsicEntry[]>([]);
   const [childrenByParent, setChildrenByParent] = useState<Record<string, KsicEntry[]>>({});
   const [parentByCode, setParentByCode] = useState<Record<string, string>>({});
@@ -48,7 +55,7 @@ export function KsicHierarchyPicker({ selectedCode, onSelect, embedded = false }
     setLoadError(null);
     startTransition(async () => {
       try {
-        const items = await listKsicChildrenAction(parentCode);
+        const items = await listKsicChildrenAction(parentCode, access);
         if (parentCode === null) {
           setRoots(items);
         } else {
@@ -71,7 +78,7 @@ export function KsicHierarchyPicker({ selectedCode, onSelect, embedded = false }
         });
       }
     });
-  }, []);
+  }, [access]);
 
   useEffect(() => {
     loadChildren(null);
@@ -104,7 +111,7 @@ export function KsicHierarchyPicker({ selectedCode, onSelect, embedded = false }
       ensureAncestorsExpanded(entry.code);
       startTransition(async () => {
         try {
-          const detail = await getKsicDetailAction(entry.code);
+          const detail = await getKsicDetailAction(entry.code, access);
           setPreview(detail);
         } catch {
           setPreview(null);
@@ -113,7 +120,7 @@ export function KsicHierarchyPicker({ selectedCode, onSelect, embedded = false }
         }
       });
     },
-    [ensureAncestorsExpanded],
+    [ensureAncestorsExpanded, access],
   );
 
   const toggleExpand = (entry: KsicEntry) => {

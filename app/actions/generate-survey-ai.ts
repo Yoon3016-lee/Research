@@ -1,6 +1,5 @@
 "use server";
 
-import { requireAdminPanelAccess } from "@/lib/require-admin";
 import { validateKsicExternalDb } from "@/lib/ksic-external/validate";
 import type { KsicExternalValidation } from "@/lib/ksic-external/types";
 import { searchKsic, lookupKsic, listKsicChildren, getKsicDetail, type KsicEntry, type KsicDetailPreview } from "@/lib/survey-ai/ksic";
@@ -18,46 +17,57 @@ import {
   consumeKsicRecommendPublicUse,
   getKsicRecommendPublicUsageForCurrentUser,
 } from "@/lib/survey-ai/ksic-recommend-usage";
+import type { SurveyAiAccess } from "@/lib/survey-ai/access";
+import { assertSurveyAiAccess } from "@/lib/survey-ai/access";
 import type { SurveyAiBrief, SurveyAiGenerateResult } from "@/lib/survey-ai/types";
 
-export async function searchKsicAction(query: string): Promise<KsicEntry[]> {
-  await requireAdminPanelAccess();
+export async function searchKsicAction(
+  query: string,
+  access: SurveyAiAccess = "admin",
+): Promise<KsicEntry[]> {
+  await assertSurveyAiAccess(access);
   return searchKsic(query);
 }
 
-export async function lookupKsicAction(code: string): Promise<KsicEntry | null> {
-  await requireAdminPanelAccess();
+export async function lookupKsicAction(
+  code: string,
+  access: SurveyAiAccess = "admin",
+): Promise<KsicEntry | null> {
+  await assertSurveyAiAccess(access);
   return lookupKsic(code);
 }
 
 export async function listKsicChildrenAction(
   parentCode: string | null,
+  access: SurveyAiAccess = "admin",
 ): Promise<KsicEntry[]> {
-  await requireAdminPanelAccess();
+  await assertSurveyAiAccess(access);
   return listKsicChildren(parentCode);
 }
 
 export async function getKsicDetailAction(
   code: string,
+  access: SurveyAiAccess = "admin",
 ): Promise<KsicDetailPreview | null> {
-  await requireAdminPanelAccess();
+  await assertSurveyAiAccess(access);
   return getKsicDetail(code);
 }
 
 export async function validateKsicExternalAction(
   code: string,
+  access: SurveyAiAccess = "admin",
 ): Promise<KsicExternalValidation> {
-  await requireAdminPanelAccess();
+  await assertSurveyAiAccess(access);
   return validateKsicExternalDb(code);
 }
 
 /**
  * 비정형 설명 → LLM 검색어 → KSIC DB 검증 후보
- * @param channel admin = 관리자 무제한 / public = 로그인·비로그인 체험(횟수 제한)
+ * @param channel admin = 관리자 무제한 / public = 로그인·비로그인 체험(횟수 제한) / demo = 발표·체험(무제한)
  */
 export async function recommendKsicFromUnstructuredAction(
   text: string,
-  channel: "admin" | "public" = "admin",
+  channel: "admin" | "public" | "demo" = "admin",
 ): Promise<KsicRecommendResult> {
   const access = await assertKsicRecommendAccess(channel);
   if (!access.ok) {
@@ -104,8 +114,9 @@ export async function getKsicRecommendTrialStatusAction(): Promise<{
 
 export async function generateSurveyAiAction(
   brief: SurveyAiBrief,
+  access: SurveyAiAccess = "admin",
 ): Promise<SurveyAiGenerateResult> {
-  await requireAdminPanelAccess();
+  await assertSurveyAiAccess(access);
   return generateSurveyWithAi({
     ksicCode: brief.ksicCode ?? "",
     ksicName: brief.ksicName ?? "",
@@ -121,9 +132,9 @@ export async function generateSurveyAiAction(
   });
 }
 
-export async function getSurveyAiConfigAction(): Promise<
-  SurveyAiRuntimeConfig | { error: string }
-> {
-  await requireAdminPanelAccess();
+export async function getSurveyAiConfigAction(
+  access: SurveyAiAccess = "admin",
+): Promise<SurveyAiRuntimeConfig | { error: string }> {
+  await assertSurveyAiAccess(access);
   return getSurveyAiRuntimeConfig();
 }

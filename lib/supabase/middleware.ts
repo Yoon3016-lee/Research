@@ -37,6 +37,7 @@ export async function updateSession(request: NextRequest) {
     path === "/admin/login" ||
     path === "/admin/signup" ||
     path === "/admin/unauthorized";
+  const isPublicAiDemo = path === "/admin/surveys/ai-generate";
 
   let user: { id: string } | null = null;
   try {
@@ -59,7 +60,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   const isAdminPanel =
-    path.startsWith("/admin") && !isAuthPage;
+    path.startsWith("/admin") && !isAuthPage && !isPublicAiDemo;
 
   async function getProfileRole(userId: string): Promise<string | null> {
     const { data, error } = await supabase

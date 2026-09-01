@@ -30,7 +30,7 @@ export type KsicRecommendAccess =
   | {
       ok: true;
       subject: KsicRecommendSubject;
-      channel: "admin" | "public";
+      channel: "admin" | "public" | "demo";
       usage?: KsicRecommendUsageSnapshot;
     }
   | {
@@ -144,7 +144,7 @@ async function incrementUsageBySubject(
  * - public: 로그인·비로그인 모두 가능, 주체(회원/방문자)당 체험 한도
  */
 export async function assertKsicRecommendAccess(
-  channel: "admin" | "public",
+  channel: "admin" | "public" | "demo",
 ): Promise<KsicRecommendAccess> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -184,6 +184,22 @@ export async function assertKsicRecommendAccess(
       ok: true,
       subject: { kind: "user", userId: user.id },
       channel: "admin",
+    };
+  }
+
+  if (channel === "demo") {
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return {
+        ok: false,
+        status: "unauthorized",
+        message: "서버 설정이 없어 사용할 수 없습니다.",
+      };
+    }
+    const visitorKey = await getOrCreateVisitorKey();
+    return {
+      ok: true,
+      subject: { kind: "visitor", visitorKey },
+      channel: "demo",
     };
   }
 

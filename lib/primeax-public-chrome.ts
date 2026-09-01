@@ -18,6 +18,7 @@ export const PRIMEAX_FOOTER = {
   webLabel: "primeax.co.kr ↗",
   webHref: "https://www.primeax.co.kr",
   copyright: "© 2026 PRIME AX. ALL RIGHTS RESERVED.",
+  businessRegistrationNumber: "688-38-01651",
   backToTopLabel: "BACK TO TOP ↑",
 } as const;
 

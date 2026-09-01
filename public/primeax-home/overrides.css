@@ -815,13 +815,57 @@ body{background:#fff}
   line-height:1.13;
   letter-spacing:-.07em;
 }
-.suite-head>p{
+.suite-head>p,
+.suite-head-aside>p{
   width:315px;
   max-width:none;
   margin:0 0 3px;
   color:#52647f;
   font-size:14px;
   line-height:1.75;
+}
+.suite-head-aside,
+.section-head-aside{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:clamp(16px,2vw,22px);
+}
+.suite-head-aside>p,
+.section-head-aside>p{
+  align-self:stretch;
+  margin:0;
+}
+.primeax-embed a.btn-suite-cta,
+a.btn-suite-cta{
+  flex-shrink:0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:22px 27px;
+  border-radius:12px;
+  background:#0b2b59;
+  background:var(--banner-navy,#0b2b59);
+  color:#fff;
+  -webkit-text-fill-color:#fff;
+  font-size:18px;
+  font-weight:700;
+  letter-spacing:-.02em;
+  line-height:1.2;
+  text-decoration:none;
+  white-space:nowrap;
+  box-shadow:0 16px 34px rgba(8,43,92,.2);
+  transition:transform .18s ease,box-shadow .18s ease,background .18s ease,color .18s ease;
+  position:relative;
+  z-index:2;
+}
+.primeax-embed a.btn-suite-cta:hover,
+a.btn-suite-cta:hover{
+  background:#0a3d7a;
+  color:#fff;
+  -webkit-text-fill-color:#fff;
+  box-shadow:0 18px 38px rgba(8,43,92,.24);
+  transform:translateY(-1px);
 }
 
 .axi-copy{
@@ -875,9 +919,19 @@ body{background:#fff}
     display:block;
   }
   .suite-head>p,
+  .suite-head-aside>p,
   .axi-copy>p:not(.section-kicker){
     width:auto;
     margin-top:24px;
+  }
+  .suite-head-aside,
+  .section-head-aside{
+    align-items:flex-start;
+    margin-top:20px;
+  }
+  .btn-suite-cta{
+    white-space:normal;
+    text-align:center;
   }
   .axi-copy .btn-dark{margin-top:28px}
   .evidence-summary h3{white-space:normal}
@@ -1094,7 +1148,9 @@ body{background:#fff}
 .engine-section .section-head{align-items:start}
 
 .suite-head>p,
+.suite-head-aside>p,
 .section-head>p,
+.section-head-aside>p,
 .axi-copy>p:not(.section-kicker),
 .evidence-summary p,
 .performance-summary p{
@@ -1161,7 +1217,9 @@ body{background:#fff}
   .evidence-intro,
   .performance-title{display:block}
   .suite-head>p,
+  .suite-head-aside>p,
   .section-head>p,
+  .section-head-aside>p,
   .axi-copy>p:not(.section-kicker),
   .evidence-summary,
   .performance-summary{margin-top:22px}

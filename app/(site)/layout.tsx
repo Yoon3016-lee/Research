@@ -8,7 +8,6 @@ import { SiteVisualFrame } from "@/components/site/SiteVisualFrame";
 import { kopubBatang, kopubDotum } from "@/lib/kopub-fonts";
 import { canUseAxi } from "@/lib/axi/access";
 import { getSurveyParticipant } from "@/lib/participant";
-import { getPublicAdminLinkConfig } from "@/lib/public-admin-link";
 import { getSiteHomepageConfig } from "@/lib/site-homepage";
 
 export const dynamic = "force-dynamic";
@@ -18,8 +17,7 @@ export default async function SiteLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [adminLink, participant, homepage] = await Promise.all([
-    Promise.resolve(getPublicAdminLinkConfig()),
+  const [participant, homepage] = await Promise.all([
     getSurveyParticipant(),
     getSiteHomepageConfig(),
   ]);
@@ -38,7 +36,7 @@ export default async function SiteLayout({
 
   const shell = (
     <>
-      <SiteHeader homepage={homepage} adminLink={adminLink} participant={participant} />
+      <SiteHeader homepage={homepage} participant={participant} />
       <SiteVisualFrame>
         <NavGuideBanner items={guideItems} />
         {children}

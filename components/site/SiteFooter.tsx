@@ -81,9 +81,14 @@ export function SiteFooter({ siteName, logoUrl = null }: Props) {
       </div>
 
       <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-3 border-t border-[#c7ddf2] px-5 py-5 sm:flex-row sm:items-center sm:px-8 lg:px-10">
-        <p className="m-0 text-[0.65rem] font-medium tracking-[0.08em] text-[#6f87a3]">
-          {PRIMEAX_FOOTER.copyright}
-        </p>
+        <div className="space-y-1">
+          <p className="m-0 text-[0.65rem] font-medium tracking-[0.08em] text-[#6f87a3]">
+            {PRIMEAX_FOOTER.copyright}
+          </p>
+          <p className="m-0 text-[0.65rem] font-medium tracking-[0.08em] text-[#6f87a3]">
+            사업자 번호 : {PRIMEAX_FOOTER.businessRegistrationNumber}
+          </p>
+        </div>
         <PrimeaxHashLink
           hash="top"
           className="text-[0.65rem] font-medium tracking-[0.08em] text-[#2f6ab1] transition hover:text-[#1767dc]"

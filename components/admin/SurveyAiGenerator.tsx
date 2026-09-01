@@ -23,6 +23,7 @@ import {
   type SurveyAiDraftPayload,
   type SurveyAiProposal,
 } from "@/lib/survey-ai/types";
+import type { SurveyAiAccess } from "@/lib/survey-ai/access";
 import { QUESTION_TYPE_LABELS } from "@/lib/survey-types";
 import {
   addDaysToDateOnly,
@@ -53,9 +54,14 @@ const emptyBrief = (): SurveyAiBrief => ({
 
 export function SurveyAiGenerator({
   axiIconUrl = null,
+  mode = "admin",
 }: {
   axiIconUrl?: string | null;
+  /** demo = 공개 체험(비로그인), admin = 관리자 패널 */
+  mode?: SurveyAiAccess;
 }) {
+  const access: SurveyAiAccess = mode;
+  const recommendChannel = mode === "demo" ? "demo" : "admin";
   const router = useRouter();
   const [step, setStep] = useState<Step>("input");
   const [brief, setBrief] = useState<SurveyAiBrief>(emptyBrief);
@@ -87,7 +93,7 @@ export function SurveyAiGenerator({
   const [recommendLoading, startRecommend] = useTransition();
 
   useEffect(() => {
-    void getSurveyAiConfigAction().then((c) => {
+    void getSurveyAiConfigAction(access).then((c) => {
       if ("error" in c) {
         setError(c.error);
         return;
@@ -103,7 +109,7 @@ export function SurveyAiGenerator({
 
   const handleKsicSearch = () => {
     startKsicSearch(async () => {
-      const results = await searchKsicAction(ksicQuery);
+      const results = await searchKsicAction(ksicQuery, access);
       setKsicResults(results);
     });
   };
@@ -116,7 +122,7 @@ export function SurveyAiGenerator({
     }
     setKsicValidationLoading(true);
     try {
-      const result = await validateKsicExternalAction(trimmed);
+      const result = await validateKsicExternalAction(trimmed, access);
       setKsicExternalValidation(result);
     } catch {
       setKsicExternalValidation(null);
@@ -138,7 +144,7 @@ export function SurveyAiGenerator({
     startRecommend(async () => {
       const result = await recommendKsicFromUnstructuredAction(
         recommendText,
-        "admin",
+        recommendChannel,
       );
       if (result.status === "unauthorized" || result.status === "limit_exceeded") {
         setRecommendCandidates([]);
@@ -188,7 +194,7 @@ export function SurveyAiGenerator({
       setKsicExternalValidation(null);
       return;
     }
-    const found = await lookupKsicAction(code);
+    const found = await lookupKsicAction(code, access);
     if (found && !brief.ksicName.trim()) {
       updateBrief({ ksicName: found.name });
     }
@@ -199,7 +205,7 @@ export function SurveyAiGenerator({
     setError(null);
     setWarnings([]);
     startTransition(async () => {
-      const result = await generateSurveyAiAction(nextBrief);
+      const result = await generateSurveyAiAction(nextBrief, access);
       if (result.status === "error") {
         setError(result.error);
         return;
@@ -294,6 +300,12 @@ export function SurveyAiGenerator({
     };
 
     sessionStorage.setItem(SURVEY_AI_DRAFT_STORAGE_KEY, JSON.stringify(draft));
+    if (mode === "demo") {
+      router.push(
+        `/admin/login?next=${encodeURIComponent("/admin/surveys/new?from=ai")}`,
+      );
+      return;
+    }
     router.push("/admin/surveys/new?from=ai");
   };
 
@@ -308,7 +320,9 @@ export function SurveyAiGenerator({
             </p>
             <p className="mt-2 text-base leading-relaxed text-sky-950/85 sm:text-[1.0625rem]">
               산업 분류·조사 목적을 입력하면 AI가 설문안 {proposalCount}개와 CATI 조사원
-              스크립트·추천 근거를 제안합니다. 정보가 부족하면 보완 질문을 드립니다.
+              스크립트·추천 근거를 제안합니다.
+              <br />
+              정보가 부족하면 보완 질문을 드립니다.
               {aiProviderLabel ? (
                 <span className="mt-2 block text-sm text-sky-900/70">
                   사용 중인 AI: {aiProviderLabel}
@@ -611,6 +625,7 @@ export function SurveyAiGenerator({
         resetKey={ksicPickerKey}
         selectedCode={brief.ksicCode.trim() || undefined}
         onSelect={selectKsic}
+        access={access}
       />
 
       <KsicUnstructuredRecommendDialog
@@ -624,7 +639,7 @@ export function SurveyAiGenerator({
         candidates={recommendCandidates}
         onRecommend={handleRecommendKsic}
         onSelectCandidate={selectRecommendCandidate}
-        channel="admin"
+        channel={recommendChannel}
         axiIconUrl={axiIconUrl}
       />
 
