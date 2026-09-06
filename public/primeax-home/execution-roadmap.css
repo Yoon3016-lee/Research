@@ -10,6 +10,10 @@
   align-items:start;
   margin-bottom:clamp(38px,5vw,68px);
 }
+.service-suite .roadmap-header>p{
+  margin-top:clamp(16px,1.8vw,26px);
+  white-space:pre-line;
+}
 .service-suite .roadmap-grid{
   display:grid;
   grid-template-columns:repeat(3,minmax(0,1fr));
@@ -114,6 +118,9 @@
     grid-template-columns:1fr;
     gap:22px;
     margin-bottom:38px;
+  }
+  .service-suite .roadmap-header>p{
+    margin-top:0;
   }
   .service-suite .roadmap-grid{
     grid-template-columns:1fr;

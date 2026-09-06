@@ -318,7 +318,7 @@ export function SurveyAiGenerator({
               RAG기반 KSIC매핑 설문 생성
             </p>
             <p className="mt-2 text-base leading-relaxed text-sky-950/85 sm:text-[1.0625rem]">
-              산업 분류·조사 목적을 입력하면 AI가 설문안 {proposalCount}개와 CATI 조사원
+              산업 분류·조사 목적을 입력하면 RKME가 설문안 {proposalCount}개와 CATI 조사원
               스크립트·추천 근거를 제안합니다.
               <br />
               정보가 부족하면 보완 질문을 드립니다.
