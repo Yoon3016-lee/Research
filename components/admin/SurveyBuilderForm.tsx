@@ -28,6 +28,7 @@ import type { SurveyTemplatePickerSurvey } from "@/components/admin/SurveyTempla
 import { QuestionAddPanel } from "@/components/admin/survey-builder/QuestionAddPanel";
 import { QuestionEditCard } from "@/components/admin/survey-builder/QuestionEditCard";
 import { remapRulesAfterRemove, remapRulesAfterSwap } from "@/lib/survey-visibility";
+import type { SurveyOptionTemplateSummary } from "@/lib/survey-option-template-types";
 
 export type SurveyTemplateFrom = {
   sourceTitle: string;
@@ -47,6 +48,8 @@ type SurveyBuilderFormProps = {
   templateFrom?: SurveyTemplateFrom;
   /** 템플릿 선택 모달용 설문 목록 */
   templateSurveys?: SurveyTemplatePickerSurvey[];
+  /** 객관식 보기 자동완성 템플릿 */
+  optionTemplates?: SurveyOptionTemplateSummary[];
 };
 
 export function SurveyBuilderForm({
@@ -59,6 +62,7 @@ export function SurveyBuilderForm({
   supersedesSlug = null,
   templateFrom,
   templateSurveys = [],
+  optionTemplates = [],
 }: SurveyBuilderFormProps) {
   const isEdit = mode === "edit";
   const router = useRouter();
@@ -480,6 +484,7 @@ export function SurveyBuilderForm({
                 index={index}
                 total={questions.length}
                 allQuestions={questions}
+                optionTemplates={optionTemplates}
                 onChange={(patch) => updateQuestion(index, patch)}
                 onMove={(dir) => moveQuestion(index, dir)}
                 onRemove={() => removeQuestion(index)}

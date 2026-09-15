@@ -1,7 +1,6 @@
 "use client";
 
 import type { PublicSurveyOption } from "@/lib/survey-public";
-import { formatSurveyOptionMarker } from "@/lib/survey-option-marker";
 
 type Props = {
   options: PublicSurveyOption[];
@@ -42,7 +41,7 @@ export function RankSelectInput({
         제외됩니다.
       </p>
       <ul className="space-y-2">
-        {options.map((opt, optIndex) => {
+        {options.map((opt) => {
           const rank = rankOf(opt.id);
           const selected = rank > 0;
           return (
@@ -57,9 +56,6 @@ export function RankSelectInput({
                     : "border-zinc-200 bg-white text-zinc-800 hover:border-indigo-200 hover:bg-indigo-50/40 disabled:opacity-50"
                 }`}
               >
-                <span className="shrink-0 text-[0.9375rem] font-semibold tabular-nums text-zinc-600">
-                  {formatSurveyOptionMarker(optIndex)}
-                </span>
                 <span className="min-w-0 flex-1">{opt.label}</span>
                 {selected ? (
                   <span className="shrink-0 rounded-full bg-indigo-600 px-2.5 py-0.5 text-xs font-semibold text-white">

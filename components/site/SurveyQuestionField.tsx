@@ -1,7 +1,6 @@
 "use client";
 
 import type { PublicSurveyQuestion } from "@/lib/survey-public";
-import { formatSurveyOptionMarker } from "@/lib/survey-option-marker";
 import { QUESTION_TYPE_LABELS } from "@/lib/survey-types";
 import { Likert7Input } from "@/components/site/Likert7Input";
 import { LikertMultiInput } from "@/components/site/LikertMultiInput";
@@ -94,7 +93,7 @@ export function SurveyQuestionField({
 
       {(q.type === "mc_single" || q.type === "mc_multi") && (
         <ul className="mt-4 space-y-2">
-          {q.options.map((opt, optIndex) => {
+          {q.options.map((opt) => {
             const isMulti = q.type === "mc_multi";
             const max = q.maxSelections ?? q.options.length;
             const selected = isMulti
@@ -117,9 +116,6 @@ export function SurveyQuestionField({
                     }}
                     className="mt-1 shrink-0"
                   />
-                  <span className="mt-px shrink-0 text-[0.9375rem] font-semibold tabular-nums text-zinc-600">
-                    {formatSurveyOptionMarker(optIndex)}
-                  </span>
                   <span className="text-[0.8125rem] leading-relaxed text-zinc-700">{opt.label}</span>
                 </label>
                 {opt.isOther && selected ? (
@@ -215,9 +211,9 @@ export function SurveyQuestionField({
           className="mt-4 w-full max-w-md rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm outline-none ring-indigo-500/30 focus:ring-2 disabled:opacity-60"
         >
           <option value="">선택하세요</option>
-          {q.options.map((opt, optIndex) => (
+          {q.options.map((opt) => (
             <option key={opt.id} value={opt.id}>
-              {formatSurveyOptionMarker(optIndex)} {opt.label}
+              {opt.label}
             </option>
           ))}
         </select>

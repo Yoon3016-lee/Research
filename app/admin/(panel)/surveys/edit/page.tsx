@@ -4,6 +4,7 @@ import { AdminHeader } from "@/components/admin/AdminHeader";
 import { SurveyBuilderForm } from "@/components/admin/SurveyBuilderForm";
 import { loadSurveyForEdit } from "@/lib/surveys-admin";
 import { getAdminSurveys } from "@/lib/surveys-db";
+import { listSurveyOptionTemplates } from "@/lib/survey-option-templates";
 
 export const metadata = { title: "설문 편집" };
 
@@ -34,9 +35,10 @@ export default async function EditSurveyByQueryPage({ searchParams }: Props) {
     );
   }
 
-  const [loaded, adminSurveys] = await Promise.all([
+  const [loaded, adminSurveys, optionTemplates] = await Promise.all([
     loadSurveyForEdit(slug),
     getAdminSurveys(),
+    listSurveyOptionTemplates(),
   ]);
 
   if (!loaded.ok) {
@@ -94,6 +96,7 @@ export default async function EditSurveyByQueryPage({ searchParams }: Props) {
           successorSlug={successorSlug}
           supersedesSlug={supersedesSlug}
           templateSurveys={adminSurveys}
+          optionTemplates={optionTemplates}
         />
       </div>
     </>

@@ -4,6 +4,7 @@ import { SurveyNewClient } from "@/components/admin/SurveyNewClient";
 import { cloneQuestionsAsTemplate } from "@/lib/survey-template";
 import { loadSurveyForEdit } from "@/lib/surveys-admin";
 import { getAdminSurveys } from "@/lib/surveys-db";
+import { listSurveyOptionTemplates } from "@/lib/survey-option-templates";
 import type { SurveyTemplateFrom } from "@/components/admin/SurveyBuilderForm";
 
 export const metadata = { title: "새 설문" };
@@ -16,9 +17,10 @@ type Props = {
 
 export default async function NewSurveyPage({ searchParams }: Props) {
   const { template: templateSlug, from } = await searchParams;
-  const [adminSurveys, templateFrom] = await Promise.all([
+  const [adminSurveys, templateFrom, optionTemplates] = await Promise.all([
     getAdminSurveys(),
     loadTemplateFromSlug(templateSlug),
+    listSurveyOptionTemplates(),
   ]);
 
   return (
@@ -42,6 +44,7 @@ export default async function NewSurveyPage({ searchParams }: Props) {
         <SurveyNewClient
           templateFrom={templateFrom}
           templateSurveys={adminSurveys}
+          optionTemplates={optionTemplates}
           fromAi={from === "ai"}
         />
       </div>

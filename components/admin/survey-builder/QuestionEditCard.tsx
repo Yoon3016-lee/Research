@@ -17,14 +17,17 @@ import {
   SURVEY_BRANCHING_SOURCE_RULE_DETAIL,
   type QuestionVisibilityCondition,
 } from "@/lib/survey-visibility";
+import { ChoiceOptionsTools } from "@/components/admin/survey-builder/ChoiceOptionsTools";
 import { InfoMediaEditFields } from "@/components/admin/survey-builder/InfoMediaEditFields";
 import { LikertScaleSettings } from "@/components/admin/survey-builder/LikertScaleSettings";
+import type { SurveyOptionTemplateSummary } from "@/lib/survey-option-template-types";
 
 type Props = {
   q: DraftQuestion;
   index: number;
   total: number;
   allQuestions: DraftQuestion[];
+  optionTemplates?: SurveyOptionTemplateSummary[];
   onChange: (patch: Partial<DraftQuestion>) => void;
   onMove: (dir: -1 | 1) => void;
   onRemove: () => void;
@@ -49,6 +52,7 @@ export function QuestionEditCard({
   index,
   total,
   allQuestions,
+  optionTemplates = [],
   onChange,
   onMove,
   onRemove,
@@ -72,6 +76,18 @@ export function QuestionEditCard({
     const source = allQuestions[sourceOrderIndex];
     if (!source) return [];
     return source.options.map((o) => o.trim()).filter(Boolean);
+  };
+
+  const applyChoiceOptions = (opts: string[], withEndsSurvey: boolean) => {
+    const endsArr = withEndsSurvey
+      ? opts.map((label) => labelSuggestsSurveyEnd(label))
+      : opts.map(() => false);
+    onChange(
+      patchDraftOptions(q, opts, {
+        optionEndsSurvey: endsArr,
+        optionIds: opts.map(() => null),
+      }),
+    );
   };
 
   const setConditionalMode = (enabled: boolean) => {
@@ -364,6 +380,12 @@ export function QuestionEditCard({
                 ? " 「조사 종료」를 켜면 해당 보기 선택 시 이후 문항 없이 제출로 이어집니다."
                 : ""}
             </p>
+            <ChoiceOptionsTools
+              templates={optionTemplates}
+              onApplyOptions={(opts) =>
+                applyChoiceOptions(opts, q.type === "mc_single" || q.type === "dropdown")
+              }
+            />
             <div className="mt-3 space-y-2">
               {q.options.map((opt, oi) => {
                 const ends = Boolean(q.optionEndsSurvey?.[oi]);
@@ -483,6 +505,10 @@ export function QuestionEditCard({
             <p className="mt-0.5 text-xs text-zinc-500">
               응답자가 고를 선택지와, 몇 순위까지 매길지 설정합니다.
             </p>
+            <ChoiceOptionsTools
+              templates={optionTemplates}
+              onApplyOptions={(opts) => applyChoiceOptions(opts, false)}
+            />
             <div className="mt-3 space-y-2">
               {q.options.map((opt, oi) => (
                 <input

@@ -8,7 +8,7 @@ import type { SurveyStatus } from "@/lib/survey-list-types";
 import { getAdminSurveys } from "@/lib/surveys-db";
 import { listSharedResponseScripts } from "@/lib/shared-scripts";
 import { listSurveyResponseScriptsForAdmin } from "@/lib/survey-scripts-admin";
-import { ExternalLink, Plus, Pencil, GitBranch, Sparkles, PackageOpen, Users, ListChecks } from "lucide-react";
+import { ExternalLink, Plus, Pencil, GitBranch, Sparkles, PackageOpen, Users, ListChecks, LayoutList } from "lucide-react";
 
 export const metadata = { title: "설문 관리" };
 
@@ -163,6 +163,13 @@ export default async function AdminSurveysPage({
             >
               <ListChecks className="h-4 w-4" aria-hidden />
               전체 컨택 관리
+            </Link>
+            <Link
+              href="/admin/surveys/option-templates"
+              className="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-900 shadow-sm transition hover:bg-violet-100"
+            >
+              <LayoutList className="h-4 w-4" aria-hidden />
+              보기 자동완성
             </Link>
           </div>
 
