@@ -7,6 +7,10 @@ import {
   normalizeLikertScaleLabels,
 } from "@/lib/likert-scale";
 import {
+  isSurveyPromptEmpty,
+  sanitizeSurveyPromptHtml,
+} from "@/lib/survey-prompt-html";
+import {
   questionTypeSupportsOtherOption,
   type DraftQuestion,
   type QuestionType,
@@ -32,7 +36,7 @@ export function validateQuestion(
   index: number,
   allQuestions: DraftQuestion[],
 ): string | null {
-  if (q.type !== "info_media" && !q.prompt.trim()) {
+  if (q.type !== "info_media" && isSurveyPromptEmpty(q.prompt)) {
     return `문항 ${index + 1}: 질문 내용을 입력하세요.`;
   }
   const visibilityErr = validateVisibilityRules(q, index, allQuestions);
@@ -121,7 +125,8 @@ function buildQuestionRow(
   const row: Record<string, unknown> = {
     survey_id: surveyId,
     order_index: orderIndex,
-    prompt: q.type === "info_media" ? "안내" : q.prompt.trim(),
+    prompt:
+      q.type === "info_media" ? "안내" : sanitizeSurveyPromptHtml(q.prompt),
     question_type: q.type,
     allow_skip: q.type === "info_media" ? true : q.allowSkip,
     staff_only: q.staffOnly,

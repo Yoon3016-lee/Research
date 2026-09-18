@@ -8,6 +8,7 @@ import { buildSurveyPeriodPersist } from "@/lib/survey-period";
 import { persistSurveyQuestions } from "@/lib/survey-persist";
 import { cloneQuestionsAsTemplate } from "@/lib/survey-template";
 import { createSurveyResponseBackup } from "@/lib/survey-response-backup";
+import { sanitizeSurveyPromptHtml } from "@/lib/survey-prompt-html";
 
 type ExistingSurvey = {
   id: string;
@@ -80,7 +81,7 @@ function normalizeQuestionFingerprint(q: DraftQuestion): string {
 
   return JSON.stringify({
     type,
-    prompt: q.prompt.trim(),
+    prompt: sanitizeSurveyPromptHtml(q.prompt),
     allowSkip: Boolean(q.allowSkip),
     staffOnly: Boolean(q.staffOnly),
     visibilityRules: (q.visibilityRules ?? []).map((r) => ({

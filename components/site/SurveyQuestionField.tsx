@@ -2,6 +2,8 @@
 
 import type { PublicSurveyQuestion } from "@/lib/survey-public";
 import { QUESTION_TYPE_LABELS } from "@/lib/survey-types";
+import { stripSurveyPromptHtml } from "@/lib/survey-prompt-html";
+import { SurveyPromptHtml } from "@/components/survey/SurveyPromptHtml";
 import { Likert7Input } from "@/components/site/Likert7Input";
 import { LikertMultiInput } from "@/components/site/LikertMultiInput";
 import { RankSelectInput } from "@/components/site/RankSelectInput";
@@ -88,7 +90,11 @@ export function SurveyQuestionField({
         </div>
       </div>
       {q.type !== "info_media" ? (
-        <p className="mt-2 text-xl font-semibold leading-snug text-zinc-900">{q.prompt}</p>
+        <SurveyPromptHtml
+          html={q.prompt}
+          as="div"
+          className="mt-2 text-xl font-semibold leading-snug text-zinc-900 [&_p]:m-0 [&_p+p]:mt-2"
+        />
       ) : null}
 
       {(q.type === "mc_single" || q.type === "mc_multi") && (
@@ -175,7 +181,7 @@ export function SurveyQuestionField({
               return (
                 <li key={key}>
                   <label className="sr-only">
-                    {q.prompt} — 답변 {i + 1}
+                    {stripSurveyPromptHtml(q.prompt)} — 답변 {i + 1}
                   </label>
                   <input
                     type="text"
@@ -194,7 +200,7 @@ export function SurveyQuestionField({
       {q.type === "likert_7" && (
         <Likert7Input
           questionId={q.id}
-          prompt={q.prompt}
+          prompt={stripSurveyPromptHtml(q.prompt)}
           scaleSize={q.maxSelections}
           scaleLabels={q.likertScaleLabels}
           value={state.likert7[q.id] ?? null}
@@ -261,7 +267,7 @@ export function SurveyQuestionField({
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={q.mediaUrl}
-              alt={q.prompt}
+              alt={stripSurveyPromptHtml(q.prompt)}
               className="max-h-[28rem] w-full rounded-xl border border-zinc-200 object-contain bg-zinc-50"
             />
           ) : null}

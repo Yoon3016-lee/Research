@@ -1,4 +1,5 @@
 import type { LogicQuestionRow, SurveyLogicModel } from "@/lib/survey-logic-view";
+import { SurveyPromptHtml } from "@/components/survey/SurveyPromptHtml";
 import { GitBranch, Users, ArrowDown, Circle } from "lucide-react";
 
 type Props = {
@@ -48,7 +49,11 @@ function MiniQuestionCard({ q }: { q: LogicQuestionRow }) {
       className={`w-full max-w-[11rem] rounded-xl px-3 py-2.5 text-center shadow-sm ${nodeStyle(q)}`}
     >
       <p className="text-[11px] font-bold text-fuchsia-800">문항 {q.number}</p>
-      <p className="mt-1 line-clamp-2 text-xs leading-snug text-zinc-800">{q.prompt}</p>
+      <SurveyPromptHtml
+        html={q.prompt}
+        as="div"
+        className="mt-1 line-clamp-2 text-xs leading-snug text-zinc-800 [&_p]:m-0"
+      />
     </div>
   );
 }
@@ -83,7 +88,11 @@ function FlowQuestionCard({ q }: { q: LogicQuestionRow }) {
           )}
         </div>
 
-        <p className="mt-2 text-sm font-medium leading-snug text-zinc-900">{q.prompt}</p>
+        <SurveyPromptHtml
+          html={q.prompt}
+          as="div"
+          className="mt-2 text-sm font-medium leading-snug text-zinc-900 [&_p]:m-0 [&_p+p]:mt-1"
+        />
 
         {q.linkedBranches.length > 0 ? (
           <div className="mt-3 flex flex-wrap gap-1.5">

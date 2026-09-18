@@ -13,6 +13,7 @@ import { getSiteHomepageConfig } from "@/lib/site-homepage";
 import { loadSurveyResponseScript } from "@/lib/survey-script";
 import { getSurveyViewModeForUser } from "@/lib/user-preferences";
 import { loadSurveyForParticipation } from "@/lib/survey-public";
+import { stripSurveyPromptHtml } from "@/lib/survey-prompt-html";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -119,7 +120,7 @@ export default async function SurveyParticipatePage({ params }: Props) {
         shared ? `【공용 스크립트】\n${shared}` : "",
         survey.questions.length > 0
           ? `【문항】\n${survey.questions
-              .map((q, i) => `${i + 1}. ${q.prompt}`)
+              .map((q, i) => `${i + 1}. ${stripSurveyPromptHtml(q.prompt)}`)
               .join("\n")}`
           : "",
       ]
@@ -127,7 +128,7 @@ export default async function SurveyParticipatePage({ params }: Props) {
         .join("\n\n");
     } else {
       axiScriptContext = survey.questions
-        .map((q, i) => `${i + 1}. ${q.prompt}`)
+        .map((q, i) => `${i + 1}. ${stripSurveyPromptHtml(q.prompt)}`)
         .join("\n");
     }
   }

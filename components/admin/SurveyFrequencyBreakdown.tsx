@@ -5,6 +5,8 @@ import { BarChart2, BarChart3, PieChart } from "lucide-react";
 import type { FrequencyBucket, QuestionFrequencyStats, SurveyResponseStats } from "@/lib/survey-response-stats-shared";
 import { NO_ANSWER_LABEL } from "@/lib/survey-response-stats-shared";
 import { QUESTION_TYPE_LABELS } from "@/lib/survey-types";
+import { stripSurveyPromptHtml } from "@/lib/survey-prompt-html";
+import { SurveyPromptHtml } from "@/components/survey/SurveyPromptHtml";
 import {
   FREQ_GUEST_H_CLASS,
   FREQ_GUEST_V_CLASS,
@@ -354,7 +356,7 @@ function PieChartView({ q }: { q: QuestionFrequencyStats }) {
         viewBox={`0 0 ${size} ${size}`}
         className="h-48 w-48 shrink-0"
         role="img"
-        aria-label={`${q.prompt} 응답 원형 그래프`}
+        aria-label={`${stripSurveyPromptHtml(q.prompt)} 응답 원형 그래프`}
       >
         {slices.length === 1 ? (
           <circle
@@ -476,7 +478,11 @@ function QuestionFrequencyCard({
               </span>
             ) : null}
           </p>
-          <h3 className="mt-1 text-base font-semibold text-zinc-900">{q.prompt}</h3>
+          <SurveyPromptHtml
+            html={q.prompt}
+            as="h3"
+            className="mt-1 text-base font-semibold text-zinc-900 [&_p]:m-0 [&_p+p]:mt-1"
+          />
         </div>
         <p className="text-xs text-zinc-500 tabular-nums">
           응답 {q.answeredCount.toLocaleString()} / 제출{" "}

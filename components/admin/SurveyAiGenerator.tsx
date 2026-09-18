@@ -26,6 +26,7 @@ import {
 } from "@/lib/survey-ai/types";
 import type { SurveyAiAccess } from "@/lib/survey-ai/access";
 import { QUESTION_TYPE_LABELS } from "@/lib/survey-types";
+import { stripSurveyPromptHtml } from "@/lib/survey-prompt-html";
 import {
   addDaysToDateOnly,
   toDateOnlyString,
@@ -769,7 +770,7 @@ function ProposalDetail({ proposal }: { proposal: SurveyAiProposal }) {
               <span className="text-xs font-medium text-accent-600">
                 {i + 1}. {QUESTION_TYPE_LABELS[q.type]}
               </span>
-              <p className="mt-0.5 text-brand-900">{q.prompt}</p>
+              <p className="mt-0.5 text-brand-900">{stripSurveyPromptHtml(q.prompt)}</p>
             </li>
           ))}
         </ol>

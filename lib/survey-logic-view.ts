@@ -1,6 +1,7 @@
 import type { DraftQuestion, QuestionType } from "@/lib/survey-types";
 import { QUESTION_TYPE_LABELS } from "@/lib/survey-types";
 import { isBranchingSourceType } from "@/lib/survey-visibility";
+import { stripSurveyPromptHtml } from "@/lib/survey-prompt-html";
 
 export type ResolvedVisibilityCondition = {
   sourceNumber: number;
@@ -72,7 +73,9 @@ export function buildSurveyLogicModel(questions: DraftQuestion[]): SurveyLogicMo
       const source = questions[r.sourceOrderIndex];
       return {
         sourceNumber: r.sourceOrderIndex + 1,
-        sourcePrompt: source?.prompt.trim() || `문항 ${r.sourceOrderIndex + 1}`,
+        sourcePrompt:
+          stripSurveyPromptHtml(source?.prompt ?? "") ||
+          `문항 ${r.sourceOrderIndex + 1}`,
         optionLabel: source
           ? optionLabel(source.options, r.optionIndex)
           : `보기 ${r.optionIndex + 1}`,
@@ -91,11 +94,13 @@ export function buildSurveyLogicModel(questions: DraftQuestion[]): SurveyLogicMo
       return false;
     });
 
+    const promptPlain = stripSurveyPromptHtml(q.prompt);
+
     return {
       number: i + 1,
       type: q.type,
       typeLabel: QUESTION_TYPE_LABELS[q.type],
-      prompt: q.prompt.trim() || "(질문 없음)",
+      prompt: promptPlain ? q.prompt : "(질문 없음)",
       staffOnly: q.staffOnly,
       allowSkip: q.allowSkip,
       options: trimmedOptions,
@@ -136,7 +141,8 @@ export function buildSurveyLogicModel(questions: DraftQuestion[]): SurveyLogicMo
 
       branches.push({
         sourceNumber: si + 1,
-        sourcePrompt: source.prompt.trim() || `문항 ${si + 1}`,
+        sourcePrompt:
+          stripSurveyPromptHtml(source.prompt) || `문항 ${si + 1}`,
         optionIndex,
         optionLabel: optionLabel(source.options, optionIndex),
         targetNumbers: targetIndices.map((i) => i + 1),

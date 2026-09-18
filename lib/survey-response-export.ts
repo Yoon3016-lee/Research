@@ -20,6 +20,7 @@ import {
   QUESTION_TYPE_LABELS,
   type QuestionType,
 } from "@/lib/survey-types";
+import { stripSurveyPromptHtml } from "@/lib/survey-prompt-html";
 
 export type SurveyResponseExportResult =
   | {
@@ -444,7 +445,7 @@ async function loadExportDataset(ref: string): Promise<ExportDataset | null> {
       questionId: q.id,
       questionNumber: i + 1,
       orderIndex: q.order_index,
-      prompt: q.prompt,
+      prompt: stripSurveyPromptHtml(q.prompt),
       type,
       typeLabel: QUESTION_TYPE_LABELS[type] ?? type,
       scaleSize,
