@@ -14,12 +14,14 @@ import {
 import type { CreateSurveyPayload } from "@/lib/survey-types";
 import { QUESTION_TYPE_LABELS } from "@/lib/survey-types";
 import type { SurveyOptionTemplateSummary } from "@/lib/survey-option-template-types";
+import type { StoredSurveyCreateDraft } from "@/lib/survey-create-draft";
 import { Loader2 } from "lucide-react";
 
 type Props = {
   templateFrom?: SurveyTemplateFrom;
   templateSurveys: SurveyTemplatePickerSurvey[];
   optionTemplates?: SurveyOptionTemplateSummary[];
+  accountDraft?: StoredSurveyCreateDraft | null;
   fromAi?: boolean;
 };
 
@@ -27,6 +29,7 @@ export function SurveyNewClient({
   templateFrom,
   templateSurveys,
   optionTemplates = [],
+  accountDraft = null,
   fromAi,
 }: Props) {
   const [aiDraft, setAiDraft] = useState<{
@@ -138,6 +141,7 @@ export function SurveyNewClient({
         templateFrom={aiDraft ? undefined : templateFrom}
         templateSurveys={templateSurveys}
         optionTemplates={optionTemplates}
+        accountDraft={aiDraft ? null : accountDraft}
       />
     </>
   );

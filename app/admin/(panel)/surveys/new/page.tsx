@@ -5,6 +5,7 @@ import { cloneQuestionsAsTemplate } from "@/lib/survey-template";
 import { loadSurveyForEdit } from "@/lib/surveys-admin";
 import { getAdminSurveys } from "@/lib/surveys-db";
 import { listSurveyOptionTemplates } from "@/lib/survey-option-templates";
+import { loadSurveyCreateDraftForCurrentUser } from "@/lib/survey-create-draft-db";
 import type { SurveyTemplateFrom } from "@/components/admin/SurveyBuilderForm";
 
 export const metadata = { title: "새 설문" };
@@ -17,10 +18,12 @@ type Props = {
 
 export default async function NewSurveyPage({ searchParams }: Props) {
   const { template: templateSlug, from } = await searchParams;
-  const [adminSurveys, templateFrom, optionTemplates] = await Promise.all([
+  const skipAccountDraft = Boolean(templateSlug) || from === "ai";
+  const [adminSurveys, templateFrom, optionTemplates, accountDraft] = await Promise.all([
     getAdminSurveys(),
     loadTemplateFromSlug(templateSlug),
     listSurveyOptionTemplates(),
+    skipAccountDraft ? Promise.resolve(null) : loadSurveyCreateDraftForCurrentUser(),
   ]);
 
   return (
@@ -45,6 +48,7 @@ export default async function NewSurveyPage({ searchParams }: Props) {
           templateFrom={templateFrom}
           templateSurveys={adminSurveys}
           optionTemplates={optionTemplates}
+          accountDraft={accountDraft}
           fromAi={from === "ai"}
         />
       </div>

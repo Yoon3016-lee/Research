@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ClipboardList } from "lucide-react";
@@ -29,6 +29,18 @@ import { QuestionAddPanel } from "@/components/admin/survey-builder/QuestionAddP
 import { QuestionEditCard } from "@/components/admin/survey-builder/QuestionEditCard";
 import { remapRulesAfterRemove, remapRulesAfterSwap } from "@/lib/survey-visibility";
 import type { SurveyOptionTemplateSummary } from "@/lib/survey-option-template-types";
+import {
+  deleteSurveyCreateDraftAction,
+  saveSurveyCreateDraftAction,
+} from "@/app/actions/survey-create-draft";
+import {
+  clearSurveyCreateDraft,
+  newerSurveyCreateDraft,
+  readSurveyCreateDraft,
+  surveyCreateDraftHasContent,
+  writeSurveyCreateDraft,
+  type StoredSurveyCreateDraft,
+} from "@/lib/survey-create-draft";
 
 export type SurveyTemplateFrom = {
   sourceTitle: string;
@@ -50,6 +62,8 @@ type SurveyBuilderFormProps = {
   templateSurveys?: SurveyTemplatePickerSurvey[];
   /** 객관식 보기 자동완성 템플릿 */
   optionTemplates?: SurveyOptionTemplateSummary[];
+  /** 이 관리자 계정에 저장된 새 설문 초안 */
+  accountDraft?: StoredSurveyCreateDraft | null;
 };
 
 export function SurveyBuilderForm({
@@ -63,11 +77,13 @@ export function SurveyBuilderForm({
   templateFrom,
   templateSurveys = [],
   optionTemplates = [],
+  accountDraft = null,
 }: SurveyBuilderFormProps) {
   const isEdit = mode === "edit";
   const router = useRouter();
   const today = toDateOnlyString();
   const defaultEnd = addDaysToDateOnly(today, 30);
+  const explicitSource = Boolean(initial || templateFrom);
 
   const [title, setTitle] = useState(initial?.title ?? "");
   const [summary, setSummary] = useState(initial?.summary ?? "");
@@ -90,6 +106,10 @@ export function SurveyBuilderForm({
   const [questions, setQuestions] = useState<DraftQuestion[]>(
     templateFrom?.questions ?? initial?.questions ?? [],
   );
+  const [draftReady, setDraftReady] = useState(isEdit || explicitSource);
+  const [pendingDraft, setPendingDraft] = useState<StoredSurveyCreateDraft | null>(null);
+  const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
+  const [draftSyncNote, setDraftSyncNote] = useState<string | null>(null);
   const [templateSource, setTemplateSource] = useState<{
     title: string;
     slug: string;
@@ -100,6 +120,45 @@ export function SurveyBuilderForm({
   );
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (isEdit || explicitSource) return;
+    const local = readSurveyCreateDraft();
+    const chosen = newerSurveyCreateDraft(accountDraft, local);
+    if (chosen) {
+      setPendingDraft(chosen);
+      return;
+    }
+    setDraftReady(true);
+  }, [isEdit, explicitSource, accountDraft]);
+
+  const applyPendingDraft = () => {
+    if (!pendingDraft) return;
+    const payload = pendingDraft.payload;
+    setTitle(payload.title);
+    setSummary(payload.summary);
+    setPeriodStart(payload.periodStart || today);
+    setPeriodEnd(payload.periodEnd || defaultEnd);
+    setTargetCount(payload.targetCount);
+    setListedPublic(payload.participationFormat === "email" ? false : payload.listedPublic);
+    setParticipationFormat(payload.participationFormat || "site");
+    setResponseScript(payload.responseScript);
+    setKsicCode(payload.ksicCode);
+    setKsicName(payload.ksicName);
+    setQuestions(payload.questions);
+    setDraftSavedAt(pendingDraft.savedAt);
+    setPendingDraft(null);
+    setDraftReady(true);
+  };
+
+  const skipPendingDraft = () => {
+    clearSurveyCreateDraft();
+    setPendingDraft(null);
+    setDraftSavedAt(null);
+    setDraftSyncNote(null);
+    setDraftReady(true);
+    void deleteSurveyCreateDraftAction();
+  };
 
   const applyTemplate = (payload: {
     questions: DraftQuestion[];
@@ -164,6 +223,35 @@ export function SurveyBuilderForm({
     questions: questions.map((q) => ({ ...q })),
   });
 
+  const draftSnapshot = JSON.stringify(buildPayload());
+
+  useEffect(() => {
+    if (isEdit || !draftReady) return;
+    const payload = JSON.parse(draftSnapshot) as CreateSurveyPayload;
+    const timer = window.setTimeout(() => {
+      if (!surveyCreateDraftHasContent(payload)) {
+        setDraftSavedAt(null);
+        setDraftSyncNote(null);
+        return;
+      }
+      const localSavedAt = writeSurveyCreateDraft(payload);
+      void saveSurveyCreateDraftAction(payload).then((result) => {
+        if (result.ok) {
+          setDraftSavedAt(result.savedAt);
+          setDraftSyncNote(null);
+          return;
+        }
+        setDraftSavedAt(localSavedAt);
+        setDraftSyncNote(
+          localSavedAt
+            ? "계정 저장에 실패해 이 브라우저에만 남겨 두었습니다."
+            : result.error,
+        );
+      });
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [isEdit, draftReady, draftSnapshot]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -188,6 +276,10 @@ export function SurveyBuilderForm({
         return;
       }
       if ("ok" in res && res.ok) {
+        if (!isEdit) {
+          clearSurveyCreateDraft();
+          void deleteSurveyCreateDraftAction();
+        }
         const forked =
           isEdit && "forked" in res && Boolean((res as { forked?: boolean }).forked);
         if (forked) {
@@ -209,8 +301,86 @@ export function SurveyBuilderForm({
     });
   };
 
+  const discardLocalDraft = () => {
+    clearSurveyCreateDraft();
+    setTitle("");
+    setSummary("");
+    setPeriodStart(today);
+    setPeriodEnd(defaultEnd);
+    setTargetCount(100);
+    setListedPublic(true);
+    setParticipationFormat("site");
+    setResponseScript("");
+    setKsicCode("");
+    setKsicName("");
+    setQuestions([]);
+    setTemplateSource(null);
+    setDraftSavedAt(null);
+    setDraftSyncNote(null);
+    setError(null);
+    void deleteSurveyCreateDraftAction();
+  };
+
   return (
     <form onSubmit={handleSubmit} className="mx-auto max-w-6xl space-y-8 pb-20">
+      {pendingDraft ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="survey-draft-confirm-title"
+            className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white px-6 py-6 shadow-xl"
+          >
+            <p id="survey-draft-confirm-title" className="text-center text-base font-semibold text-zinc-900">
+              임시 저장된 내용이 있습니다. 불러오시겠습니까?
+            </p>
+            <p className="mt-2 text-center text-xs text-zinc-500">
+              {new Date(pendingDraft.savedAt).toLocaleString("ko-KR")}
+              {pendingDraft.payload.title.trim()
+                ? ` · ${pendingDraft.payload.title.trim()}`
+                : ""}
+              {pendingDraft.payload.questions.length > 0
+                ? ` · 문항 ${pendingDraft.payload.questions.length}개`
+                : ""}
+            </p>
+            <div className="mt-6 flex justify-center gap-2">
+              <button
+                type="button"
+                onClick={applyPendingDraft}
+                className="admin-btn-primary px-5 py-2.5 text-sm"
+              >
+                불러오기
+              </button>
+              <button
+                type="button"
+                onClick={skipPendingDraft}
+                className="admin-btn-secondary px-5 py-2.5 text-sm"
+              >
+                새로 작성
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {!isEdit && draftSavedAt && !pendingDraft ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+            <p>
+            이 계정에 임시 저장됨 ·{" "}
+            {new Date(draftSavedAt).toLocaleString("ko-KR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+            {draftSyncNote ? ` · ${draftSyncNote}` : ""}
+          </p>
+          <button
+            type="button"
+            onClick={discardLocalDraft}
+            className="text-xs font-medium text-sky-900 underline"
+          >
+            임시 저장 버리고 새로 작성
+          </button>
+        </div>
+      ) : null}
       <div className="admin-card p-6">
         <h2 className="text-base font-semibold tracking-tight text-brand-900">
           설문 기본 정보
