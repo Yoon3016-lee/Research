@@ -1,5 +1,3 @@
-import DOMPurify from "isomorphic-dompurify";
-
 /** 문항 제목 리치텍스트에 허용하는 글자 크기 프리셋 */
 export const SURVEY_PROMPT_FONT_SIZES = [
   { label: "작게", value: "0.875rem" },
@@ -28,7 +26,9 @@ export const SURVEY_PROMPT_COLORS = [
   { label: "보라", value: "#7c3aed" },
 ] as const;
 
-const ALLOWED_TAGS = ["p", "br", "strong", "b", "em", "i", "span"];
+const ALLOWED_TAGS = new Set(["p", "br", "strong", "b", "em", "i", "span"]);
+const VOID_TAGS = new Set(["br"]);
+const DROP_CONTENT_TAGS = new Set(["script", "style"]);
 const ALLOWED_STYLE_PROPS = new Set([
   "color",
   "font-size",
@@ -46,63 +46,89 @@ function sanitizeInlineStyle(style: string): string {
     const prop = trimmed.slice(0, colon).trim().toLowerCase();
     const value = trimmed.slice(colon + 1).trim();
     if (!ALLOWED_STYLE_PROPS.has(prop) || !value) continue;
-    // url()/expression 등 차단
     if (/url\s*\(|expression\s*\(|@import|javascript:/i.test(value)) continue;
     kept.push(`${prop}: ${value}`);
   }
   return kept.join("; ");
 }
 
-function scrubStylesInHtml(html: string): string {
-  return html.replace(/style\s*=\s*(["'])(.*?)\1/gi, (_match, quote: string, style: string) => {
-    const cleaned = sanitizeInlineStyle(style);
-    return cleaned ? `style=${quote}${cleaned}${quote}` : "";
-  });
+function escapeAttr(value: string): string {
+  return value.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;");
 }
 
-/** 저장·표시용: 허용 태그만 남긴 HTML */
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#0?39;|&apos;/gi, "'")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&");
+}
+
+function escapeText(text: string): string {
+  return decodeEntities(text)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function styleAttr(rawAttrs: string): string {
+  const match = rawAttrs.match(/\bstyle\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
+  const cleaned = sanitizeInlineStyle(match?.[1] ?? match?.[2] ?? "");
+  return cleaned ? ` style="${escapeAttr(cleaned)}"` : "";
+}
+
+/** 저장·표시용: 허용 태그만 남긴 HTML (jsdom 없이 동작) */
 export function sanitizeSurveyPromptHtml(raw: string): string {
   const input = (raw ?? "").trim();
   if (!input) return "";
 
-  // 평문(태그 없음)은 줄바꿈을 <br>로 보존한 문단으로 감쌈
-  if (!/<[a-z][\s\S]*>/i.test(input)) {
-    const escaped = input
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("\n", "<br>");
-    return `<p>${escaped}</p>`;
+  if (!/<\/?[a-z]/i.test(input)) {
+    return `<p>${escapeText(input).replaceAll("\n", "<br>")}</p>`;
   }
 
-  const purified = DOMPurify.sanitize(input, {
-    ALLOWED_TAGS,
-    ALLOWED_ATTR: ["style"],
-    ALLOW_DATA_ATTR: false,
-  });
-
-  const withSafeStyles = scrubStylesInHtml(purified).trim();
-  if (!withSafeStyles) return "";
-  // 루트가 인라인만 있으면 p로 감쌈
-  if (!/^<(p|div)\b/i.test(withSafeStyles)) {
-    return `<p>${withSafeStyles}</p>`;
+  let out = "";
+  let index = 0;
+  let skipUntil: string | null = null;
+  const tagRe = /<\/?([a-zA-Z][\w:-]*)\b([^<>]*)\/?>/g;
+  for (const match of input.matchAll(tagRe)) {
+    const start = match.index ?? 0;
+    if (!skipUntil) out += escapeText(input.slice(index, start));
+    const name = match[1].toLowerCase();
+    const isClose = match[0].startsWith("</");
+    if (skipUntil) {
+      if (isClose && name === skipUntil) skipUntil = null;
+    } else if (!isClose && DROP_CONTENT_TAGS.has(name)) {
+      skipUntil = name;
+    } else if (ALLOWED_TAGS.has(name)) {
+      if (VOID_TAGS.has(name)) {
+        if (!isClose) out += "<br>";
+      } else if (isClose) {
+        out += `</${name}>`;
+      } else {
+        out += `<${name}${styleAttr(match[2])}>`;
+      }
+    }
+    index = start + match[0].length;
   }
-  return withSafeStyles;
+  if (!skipUntil) out += escapeText(input.slice(index));
+
+  const trimmed = out.replace(/^(?:<p>\s*<\/p>)+|(?:<p>\s*<\/p>)+$/gi, "").trim();
+  if (!trimmed) return "";
+  if (!/^<p\b/i.test(trimmed)) return `<p>${trimmed}</p>`;
+  return trimmed;
 }
 
 /** HTML → 평문 (검증·내보내기·aria 등) */
 export function stripSurveyPromptHtml(raw: string): string {
   const input = raw ?? "";
   if (!input.trim()) return "";
-  if (!/<[a-z][\s\S]*>/i.test(input)) {
-    return input.replace(/\s+/g, " ").trim();
-  }
-  const text = DOMPurify.sanitize(input, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
-  return text
-    .replace(/\u00a0/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  const withoutDanger = input
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ");
+  const text = decodeEntities(withoutDanger.replace(/<[^>]+>/g, " "));
+  return text.replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
 }
 
 export function isSurveyPromptEmpty(raw: string): boolean {
