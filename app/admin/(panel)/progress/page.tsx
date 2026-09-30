@@ -7,6 +7,8 @@ import { getSurveyResponseStats } from "@/lib/survey-response-stats";
 import { getSurveyWorkload } from "@/lib/survey-workload";
 import { getAdminSurveys } from "@/lib/surveys-db";
 import { SeedSurveyResponsesButton } from "@/components/admin/SeedSurveyResponsesButton";
+import { SurveyResponseManageList } from "@/components/admin/SurveyResponseManageList";
+import { listSurveyResponses } from "@/lib/survey-response-list";
 import { BarChart3 } from "lucide-react";
 
 export const metadata = { title: "진행·업무 현황" };
@@ -16,15 +18,25 @@ export const dynamic = "force-dynamic";
 export default async function AdminProgressPage({
   searchParams,
 }: {
-  searchParams: Promise<{ survey?: string; seeded?: string }>;
+  searchParams: Promise<{ survey?: string; seeded?: string; page?: string; entry?: string }>;
 }) {
-  const { survey: surveyParam, seeded: seededParam } = await searchParams;
+  const { survey: surveyParam, seeded: seededParam, page: pageParam, entry: entryParam } =
+    await searchParams;
   const seededCount = seededParam ? Number(seededParam) : 0;
   const selectedSlug = surveyParam?.trim() ?? "";
+  const responsePage = Number(pageParam);
+  const entryFilter = entryParam?.trim() || "all";
   const adminSurveys = await getAdminSurveys();
-  const [stats, surveyWorkload] = await Promise.all([
+  const [stats, surveyWorkload, responseList] = await Promise.all([
     selectedSlug ? getSurveyResponseStats(selectedSlug) : Promise.resolve(null),
     selectedSlug ? getSurveyWorkload(selectedSlug) : Promise.resolve(null),
+    selectedSlug
+      ? listSurveyResponses({
+          slug: selectedSlug,
+          page: Number.isFinite(responsePage) ? responsePage : 1,
+          entryFilter,
+        })
+      : Promise.resolve(null),
   ]);
 
   return (
@@ -125,6 +137,15 @@ export default async function AdminProgressPage({
                         <SeedSurveyResponsesButton slug={s.id} title={s.title} />
                         {surveyWorkload ? (
                           <SurveyWorkloadSection workload={surveyWorkload} />
+                        ) : null}
+
+                        {responseList ? (
+                          <SurveyResponseManageList
+                            slug={s.id}
+                            list={responseList}
+                            staff={surveyWorkload?.staff ?? []}
+                            entryFilter={entryFilter}
+                          />
                         ) : null}
 
                         <div>
