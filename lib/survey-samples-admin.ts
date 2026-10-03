@@ -94,7 +94,7 @@ export async function listSurveySampleBatches(
   }
 
   const admin = createSupabaseServiceRoleClient();
-  let { data, error } = await admin
+  const primary = await admin
     .from("survey_sample_batches")
     .select(
       "id, version_number, original_filename, uid_column, phone_column, outcome_column, email_column, name_column, extra_columns, column_headers, row_count, status, is_active, error_message, created_at, uploaded_by",
@@ -102,7 +102,8 @@ export async function listSurveySampleBatches(
     .eq("survey_id", surveyId)
     .order("version_number", { ascending: false });
 
-  if (error?.message?.includes("extra_columns")) {
+  let rows: BatchRow[] = [];
+  if (primary.error?.message?.includes("extra_columns")) {
     const fallback = await admin
       .from("survey_sample_batches")
       .select(
@@ -110,16 +111,18 @@ export async function listSurveySampleBatches(
       )
       .eq("survey_id", surveyId)
       .order("version_number", { ascending: false });
-    data = fallback.data;
-    error = fallback.error;
-  }
-
-  if (error || !data?.length) {
+    if (fallback.error || !fallback.data?.length) {
+      return { surveyId, batches: [] };
+    }
+    rows = fallback.data.map((row) => ({ ...row, extra_columns: [] })) as BatchRow[];
+  } else if (primary.error || !primary.data?.length) {
     return { surveyId, batches: [] };
+  } else {
+    rows = primary.data as BatchRow[];
   }
 
   const uploaderIds = [
-    ...new Set((data as BatchRow[]).map((r) => r.uploaded_by).filter(Boolean)),
+    ...new Set(rows.map((r) => r.uploaded_by).filter(Boolean)),
   ] as string[];
 
   const emailById = new Map<string, string>();
@@ -135,7 +138,7 @@ export async function listSurveySampleBatches(
 
   return {
     surveyId,
-    batches: (data as BatchRow[]).map((row) =>
+    batches: rows.map((row) =>
       mapBatch(row, row.uploaded_by ? emailById.get(row.uploaded_by) ?? null : null),
     ),
   };
