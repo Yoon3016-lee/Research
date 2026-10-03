@@ -25,6 +25,7 @@ type BatchRow = {
   outcome_column: string;
   email_column?: string | null;
   name_column?: string | null;
+  extra_columns?: unknown;
   column_headers: unknown;
   row_count: number;
   status: string;
@@ -33,6 +34,18 @@ type BatchRow = {
   created_at: string;
   uploaded_by: string | null;
 };
+
+function parseExtraColumns(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const item of raw) {
+    if (typeof item !== "string") continue;
+    const letter = item.trim().toUpperCase();
+    if (!/^[A-Z]{1,2}$/.test(letter)) continue;
+    if (!out.includes(letter)) out.push(letter);
+  }
+  return out;
+}
 
 function mapBatch(row: BatchRow, uploadedByEmail: string | null): SurveySampleBatchSummary {
   const headers = Array.isArray(row.column_headers)
@@ -48,6 +61,7 @@ function mapBatch(row: BatchRow, uploadedByEmail: string | null): SurveySampleBa
     outcomeColumn: row.outcome_column,
     emailColumn: row.email_column ?? null,
     nameColumn: row.name_column ?? null,
+    extraColumns: parseExtraColumns(row.extra_columns),
     columnHeaders: headers,
     rowCount: row.row_count,
     status: row.status as SurveySampleBatchSummary["status"],
@@ -80,13 +94,25 @@ export async function listSurveySampleBatches(
   }
 
   const admin = createSupabaseServiceRoleClient();
-  const { data, error } = await admin
+  let { data, error } = await admin
     .from("survey_sample_batches")
     .select(
-      "id, version_number, original_filename, uid_column, phone_column, outcome_column, email_column, name_column, column_headers, row_count, status, is_active, error_message, created_at, uploaded_by",
+      "id, version_number, original_filename, uid_column, phone_column, outcome_column, email_column, name_column, extra_columns, column_headers, row_count, status, is_active, error_message, created_at, uploaded_by",
     )
     .eq("survey_id", surveyId)
     .order("version_number", { ascending: false });
+
+  if (error?.message?.includes("extra_columns")) {
+    const fallback = await admin
+      .from("survey_sample_batches")
+      .select(
+        "id, version_number, original_filename, uid_column, phone_column, outcome_column, email_column, name_column, column_headers, row_count, status, is_active, error_message, created_at, uploaded_by",
+      )
+      .eq("survey_id", surveyId)
+      .order("version_number", { ascending: false });
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error || !data?.length) {
     return { surveyId, batches: [] };
@@ -193,6 +219,7 @@ export async function uploadSurveySampleBatch(params: {
     phone_column: format === "site" ? (params.mapping.phoneColumn ?? "-") : "-",
     outcome_column: format === "site" ? (params.mapping.outcomeColumn ?? "-") : "-",
     column_headers: serializeColumnHeaders(parsed.columns),
+    extra_columns: parseExtraColumns(params.mapping.extraColumns),
     row_count: 0,
     uploaded_by: params.uploadedBy,
     status: "uploading",
@@ -203,11 +230,28 @@ export async function uploadSurveySampleBatch(params: {
     batchInsert.name_column = params.mapping.nameColumn ?? null;
   }
 
-  const { data: batch, error: batchError } = await admin
+  let { data: batch, error: batchError } = await admin
     .from("survey_sample_batches")
     .insert(batchInsert)
     .select("id")
     .single();
+
+  if (batchError?.message?.includes("extra_columns")) {
+    const { extra_columns: _extra, ...withoutExtra } = batchInsert;
+    const retry = await admin
+      .from("survey_sample_batches")
+      .insert(withoutExtra)
+      .select("id")
+      .single();
+    batch = retry.data;
+    batchError = retry.error;
+    if (!batchError && parseExtraColumns(params.mapping.extraColumns).length > 0) {
+      // 컬럼 없을 때는 업로드는 되지만 CATI 추가 열 표시는 불가
+      console.warn(
+        "[survey-samples] extra_columns 컬럼이 없습니다. 마이그레이션 20260410900000을 적용하세요.",
+      );
+    }
+  }
 
   if (batchError || !batch) {
     if (batchError && isConcurrentUploadError(batchError.message)) {
@@ -367,7 +411,7 @@ export async function getSurveySampleBatchPreview(
   const { data: batch, error: batchError } = await admin
     .from("survey_sample_batches")
     .select(
-      "id, version_number, original_filename, uid_column, phone_column, outcome_column, column_headers, row_count, status",
+      "id, version_number, original_filename, uid_column, phone_column, outcome_column, email_column, name_column, column_headers, row_count, status",
     )
     .eq("id", batchId)
     .eq("survey_id", surveyId)
@@ -425,6 +469,8 @@ export async function getSurveySampleBatchPreview(
       uidColumn: batch.uid_column as string,
       phoneColumn: batch.phone_column as string,
       outcomeColumn: batch.outcome_column as string,
+      emailColumn: (batch.email_column as string | null | undefined) ?? null,
+      nameColumn: (batch.name_column as string | null | undefined) ?? null,
       columnHeaders: headers,
       totalRows: batch.row_count as number,
       rows,

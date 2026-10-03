@@ -24,6 +24,8 @@ import {
   Eye,
   FileSpreadsheet,
   Loader2,
+  Plus,
+  Trash2,
   Upload,
   Users,
 } from "lucide-react";
@@ -106,12 +108,44 @@ function buildPreviewColumns(
     add(mapping.phoneColumn, "전화");
     add(mapping.outcomeColumn, "결과");
   }
+  for (const letter of mapping.extraColumns ?? []) {
+    add(letter, "추가");
+  }
 
   return defs.map(({ letter, role }) => {
     const col = columns.find((c) => c.letter === letter);
     const base = formatColumnLabel(letter, col?.headerLabel);
     return { letter, title: `${base} · ${role}` };
   });
+}
+
+function emptyMapping(): SurveySampleColumnMapping {
+  return {
+    uidColumn: "",
+    phoneColumn: "",
+    outcomeColumn: "",
+    emailColumn: "",
+    nameColumn: "",
+    extraColumns: [],
+  };
+}
+
+function nextUnusedColumn(
+  columns: SurveySampleColumnInfo[],
+  mapping: SurveySampleColumnMapping,
+  format: ParticipationFormat,
+): string {
+  const used = new Set<string>();
+  if (mapping.uidColumn) used.add(mapping.uidColumn);
+  if (format === "email") {
+    if (mapping.emailColumn) used.add(mapping.emailColumn);
+    if (mapping.nameColumn) used.add(mapping.nameColumn);
+  } else {
+    if (mapping.phoneColumn) used.add(mapping.phoneColumn);
+    if (mapping.outcomeColumn) used.add(mapping.outcomeColumn);
+  }
+  for (const letter of mapping.extraColumns ?? []) used.add(letter);
+  return columns.find((c) => !used.has(c.letter))?.letter ?? "";
 }
 
 export function SurveySampleUploadPanel({
@@ -125,13 +159,7 @@ export function SurveySampleUploadPanel({
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<SurveySampleSpreadsheetPreview | null>(null);
-  const [mapping, setMapping] = useState<SurveySampleColumnMapping>({
-    uidColumn: "",
-    phoneColumn: "",
-    outcomeColumn: "",
-    emailColumn: "",
-    nameColumn: "",
-  });
+  const [mapping, setMapping] = useState<SurveySampleColumnMapping>(emptyMapping);
   const [uploadWarnings, setUploadWarnings] = useState<SurveySampleUploadWarnings | null>(
     null,
   );
@@ -151,30 +179,11 @@ export function SurveySampleUploadPanel({
     [preview, mapping, participationFormat],
   );
 
-  const handleFileChange = (next: File | null) => {
-    setFile(next);
-    setPreview(null);
-    setError(null);
-    setSuccess(null);
-    setUploadWarnings(null);
-    setMapping({
-      uidColumn: "",
-      phoneColumn: "",
-      outcomeColumn: "",
-      emailColumn: "",
-      nameColumn: "",
-    });
-  };
-
-  const handlePreview = () => {
-    if (!file) {
-      setError("엑셀 파일을 선택하세요.");
-      return;
-    }
+  const runPreview = (target: File) => {
     setError(null);
     setSuccess(null);
     const fd = new FormData();
-    fd.set("file", file);
+    fd.set("file", target);
     fd.set("participation_format", participationFormat);
     startPreview(async () => {
       const result = await previewSurveySampleUploadAction(fd);
@@ -187,18 +196,38 @@ export function SurveySampleUploadPanel({
       const suggested = result.preview.suggestedColumns;
       if (isEmail) {
         setMapping({
+          ...emptyMapping(),
           uidColumn: suggested?.uidColumn ?? result.preview.columns[0]?.letter ?? "A",
           emailColumn: suggested?.emailColumn ?? result.preview.columns[1]?.letter ?? "B",
           nameColumn: suggested?.nameColumn ?? "",
         });
       } else {
         setMapping({
+          ...emptyMapping(),
           uidColumn: suggested?.uidColumn ?? result.preview.columns[0]?.letter ?? "A",
           phoneColumn: suggested?.phoneColumn ?? result.preview.columns[6]?.letter ?? "G",
           outcomeColumn: suggested?.outcomeColumn ?? result.preview.columns[9]?.letter ?? "J",
         });
       }
     });
+  };
+
+  const handleFileChange = (next: File | null) => {
+    setFile(next);
+    setPreview(null);
+    setError(null);
+    setSuccess(null);
+    setUploadWarnings(null);
+    setMapping(emptyMapping());
+    if (next) runPreview(next);
+  };
+
+  const handlePreview = () => {
+    if (!file) {
+      setError("엑셀 파일을 선택하세요.");
+      return;
+    }
+    runPreview(file);
   };
 
   const handleUpload = () => {
@@ -233,6 +262,9 @@ export function SurveySampleUploadPanel({
     } else {
       fd.set("phone_column", mapping.phoneColumn ?? "");
       fd.set("outcome_column", mapping.outcomeColumn ?? "");
+    }
+    if (mapping.extraColumns?.length) {
+      fd.set("extra_columns", mapping.extraColumns.join(","));
     }
     startUpload(async () => {
       const result = await uploadSurveySampleBatchAction(fd);
@@ -281,23 +313,67 @@ export function SurveySampleUploadPanel({
 
   const batchPreviewColumns = useMemo(() => {
     if (!batchPreview) return [];
-    return [
-      batchPreview.uidColumn,
-      batchPreview.phoneColumn,
-      batchPreview.outcomeColumn,
-    ].map((letter) => {
-      const role =
-        letter === batchPreview.uidColumn
-          ? "UID"
-          : letter === batchPreview.phoneColumn
-            ? "전화"
-            : "결과";
-      return {
-        letter,
-        title: `${formatColumnLabel(letter)} · ${role}`,
-      };
+
+    const roleByLetter = new Map<string, string>();
+    const ordered: string[] = [];
+    const push = (letter: string | null | undefined, role: string) => {
+      if (!letter || letter === "-" || roleByLetter.has(letter)) return;
+      roleByLetter.set(letter, role);
+      ordered.push(letter);
+    };
+
+    push(batchPreview.uidColumn, "UID");
+    if (isEmail) {
+      push(batchPreview.emailColumn, "이메일");
+      push(batchPreview.nameColumn, "이름");
+    } else {
+      push(batchPreview.phoneColumn, "전화");
+      push(batchPreview.outcomeColumn, "결과");
+    }
+
+    const fromHeaders = batchPreview.columnHeaders.filter((h) => /^[A-Z]{1,2}$/i.test(h));
+    const fromCells = new Set<string>();
+    for (const row of batchPreview.rows) {
+      for (const key of Object.keys(row.cells)) fromCells.add(key);
+    }
+    const extras = [...new Set([...fromHeaders, ...fromCells])]
+      .filter((letter) => !roleByLetter.has(letter))
+      .sort((a, b) => a.length - b.length || a.localeCompare(b));
+    for (const letter of extras) {
+      roleByLetter.set(letter, "추가");
+      ordered.push(letter);
+    }
+
+    return ordered.map((letter) => ({
+      letter,
+      title: `${formatColumnLabel(letter)} · ${roleByLetter.get(letter) ?? "추가"}`,
+    }));
+  }, [batchPreview, isEmail]);
+
+  const addExtraColumn = () => {
+    if (!preview) return;
+    const next = nextUnusedColumn(preview.columns, mapping, participationFormat);
+    if (!next) return;
+    setMapping((prev) => ({
+      ...prev,
+      extraColumns: [...(prev.extraColumns ?? []), next],
+    }));
+  };
+
+  const updateExtraColumn = (index: number, letter: string) => {
+    setMapping((prev) => {
+      const extras = [...(prev.extraColumns ?? [])];
+      extras[index] = letter;
+      return { ...prev, extraColumns: extras };
     });
-  }, [batchPreview]);
+  };
+
+  const removeExtraColumn = (index: number) => {
+    setMapping((prev) => ({
+      ...prev,
+      extraColumns: (prev.extraColumns ?? []).filter((_, i) => i !== index),
+    }));
+  };
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -340,6 +416,9 @@ export function SurveySampleUploadPanel({
                     <>
                       UID 열: {activeBatch.uidColumn} · 전화: {activeBatch.phoneColumn} · 결과:{" "}
                       {activeBatch.outcomeColumn}
+                      {activeBatch.extraColumns.length
+                        ? ` · 추가: ${activeBatch.extraColumns.join(", ")}`
+                        : null}
                     </>
                   )}
                 </p>
@@ -384,8 +463,8 @@ export function SurveySampleUploadPanel({
         </h3>
         <p className="mt-1 text-sm text-brand-700/85">
           {isEmail
-            ? "UID·이메일 열을 지정하세요. 이름 열은 메일 머지 `(OOO님)` / {{이름}}용 선택 항목입니다."
-            : "UID·전화번호·결과 열만 지정하면 됩니다. UID가 있는 행만 표본으로 저장됩니다."}
+            ? "파일을 선택하면 미리보기가 바로 열립니다. UID·이메일 열을 지정하세요. 이름·추가 열은 메일 머지·미리보기용 선택 항목입니다."
+            : "파일을 선택하면 미리보기가 바로 열립니다. UID·전화번호·결과 열을 지정하고, 필요하면 추가 열을 고르세요. UID가 있는 행만 표본으로 저장됩니다."}
         </p>
 
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -410,9 +489,16 @@ export function SurveySampleUploadPanel({
             ) : (
               <FileSpreadsheet className="h-4 w-4" aria-hidden />
             )}
-            미리보기
+            {previewPending ? "미리보기 중…" : "미리보기 다시"}
           </button>
         </div>
+
+        {file && previewPending && !preview ? (
+          <p className="mt-4 flex items-center gap-2 text-sm text-brand-700" role="status">
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            파일을 읽어 미리보기를 준비하는 중…
+          </p>
+        ) : null}
 
         {preview ? (
           <div className="mt-6 space-y-4">
@@ -467,12 +553,48 @@ export function SurveySampleUploadPanel({
                   />
                 </>
               )}
+              {(mapping.extraColumns ?? []).map((letter, index) => (
+                <div key={`extra-${index}`} className="flex items-end gap-2">
+                  <div className="min-w-0 flex-1">
+                    <ColumnSelect
+                      label={`추가 열 ${index + 1}`}
+                      value={letter}
+                      columns={preview.columns}
+                      disabled={uploadPending || Boolean(samplesLockedAt)}
+                      onChange={(value) => updateExtraColumn(index, value)}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    disabled={uploadPending || Boolean(samplesLockedAt)}
+                    onClick={() => removeExtraColumn(index)}
+                    className="mb-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-brand-900/12 text-brand-700 hover:bg-surface disabled:opacity-60"
+                    aria-label={`추가 열 ${index + 1} 제거`}
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden />
+                  </button>
+                </div>
+              ))}
             </div>
+
+            <button
+              type="button"
+              disabled={
+                uploadPending ||
+                Boolean(samplesLockedAt) ||
+                !nextUnusedColumn(preview.columns, mapping, participationFormat)
+              }
+              onClick={addExtraColumn}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-brand-900/20 bg-white px-3 py-2 text-xs font-medium text-brand-800 hover:bg-surface disabled:opacity-55"
+            >
+              <Plus className="h-3.5 w-3.5" aria-hidden />
+              열 추가
+            </button>
 
             <p className="text-xs text-brand-700/80">
               {isEmail
-                ? "같은 이메일·다른 UID는 경고만 표시됩니다. UID 중복 시 업로드가 거부됩니다."
-                : "조사원이 UID를 입력하면 전화번호 열 값을 보여 주고, 통화 결과는 결과 기록 열에 저장됩니다."}
+                ? "같은 이메일·다른 UID는 경고만 표시됩니다. UID 중복 시 업로드가 거부됩니다. 추가 열은 미리보기·머지 확인용이며, 파일의 모든 열 값은 그대로 저장됩니다."
+                : "조사원이 UID를 입력하면 전화번호·추가 열 값을 보여 주고, 통화 결과는 결과 기록 열에 저장됩니다. 「열 추가」로 고른 열은 CATI 화면에 표시됩니다."}
             </p>
 
             <div className="overflow-x-auto rounded-xl border border-brand-900/8">

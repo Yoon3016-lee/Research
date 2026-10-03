@@ -71,6 +71,11 @@ export async function uploadSurveySampleBatchAction(
     return { ok: false, error: fileResult.error };
   }
 
+  const extraColumns = String(formData.get("extra_columns") ?? "")
+    .split(",")
+    .map((s) => s.trim().toUpperCase())
+    .filter((s) => /^[A-Z]{1,2}$/.test(s));
+
   let mapping;
   if (format === "email") {
     const emailColumn = String(formData.get("email_column") ?? "").trim().toUpperCase();
@@ -82,6 +87,7 @@ export async function uploadSurveySampleBatchAction(
       uidColumn,
       emailColumn,
       nameColumn: nameColumn || undefined,
+      extraColumns,
     };
   } else {
     const phoneColumn = String(formData.get("phone_column") ?? "").trim().toUpperCase();
@@ -89,7 +95,7 @@ export async function uploadSurveySampleBatchAction(
     if (!uidColumn || !phoneColumn || !outcomeColumn) {
       return { ok: false, error: "UID·전화번호·결과 열을 모두 선택하세요." };
     }
-    mapping = { uidColumn, phoneColumn, outcomeColumn };
+    mapping = { uidColumn, phoneColumn, outcomeColumn, extraColumns };
   }
 
   const result = await uploadSurveySampleBatch({

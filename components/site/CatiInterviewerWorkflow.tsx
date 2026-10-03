@@ -237,6 +237,23 @@ export function CatiInterviewerWorkflow({
                 {applied.statusLabel}
               </span>
             </div>
+            {applied.extraFields.length > 0 ? (
+              <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+                {applied.extraFields.map((field) => (
+                  <div
+                    key={field.letter}
+                    className="rounded-lg border border-zinc-200/80 bg-white/70 px-3 py-2"
+                  >
+                    <dt className="text-[11px] font-medium text-zinc-500">
+                      {field.label}
+                    </dt>
+                    <dd className="mt-0.5 text-sm font-medium text-zinc-900">
+                      {field.value.trim() ? field.value : "—"}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            ) : null}
             <p className="mt-3 text-sm text-zinc-700">{applied.statusDescription}</p>
 
             {phase === "survey" ? (

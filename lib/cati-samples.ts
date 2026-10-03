@@ -6,8 +6,10 @@ import type {
   CatiAppliedSample,
   CatiApplyResult,
   CatiDraft,
+  CatiExtraField,
   CatiRecordOutcomeResult,
 } from "@/lib/cati-sample-types";
+import { formatColumnLabel } from "@/lib/survey-sample-columns";
 import { isUuid, normalizeSurveyRef } from "@/lib/survey-slug";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -23,10 +25,45 @@ type SampleRow = {
 type BatchRow = {
   id: string;
   version_number: number;
+  uid_column: string;
+  phone_column: string;
   outcome_column: string;
+  extra_columns: unknown;
   is_active: boolean;
   status: string;
 };
+
+function parseExtraColumns(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const item of raw) {
+    if (typeof item !== "string") continue;
+    const letter = item.trim().toUpperCase();
+    if (!/^[A-Z]{1,2}$/.test(letter)) continue;
+    if (!out.includes(letter)) out.push(letter);
+  }
+  return out;
+}
+
+function buildExtraFields(
+  rowData: Record<string, string> | null | undefined,
+  batch: BatchRow,
+): CatiExtraField[] {
+  const reserved = new Set(
+    [batch.uid_column, batch.phone_column, batch.outcome_column]
+      .map((c) => String(c ?? "").trim().toUpperCase())
+      .filter((c) => /^[A-Z]{1,2}$/.test(c)),
+  );
+  const letters = parseExtraColumns(batch.extra_columns).filter((letter) => !reserved.has(letter));
+  return letters.map((letter) => {
+    const raw = rowData?.[letter];
+    return {
+      letter,
+      label: formatColumnLabel(letter),
+      value: raw == null ? "" : String(raw),
+    };
+  });
+}
 
 async function resolveSurveyId(ref: string): Promise<string | null> {
   const admin = createSupabaseServiceRoleClient();
@@ -45,13 +82,29 @@ async function getActiveBatch(surveyId: string): Promise<BatchRow | null> {
   const admin = createSupabaseServiceRoleClient();
   const { data, error } = await admin
     .from("survey_sample_batches")
-    .select("id, version_number, outcome_column, is_active, status")
+    .select(
+      "id, version_number, uid_column, phone_column, outcome_column, extra_columns, is_active, status",
+    )
     .eq("survey_id", surveyId)
     .eq("is_active", true)
     .eq("status", "ready")
     .maybeSingle();
 
-  if (error || !data) return null;
+  if (error || !data) {
+    // 마이그레이션 전 DB 호환
+    if (error?.message?.includes("extra_columns")) {
+      const fallback = await admin
+        .from("survey_sample_batches")
+        .select("id, version_number, uid_column, phone_column, outcome_column, is_active, status")
+        .eq("survey_id", surveyId)
+        .eq("is_active", true)
+        .eq("status", "ready")
+        .maybeSingle();
+      if (fallback.error || !fallback.data) return null;
+      return { ...(fallback.data as Omit<BatchRow, "extra_columns">), extra_columns: [] };
+    }
+    return null;
+  }
   return data as BatchRow;
 }
 
@@ -72,6 +125,7 @@ function mapAppliedSample(
     statusDescription: status.description,
     statusTone: status.tone,
     batchVersion: batch.version_number,
+    extraFields: buildExtraFields(row.row_data, batch),
     draft,
   };
 }

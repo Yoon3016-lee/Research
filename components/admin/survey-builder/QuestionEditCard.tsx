@@ -32,6 +32,7 @@ type Props = {
   optionTemplates?: SurveyOptionTemplateSummary[];
   onChange: (patch: Partial<DraftQuestion>) => void;
   onMove: (dir: -1 | 1) => void;
+  onMoveTo: (toIndex: number) => void;
   onRemove: () => void;
 };
 
@@ -57,6 +58,7 @@ export function QuestionEditCard({
   optionTemplates = [],
   onChange,
   onMove,
+  onMoveTo,
   onRemove,
 }: Props) {
   const priorBranching = allQuestions
@@ -176,7 +178,28 @@ export function QuestionEditCard({
             </p>
           </div>
         </div>
-        <div className="flex shrink-0 gap-0.5">
+        <div className="flex shrink-0 items-center gap-0.5">
+          {total > 1 ? (
+            <label className="mr-1 flex items-center gap-1 text-[11px] text-zinc-500">
+              <span className="sr-only">문항 번호로 이동</span>
+              <select
+                value={index}
+                aria-label="문항 번호로 이동"
+                onChange={(e) => {
+                  const to = Number(e.target.value);
+                  if (!Number.isInteger(to) || to === index) return;
+                  onMoveTo(to);
+                }}
+                className="max-w-[5.5rem] rounded-lg border border-zinc-200 bg-white px-1.5 py-1 text-[11px] font-medium text-zinc-700 outline-none ring-violet-500/20 focus:ring-2"
+              >
+                {Array.from({ length: total }, (_, i) => (
+                  <option key={i} value={i}>
+                    {i + 1}번으로
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <button
             type="button"
             onClick={() => onMove(-1)}

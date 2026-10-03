@@ -223,6 +223,48 @@ export function remapRulesAfterSwap(
   }));
 }
 
+/** fromIndex 문항을 toIndex 자리로 이동하고 표시 조건 인덱스를 재매핑 */
+export function remapRulesAfterMove(
+  questions: DraftQuestion[],
+  fromIndex: number,
+  toIndex: number,
+): DraftQuestion[] {
+  if (
+    fromIndex === toIndex ||
+    fromIndex < 0 ||
+    toIndex < 0 ||
+    fromIndex >= questions.length ||
+    toIndex >= questions.length
+  ) {
+    return questions;
+  }
+
+  const copy = [...questions];
+  const [moved] = copy.splice(fromIndex, 1);
+  if (!moved) return questions;
+  copy.splice(toIndex, 0, moved);
+
+  const remapIndex = (oldIndex: number): number => {
+    if (oldIndex === fromIndex) return toIndex;
+    if (fromIndex < toIndex) {
+      // 아래로 이동: (from, to] 구간이 한 칸 앞으로
+      if (oldIndex > fromIndex && oldIndex <= toIndex) return oldIndex - 1;
+    } else {
+      // 위로 이동: [to, from) 구간이 한 칸 뒤로
+      if (oldIndex >= toIndex && oldIndex < fromIndex) return oldIndex + 1;
+    }
+    return oldIndex;
+  };
+
+  return copy.map((q) => ({
+    ...q,
+    visibilityRules: q.visibilityRules.map((r) => ({
+      ...r,
+      sourceOrderIndex: remapIndex(r.sourceOrderIndex),
+    })),
+  }));
+}
+
 export function remapRulesAfterRemove(
   questions: DraftQuestion[],
   removedIndex: number,

@@ -8,6 +8,13 @@ export type CatiDraft = {
   activeSeconds: number;
 };
 
+export type CatiExtraField = {
+  /** Excel 열 문자 */
+  letter: string;
+  label: string;
+  value: string;
+};
+
 export type CatiAppliedSample = {
   id: string;
   uid: string;
@@ -17,6 +24,8 @@ export type CatiAppliedSample = {
   statusDescription: string;
   statusTone: "new" | "info" | "warning" | "success" | "muted";
   batchVersion: number;
+  /** 표본 관리에서 「열 추가」로 지정한 추가 열 */
+  extraFields: CatiExtraField[];
   draft: CatiDraft | null;
 };
 

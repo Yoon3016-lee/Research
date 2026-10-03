@@ -1,6 +1,7 @@
 import "server-only";
 
 import * as XLSX from "xlsx";
+import { formatDateTimeKst } from "@/lib/format-datetime-kst";
 import { formatDurationSeconds } from "@/lib/survey-duration";
 import { normalizeSurveyRef, isUuid } from "@/lib/survey-slug";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
@@ -541,8 +542,8 @@ async function loadExportDataset(ref: string): Promise<ExportDataset | null> {
     const sampleId = r.sample_id ?? null;
     return {
       responseNumber: i + 1,
-      submittedAt: r.submitted_at,
-      startedAt: r.started_at ?? null,
+      submittedAt: formatDateTimeKst(r.submitted_at),
+      startedAt: r.started_at ? formatDateTimeKst(r.started_at) : null,
       durationSeconds:
         typeof r.duration_seconds === "number" ? r.duration_seconds : null,
       uid: sampleId ? uidBySampleId.get(sampleId) ?? null : null,
@@ -563,17 +564,18 @@ function buildGuideSheet(): (string | number)[][] {
   return [
     ["설문 응답 데이터 안내"],
     [],
-    ["시트 구성"],
-    ["문항정의", "문항 제목·유형·선택지(보기) 목록. 응답 시트의 Q번호와 매칭합니다."],
-    ["응답_코드", "제출별 문항 응답을 숫자·코드로 표현 (AI 분석·집계용)."],
+    ["시트 구성 (순서)"],
     [
       "응답_정리",
-      "조사표형 응답표(헤더 3행). 1행 유형·2행 문항제목·3행 보기/항목. 선택 칸에 보기 번호(순위는 N순위). 다중척도는 「문항제목 - 항목」으로 열 구분.",
+      "조사표형 응답표(헤더 3행). 1행 유형·2행 문항제목·3행 보기/항목. 객관식·드롭다운·순위 보기는 입력한 보기 문구 그대로(번호 자동 부착 없음). 선택 칸에 보기 번호(순위는 N순위). 다중척도는 「문항제목 - 항목」으로 열 구분.",
     ],
     [
       "응답_요약",
-      "압축 응답표(헤더 3행). 문항(또는 하위 항목)당 1열. 3행에 보기 목록, 응답 칸에는 ①·② 등 선택 기호(다중은 쉼표, 순위는 1순위=② 형식).",
+      "압축 응답표(헤더 3행). 문항(또는 하위 항목)당 1열. 3행 보기 목록은 보기 문구 그대로. 응답 칸에는 보기 번호 숫자(다중은 쉼표, 순위는 1순위=2 형식).",
     ],
+    ["안내", "이 시트 — 시트·코드 규칙 설명."],
+    ["문항정의", "문항 제목·유형·선택지(보기) 목록. 응답 시트의 Q번호와 매칭합니다."],
+    ["응답_코드", "제출별 문항 응답을 숫자·코드로 표현 (AI 분석·집계용)."],
     [],
     ["응답_정리 규칙"],
     ["객관식·드롭다운·리커트", "고른 보기(점수) 칸에 해당 번호 기입"],
@@ -719,8 +721,9 @@ function questionTitleBanner(q: QuestionExportMeta): string {
   return `SQ${q.questionNumber}. ${q.prompt}`;
 }
 
-function circledOptionLabel(index: number, label: string): string {
-  return `${likertCircledMark(index)}${label}`;
+/** 객관식·드롭다운·순위: 관리자가 보기 문구에 번호를 넣는 경우가 많아 원형 번호를 붙이지 않음 */
+function choiceOptionLeafLabel(label: string): string {
+  return label.trim() || label;
 }
 
 type SummaryCol = {
@@ -783,7 +786,7 @@ function buildSummaryColumns(questions: QuestionExportMeta[]): SummaryCol[] {
           optionIndex: opt.index,
           typeHeader,
           titleHeader,
-          leafHeader: circledOptionLabel(opt.index, opt.label),
+          leafHeader: choiceOptionLeafLabel(opt.label),
           typeGroup,
           titleGroup,
         });
@@ -1085,7 +1088,7 @@ function choiceOptionLegend(q: QuestionExportMeta): string {
       })
       .join(" ");
   }
-  return q.options.map((opt) => circledOptionLabel(opt.index, opt.label)).join(",");
+  return q.options.map((opt) => choiceOptionLeafLabel(opt.label)).join(",");
 }
 
 function likertScaleLegend(q: QuestionExportMeta): string {
@@ -1231,13 +1234,12 @@ function overviewCellValue(
     if (!selected) return "";
     const meta = optionMeta(q.options, selected);
     if (!meta || meta.index <= 0) return "";
-    const mark = likertCircledMark(meta.index);
     if (q.type === "mc_single") {
       const other = parseOtherText(raw);
       const opt = q.options.find((o) => o.id === selected);
-      if (other && opt?.isOther) return `${mark} (${other})`;
+      if (other && opt?.isOther) return `${meta.index} (${other})`;
     }
-    return mark;
+    return meta.index;
   }
 
   if (q.type === "mc_multi") {
@@ -1247,10 +1249,9 @@ function overviewCellValue(
     for (const id of ids) {
       const meta = optionMeta(q.options, id);
       if (!meta || meta.index <= 0) continue;
-      const mark = likertCircledMark(meta.index);
       const other = parseOtherText(raw);
       const opt = q.options.find((o) => o.id === id);
-      marks.push(other && opt?.isOther ? `${mark} (${other})` : mark);
+      marks.push(other && opt?.isOther ? `${meta.index} (${other})` : String(meta.index));
     }
     return marks.join(",");
   }
@@ -1265,7 +1266,7 @@ function overviewCellValue(
       if (!meta || meta.index <= 0) return;
       const opt = q.options.find((o) => o.id === id);
       const suffix = other && opt?.isOther ? ` (${other})` : "";
-      parts.push(`${i + 1}순위=${likertCircledMark(meta.index)}${suffix}`);
+      parts.push(`${i + 1}순위=${meta.index}${suffix}`);
     });
     return parts.join(", ");
   }
@@ -1274,7 +1275,7 @@ function overviewCellValue(
     if (raw == null) return "";
     const value = parseLikertScale(raw, q.scaleSize);
     if (value == null) return "";
-    return likertCircledMark(value);
+    return value;
   }
 
   if (q.type === "likert_multi") {
@@ -1282,7 +1283,7 @@ function overviewCellValue(
     const values = parseLikertMulti(raw, q.scaleSize);
     const value = values[col.itemId];
     if (value == null) return "";
-    return likertCircledMark(value);
+    return value;
   }
 
   if (q.type === "star_rating") {
@@ -1345,19 +1346,20 @@ function sanitizeFilenamePart(value: string): string {
 export function buildSurveyResponseWorkbook(dataset: ExportDataset): Buffer {
   const wb = XLSX.utils.book_new();
 
+  const summarySheet = buildSummarySheet(dataset);
+  const overviewSheet = buildOverviewSheet(dataset);
   const guide = XLSX.utils.aoa_to_sheet(buildGuideSheet());
   const codebook = XLSX.utils.aoa_to_sheet(buildCodebookSheet(dataset.questions));
   const codeSheet = XLSX.utils.aoa_to_sheet(
     buildResponseCodeSheet(dataset.questions, dataset.responses),
   );
-  const summarySheet = buildSummarySheet(dataset);
-  const overviewSheet = buildOverviewSheet(dataset);
 
+  // 자주 쓰는 시트를 앞으로: 1 응답_정리 · 2 응답_요약 · 3 안내 · 4 문항정의 · 5 응답_코드
+  XLSX.utils.book_append_sheet(wb, summarySheet, "응답_정리");
+  XLSX.utils.book_append_sheet(wb, overviewSheet, "응답_요약");
   XLSX.utils.book_append_sheet(wb, guide, "안내");
   XLSX.utils.book_append_sheet(wb, codebook, "문항정의");
   XLSX.utils.book_append_sheet(wb, codeSheet, "응답_코드");
-  XLSX.utils.book_append_sheet(wb, summarySheet, "응답_정리");
-  XLSX.utils.book_append_sheet(wb, overviewSheet, "응답_요약");
 
   return XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
 }

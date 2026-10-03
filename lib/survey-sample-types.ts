@@ -17,6 +17,8 @@ export type SurveySampleBatchSummary = {
   outcomeColumn: string;
   emailColumn?: string | null;
   nameColumn?: string | null;
+  /** CATI 화면에 표시할 추가 Excel 열 문자 */
+  extraColumns: string[];
   columnHeaders: string[];
   rowCount: number;
   status: SurveySampleBatchStatus;
@@ -50,6 +52,12 @@ export type SurveySampleColumnMapping = {
   /** 이메일 형식 */
   emailColumn?: string;
   nameColumn?: string;
+  /**
+   * 필수 매핑 외에 고른 추가 열.
+   * 배치에 저장되며 CATI UID 적용 화면에 함께 표시됩니다.
+   * row_data에는 파일의 모든 열이 저장됩니다.
+   */
+  extraColumns?: string[];
 };
 
 export type SurveySampleUploadWarnings = {
