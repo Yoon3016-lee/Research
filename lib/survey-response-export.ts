@@ -60,12 +60,6 @@ type ResponseRow = {
   sample_id?: string | null;
 };
 
-type AnswerRow = {
-  response_id: string;
-  question_id: string;
-  answer: unknown;
-};
-
 export type QuestionExportMeta = {
   questionId: string;
   questionNumber: number;

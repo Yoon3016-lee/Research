@@ -34,7 +34,7 @@ export default async function SurveyThanksPage({ params }: Props) {
         <main className="mx-auto max-w-lg px-4 py-16 text-center text-zinc-600">로딩 중…</main>
       }
     >
-      <SurveyThanksContent slug={slug} title={title} />
+      <SurveyThanksContent title={title} />
     </Suspense>
   );
 }

@@ -4,6 +4,7 @@
  */
 export type PrimeaxHomeCleanup = () => void;
 
-export function initPrimeaxHome(_root: ParentNode): PrimeaxHomeCleanup {
+export function initPrimeaxHome(root: ParentNode): PrimeaxHomeCleanup {
+  void root;
   return () => {};
 }

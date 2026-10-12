@@ -6,7 +6,6 @@ import { CheckCircle2 } from "lucide-react";
 import { SiteContainer } from "@/components/site/SiteContainer";
 
 type Props = {
-  slug: string;
   title: string;
 };
 
@@ -31,7 +30,7 @@ function EmailCloseButton() {
   );
 }
 
-export function SurveyThanksContent({ slug, title }: Props) {
+export function SurveyThanksContent({ title }: Props) {
   const searchParams = useSearchParams();
   const isEmail = searchParams.get("email") === "1";
 

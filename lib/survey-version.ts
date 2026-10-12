@@ -30,15 +30,9 @@ export function formatArchivedSurveyTitle(title: string): string {
   return `${trimmed}${ARCHIVED_TITLE_SUFFIX}`;
 }
 
-export function makeSurveySlugFromTitle(title: string): string {
-  const t = title
-    .trim()
-    .toLowerCase()
-    .replace(/[\s]+/g, "-")
-    .replace(/[^a-z0-9가-힣-]/g, "")
-    .slice(0, 48);
-  const base = t.length > 0 ? t : "survey";
-  return `${base}-${randomUUID().slice(0, 8)}`;
+/** 설문 URL용 짧은 슬러그. 제목·한글은 넣지 않습니다. 예: s-a1b2c3d4e5f6 */
+export function makeSurveySlugFromTitle(): string {
+  return `s-${randomUUID().replace(/-/g, "").slice(0, 12)}`;
 }
 
 /**
@@ -158,7 +152,7 @@ export async function forkSurveyOnEdit(
     console.error("[survey-version] backup before fork:", backupResult.error);
   }
 
-  const newSlug = makeSurveySlugFromTitle(payload.title);
+  const newSlug = makeSurveySlugFromTitle();
   const rootSurveyId = existing.root_survey_id ?? existing.id;
   const clonedQuestions = cloneQuestionsAsTemplate(payload.questions);
 

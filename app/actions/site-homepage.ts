@@ -993,9 +993,11 @@ const PRIMEAX_NAV_ITEMS: Array<{
 
 /** ChatGPT 통합안 기준 상단 탭 6구조를 적용 (기존 CMS 페이지·하위메뉴는 보존) */
 export async function applyPrimeaxNavStructureAction(
-  _prev: SiteHomepageActionState,
-  _formData: FormData,
+  prev: SiteHomepageActionState,
+  formData: FormData,
 ): Promise<SiteHomepageActionState> {
+  void prev;
+  void formData;
   await requireSuperAdmin();
   const admin = createSupabaseServiceRoleClient();
 

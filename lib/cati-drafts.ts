@@ -13,6 +13,14 @@ type DraftRow = {
   active_seconds?: number | null;
 };
 
+function omit<T extends object, K extends keyof T>(source: T, keys: readonly K[]): Omit<T, K> {
+  const next = { ...source };
+  for (const key of keys) {
+    delete (next as Partial<T>)[key];
+  }
+  return next;
+}
+
 function mapDraftRow(row: DraftRow): CatiDraft {
   return {
     answers: Array.isArray(row.answers) ? row.answers : [],
@@ -128,13 +136,13 @@ export async function saveCatiDraft(params: {
   });
 
   if (error?.message?.includes("active_seconds")) {
-    const { active_seconds: _activeSeconds, ...withoutActive } = payload;
+    const withoutActive = omit(payload, ["active_seconds"]);
     const retry = await admin.from("survey_response_drafts").upsert(withoutActive, {
       onConflict: "sample_id",
     });
     error = retry.error;
     if (error?.message?.includes("started_at")) {
-      const { started_at: _startedAt, ...withoutStarted } = withoutActive;
+      const withoutStarted = omit(withoutActive, ["started_at"]);
       error = (
         await admin.from("survey_response_drafts").upsert(withoutStarted, {
           onConflict: "sample_id",
@@ -142,8 +150,7 @@ export async function saveCatiDraft(params: {
       ).error;
     }
   } else if (error?.message?.includes("started_at")) {
-    const { started_at: _startedAt, active_seconds: _activeSeconds, ...withoutStarted } =
-      payload;
+    const withoutStarted = omit(payload, ["started_at", "active_seconds"]);
     error = (
       await admin.from("survey_response_drafts").upsert(withoutStarted, {
         onConflict: "sample_id",

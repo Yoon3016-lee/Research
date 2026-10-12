@@ -243,8 +243,9 @@ export async function submitSurveyResponseAction(
     (resError.message.includes("started_at") ||
       resError.message.includes("duration_seconds"))
   ) {
-    const { started_at: _startedAt, duration_seconds: _durationSeconds, ...withoutDuration } =
-      insertRow;
+    const withoutDuration = { ...insertRow };
+    delete withoutDuration.started_at;
+    delete withoutDuration.duration_seconds;
     const retry = await admin
       .from("survey_responses")
       .insert(withoutDuration)

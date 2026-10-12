@@ -1,23 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { randomUUID } from "crypto";
 import type { CreateSurveyPayload } from "@/lib/survey-types";
 import { buildSurveyPeriodPersist } from "@/lib/survey-period";
 import { persistSurveyQuestions, validateQuestion } from "@/lib/survey-persist";
 import { requireAdminPanelAccess } from "@/lib/require-admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/admin";
-
-function makeSlug(title: string): string {
-  const t = title
-    .trim()
-    .toLowerCase()
-    .replace(/[\s]+/g, "-")
-    .replace(/[^a-z0-9가-힣-]/g, "")
-    .slice(0, 48);
-  const base = t.length > 0 ? t : "survey";
-  return `${base}-${randomUUID().slice(0, 8)}`;
-}
+import { makeSurveySlugFromTitle } from "@/lib/survey-version";
 
 export type CreateSurveyState =
   | { error: string; ok?: undefined; slug?: undefined }
@@ -49,7 +38,7 @@ export async function createSurveyAction(
   if (!periodBuilt.ok) return { error: periodBuilt.error };
 
   const admin = createSupabaseServiceRoleClient();
-  const slug = makeSlug(title);
+  const slug = makeSurveySlugFromTitle();
 
   const participationFormat = payload.participationFormat === "email" ? "email" : "site";
   const listedPublic =

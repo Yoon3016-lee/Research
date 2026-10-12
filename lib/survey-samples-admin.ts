@@ -240,7 +240,8 @@ export async function uploadSurveySampleBatch(params: {
     .single();
 
   if (batchError?.message?.includes("extra_columns")) {
-    const { extra_columns: _extra, ...withoutExtra } = batchInsert;
+    const withoutExtra = { ...batchInsert };
+    delete withoutExtra.extra_columns;
     const retry = await admin
       .from("survey_sample_batches")
       .insert(withoutExtra)
