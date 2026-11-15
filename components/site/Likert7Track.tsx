@@ -9,13 +9,17 @@ import {
   normalizeLikertScaleLabels,
 } from "@/lib/likert-scale";
 
+const DRAG_THRESHOLD_PX = 8;
+
 type LikertScaleTrackProps = {
   namePrefix: string;
   scaleSize: number;
   scaleLabels?: string[];
   value: number | null;
   disabled: boolean;
-  onChange: (value: number) => void;
+  /** true면 선택된 점수를 다시 눌러 해제(무응답)할 수 있음 */
+  allowSkip?: boolean;
+  onChange: (value: number | null) => void;
   ariaLabel: string;
   showBracket?: boolean;
   showNumberRow?: boolean;
@@ -29,6 +33,7 @@ export function LikertScaleTrack({
   scaleLabels = [],
   value,
   disabled,
+  allowSkip = false,
   onChange,
   ariaLabel,
   showBracket = true,
@@ -37,6 +42,10 @@ export function LikertScaleTrack({
 }: LikertScaleTrackProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const dragActiveRef = useRef(false);
+  const pointerStartXRef = useRef(0);
+  const pointerStartValueRef = useRef<number | null>(null);
+  const valueAtPointerDownRef = useRef<number | null>(null);
+  const movedRef = useRef(false);
   const [dragging, setDragging] = useState(false);
   const size = clampLikertScaleSize(scaleSize);
   const labels = normalizeLikertScaleLabels(scaleLabels, size);
@@ -67,19 +76,45 @@ export function LikertScaleTrack({
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (disabled) return;
     e.preventDefault();
+    const startValue = likertValueFromClientX(e.clientX, trackRef.current, size);
     dragActiveRef.current = true;
+    movedRef.current = false;
+    pointerStartXRef.current = e.clientX;
+    pointerStartValueRef.current = startValue;
+    valueAtPointerDownRef.current = value;
     setDragging(true);
     e.currentTarget.setPointerCapture(e.pointerId);
-    applyPointerX(e.clientX);
+
+    // 다른 점수를 누르면 즉시 선택. 같은 점수 재클릭은 up에서 해제 처리.
+    if (startValue != null && startValue !== value) {
+      onChange(startValue);
+    }
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (disabled || !dragActiveRef.current) return;
-    applyPointerX(e.clientX);
+    if (
+      !movedRef.current &&
+      Math.abs(e.clientX - pointerStartXRef.current) >= DRAG_THRESHOLD_PX
+    ) {
+      movedRef.current = true;
+    }
+    if (movedRef.current) {
+      applyPointerX(e.clientX);
+    }
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragActiveRef.current) return;
+    const startValue = pointerStartValueRef.current;
+    if (
+      !movedRef.current &&
+      allowSkip &&
+      startValue != null &&
+      startValue === valueAtPointerDownRef.current
+    ) {
+      onChange(null);
+    }
     endDrag(e.currentTarget, e.pointerId);
   };
 

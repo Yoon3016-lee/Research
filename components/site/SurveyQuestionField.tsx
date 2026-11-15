@@ -38,7 +38,6 @@ type Props = {
   onDropdown: (questionId: string, optionId: string) => void;
   onRank: (questionId: string, rankedOptionIds: string[]) => void;
   onLikertMulti: (questionId: string, optionId: string, value: number | null) => void;
-  onLikertMultiClear: (questionId: string) => void;
   onStarRating: (questionId: string, value: number | null) => void;
   onContactField: (questionId: string, optionId: string, value: string) => void;
 };
@@ -56,7 +55,6 @@ export function SurveyQuestionField({
   onDropdown,
   onRank,
   onLikertMulti,
-  onLikertMultiClear,
   onStarRating,
   onContactField,
 }: Props) {
@@ -249,7 +247,6 @@ export function SurveyQuestionField({
           disabled={pending}
           allowSkip={q.allowSkip}
           onChange={(optionId, value) => onLikertMulti(q.id, optionId, value)}
-          onClearAll={() => onLikertMultiClear(q.id)}
         />
       )}
 

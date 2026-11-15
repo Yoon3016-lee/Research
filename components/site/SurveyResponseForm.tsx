@@ -639,9 +639,6 @@ export function SurveyResponseForm({
           return { ...prev, [questionId]: current };
         })
       }
-      onLikertMultiClear={(questionId) =>
-        setLikertMulti((prev) => ({ ...prev, [questionId]: {} }))
-      }
       onStarRating={(questionId, value) =>
         setStarRating((prev) => ({ ...prev, [questionId]: value }))
       }
