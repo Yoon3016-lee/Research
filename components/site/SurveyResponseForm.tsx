@@ -629,10 +629,18 @@ export function SurveyResponseForm({
         setRank((prev) => ({ ...prev, [questionId]: rankedOptionIds }))
       }
       onLikertMulti={(questionId, optionId, value) =>
-        setLikertMulti((prev) => ({
-          ...prev,
-          [questionId]: { ...(prev[questionId] ?? {}), [optionId]: value },
-        }))
+        setLikertMulti((prev) => {
+          const current = { ...(prev[questionId] ?? {}) };
+          if (value == null) {
+            delete current[optionId];
+          } else {
+            current[optionId] = value;
+          }
+          return { ...prev, [questionId]: current };
+        })
+      }
+      onLikertMultiClear={(questionId) =>
+        setLikertMulti((prev) => ({ ...prev, [questionId]: {} }))
       }
       onStarRating={(questionId, value) =>
         setStarRating((prev) => ({ ...prev, [questionId]: value }))

@@ -14,6 +14,7 @@ type Props = {
   scaleLabels?: string[];
   value: number | null;
   disabled: boolean;
+  allowSkip?: boolean;
   onChange: (value: number | null) => void;
 };
 
@@ -24,11 +25,13 @@ export function Likert7Input({
   scaleLabels = [],
   value,
   disabled,
+  allowSkip = false,
   onChange,
 }: Props) {
   const size = clampLikertScaleSize(scaleSize);
   const labels = normalizeLikertScaleLabels(scaleLabels, size);
   const showDragHint = value != null && !disabled;
+  const showClear = allowSkip && value != null && !disabled;
 
   return (
     <div className="mt-4">
@@ -51,6 +54,18 @@ export function Likert7Input({
           />
         </div>
       </div>
+
+      {showClear ? (
+        <div className="mt-3 flex justify-center">
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
+          >
+            무응답
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
