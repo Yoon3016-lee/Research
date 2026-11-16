@@ -33,6 +33,8 @@ export default async function SiteLayout({
     }));
 
   const showAxi = canUseAxi(participant, homepage.axiAllowedRoles);
+  /** 직원은 설문 참여 화면에서 AXI를 쓰지 않음 (목록·홈 등에서는 유지) */
+  const hideAxiOnSurveyPaths = participant.mode === "staff";
 
   const shell = (
     <>
@@ -54,7 +56,12 @@ export default async function SiteLayout({
         style={{ ["--font-site-ui" as string]: homepage.siteNameFontFamily }}
       >
         {showAxi ? (
-          <AxiSiteHost axiIconUrl={homepage.axiIconUrl}>{shell}</AxiSiteHost>
+          <AxiSiteHost
+            axiIconUrl={homepage.axiIconUrl}
+            hideOnSurveyPaths={hideAxiOnSurveyPaths}
+          >
+            {shell}
+          </AxiSiteHost>
         ) : (
           shell
         )}

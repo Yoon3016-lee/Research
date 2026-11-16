@@ -1,10 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
+import { usePathname } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { useAxiSite } from "@/components/site/AxiSiteContext";
 import { AxiGuidePanel } from "@/components/site/AxiGuidePanel";
 import { AXI_OPEN_EVENT } from "@/lib/axi/open-event";
+
+function isSurveyParticipationPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return pathname === "/survey" || pathname.startsWith("/survey/");
+}
 
 const ICON_SIZE = 104; // 기존 80 × 1.3
 const EDGE_GAP = 20;
@@ -42,7 +48,9 @@ function readStoredPos(): Pos | null {
 }
 
 export function AxiFloatingLauncher() {
-  const { axiIconUrl, page } = useAxiSite();
+  const { axiIconUrl, hideOnSurveyPaths, page } = useAxiSite();
+  const pathname = usePathname();
+  const hiddenOnThisPage = hideOnSurveyPaths && isSurveyParticipationPath(pathname);
   const [pos, setPos] = useState<Pos>(defaultPos);
   const [open, setOpen] = useState(false);
   const [ready, setReady] = useState(false);
@@ -69,10 +77,14 @@ export function AxiFloatingLauncher() {
   }, []);
 
   useEffect(() => {
+    if (hiddenOnThisPage) {
+      setOpen(false);
+      return;
+    }
     const onOpen = () => setOpen(true);
     window.addEventListener(AXI_OPEN_EVENT, onOpen);
     return () => window.removeEventListener(AXI_OPEN_EVENT, onOpen);
-  }, []);
+  }, [hiddenOnThisPage]);
 
   const persist = useCallback((next: Pos) => {
     try {
@@ -128,7 +140,7 @@ export function AxiFloatingLauncher() {
     dragRef.current = null;
   };
 
-  if (!ready) return null;
+  if (!ready || hiddenOnThisPage) return null;
 
   return (
     <>

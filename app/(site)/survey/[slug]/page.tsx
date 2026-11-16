@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AxiSurveyContextBridge } from "@/components/site/AxiSiteContext";
 import { CatiStaffSurveySection } from "@/components/site/CatiStaffSurveySection";
-import { SurveyParticipantPanel } from "@/components/site/SurveyParticipantPanel";
 import { SiteContainer } from "@/components/site/SiteContainer";
 import { SurveyScriptCheckButton } from "@/components/site/SurveyScriptCheckButton";
 import { hasActiveCatiBatch } from "@/lib/cati-samples";
@@ -105,7 +104,9 @@ export default async function SurveyParticipatePage({ params }: Props) {
     participant.mode === "anonymous" ? null : participant.userId,
   );
 
-  const showAxi = canUseAxi(participant, homepage.axiAllowedRoles);
+  const showAxi =
+    participant.mode !== "staff" &&
+    canUseAxi(participant, homepage.axiAllowedRoles);
   let axiScriptContext = "";
   if (showAxi) {
     const scriptLoad = await loadSurveyResponseScript(survey.slug);
@@ -172,11 +173,6 @@ export default async function SurveyParticipatePage({ params }: Props) {
         </p>
       ) : (
         <div className="mt-8 space-y-6">
-          <SurveyParticipantPanel
-            key={participant.mode}
-            slug={survey.slug}
-            participant={participant}
-          />
           <CatiStaffSurveySection
             slug={survey.slug}
             survey={survey}

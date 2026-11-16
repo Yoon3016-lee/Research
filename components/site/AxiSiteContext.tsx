@@ -31,6 +31,8 @@ const EMPTY_CONTEXT: AxiPageContext = {
 
 type AxiSiteValue = {
   axiIconUrl: string | null;
+  /** 직원 등: /survey/* 참여 화면에서는 AXI를 숨김 */
+  hideOnSurveyPaths: boolean;
   page: AxiPageContext;
   setSurveyContext: (ctx: Omit<AxiPageContext, "mode"> | null) => void;
 };
@@ -39,9 +41,11 @@ const AxiSiteContext = createContext<AxiSiteValue | null>(null);
 
 export function AxiSiteProvider({
   axiIconUrl,
+  hideOnSurveyPaths = false,
   children,
 }: {
   axiIconUrl: string | null;
+  hideOnSurveyPaths?: boolean;
   children: ReactNode;
 }) {
   const [page, setPage] = useState<AxiPageContext>(EMPTY_CONTEXT);
@@ -61,8 +65,8 @@ export function AxiSiteProvider({
   }, []);
 
   const value = useMemo(
-    () => ({ axiIconUrl, page, setSurveyContext }),
-    [axiIconUrl, page, setSurveyContext],
+    () => ({ axiIconUrl, hideOnSurveyPaths, page, setSurveyContext }),
+    [axiIconUrl, hideOnSurveyPaths, page, setSurveyContext],
   );
 
   return <AxiSiteContext.Provider value={value}>{children}</AxiSiteContext.Provider>;
@@ -93,13 +97,15 @@ function AxiReadyMarker() {
 
 export function AxiSiteHost({
   axiIconUrl,
+  hideOnSurveyPaths = false,
   children,
 }: {
   axiIconUrl: string | null;
+  hideOnSurveyPaths?: boolean;
   children: ReactNode;
 }) {
   return (
-    <AxiSiteProvider axiIconUrl={axiIconUrl}>
+    <AxiSiteProvider axiIconUrl={axiIconUrl} hideOnSurveyPaths={hideOnSurveyPaths}>
       <AxiReadyMarker />
       {children}
       <AxiFloatingLauncher />
